@@ -1,6 +1,4 @@
-
-struct registers
-{
+struct Registers {
     a: u8,
     b: u8,
     c: u8,
@@ -11,7 +9,57 @@ struct registers
     l: u8
 }
 
+impl Registers {
+    fn get_bc(&self) -> u16 {
+        ((self.b as u16) << 8) | (self.c as u16)
+    }
+
+    fn set_bc(&mut self, value: u16) {
+        self.b = (value >> 8) as u8;
+        self.c = value as u8;
+    }
+
+    fn get_af(&self) -> u16 {
+        ((self.a as u16) << 8) | (self.f as u16)
+    }
+
+    fn set_af(&mut self, value: u16) {
+        self.a = (value >> 8) as u8;
+        self.f = value as u8;
+    }
+
+    fn get_de(&self) -> u16 {
+        ((self.d as u16) << 8) | (self.e as u16)
+    }
+
+    fn set_de(&mut self, value: u16) {
+        self.d = (value >> 8) as u8;
+        self.e = value as u8;
+    }
+}
+
 
 fn main() {
-    println!("Hello, world!");
+    println!("hello rustboy !");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bc() {
+        let mut regs = Registers { 
+            a: 10, 
+            b: 1, 
+            c: 3, 
+            d: 4, 
+            e: 5, 
+            f: 6, 
+            h: 7, 
+            l: 8
+        };
+        regs.set_bc(564);
+        assert_eq!(regs.get_bc(), 564);
+    }
 }
