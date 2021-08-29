@@ -62,4 +62,36 @@ mod tests {
         regs.set_bc(564);
         assert_eq!(regs.get_bc(), 564);
     }
+
+    #[test]
+    fn test_af() {
+        let mut regs = Registers { 
+            a: 10, 
+            b: 1, 
+            c: 3, 
+            d: 4, 
+            e: 5, 
+            f: 6, 
+            h: 7, 
+            l: 8
+        };
+        regs.set_af(623);
+        assert_eq!(regs.get_af(), 623);
+    }
+
+    #[test]
+    fn test_de() {
+        let mut regs = Registers { 
+            a: 10, 
+            b: 1, 
+            c: 3, 
+            d: 4, 
+            e: 5, 
+            f: 6, 
+            h: 7, 
+            l: 8
+        };
+        regs.set_de(754);
+        assert_eq!(regs.get_de(), 754);
+    }
 }
