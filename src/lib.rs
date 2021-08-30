@@ -1,3 +1,8 @@
+const ZERO_BIT: u8 = 7;
+const SUBSTRACTION_BIT: u8 = 6;
+const HALF_CARRY_BIT: u8 = 5;
+const CARRY_BIT: u8 = 4;
+
 pub struct Registers {
     a: u8,
     b: u8,
@@ -7,6 +12,31 @@ pub struct Registers {
     f: u8,
     h: u8,
     l: u8
+}
+
+struct FlagRegister {
+    zero: bool,
+    substraction: bool,
+    half_carry: bool,
+    carry: bool
+}
+
+impl std::convert::From<FlagRegister> for u8 {
+    fn from(flag: FlagRegister) -> u8 {
+        (if flag.zero {1} else {0}) << ZERO_BIT |
+        (if flag.substraction {1} else {0}) << SUBSTRACTION_BIT |
+        (if flag.half_carry {1} else {0}) << HALF_CARRY_BIT |
+        (if flag.carry {1} else {0}) << CARRY_BIT
+    }
+}
+
+impl std::convert::From<u8> for FlagRegister {
+    fn from(byte: u8) -> FlagRegister {
+        ((byte && 0x80) >> ZERO_BIT) |
+        ((byte && 0x40) >> SUBSTRACTION_BIT) |
+        ((byte && 0x20) >> HALF_CARRY_BIT) |
+        ((byte && 0x10) >> CARRY_BIT)
+    }
 }
 
 impl Registers {
@@ -54,8 +84,8 @@ mod tests {
             h: 7, 
             l: 8
         };
-        regs.set_bc(564);
-        assert_eq!(regs.get_bc(), 564);
+        regs.set_bc(0b0011_1000);
+        assert_eq!(regs.get_bc(), 0b0011_1000);
     }
 
     #[test]
@@ -70,8 +100,8 @@ mod tests {
             h: 7, 
             l: 8
         };
-        regs.set_af(623);
-        assert_eq!(regs.get_af(), 623);
+        regs.set_af(0b0010_1101);
+        assert_eq!(regs.get_af(), 0b0010_1101);
     }
 
     #[test]
@@ -86,7 +116,7 @@ mod tests {
             h: 7, 
             l: 8
         };
-        regs.set_de(754);
-        assert_eq!(regs.get_de(), 754);
+        regs.set_de(0b1010_1001);
+        assert_eq!(regs.get_de(), 0b1010_1001);
     }
 }
