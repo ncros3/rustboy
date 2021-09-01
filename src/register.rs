@@ -1,26 +1,37 @@
-use std::convert;
-
 const ZERO_BIT: u8 = 7;
 const SUBSTRACTION_BIT: u8 = 6;
 const HALF_CARRY_BIT: u8 = 5;
 const CARRY_BIT: u8 = 4;
 
+#[derive(Copy, Clone)]
+struct FlagRegister {
+    zero: bool,
+    substraction: bool,
+    half_carry: bool,
+    carry: bool,
+}
+
+impl FlagRegister {
+    fn new() -> FlagRegister {
+        FlagRegister {
+            zero: false,
+            substraction: false,
+            half_carry: false,
+            carry: false,
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
 pub struct Registers {
     a: u8,
     b: u8,
     c: u8,
     d: u8,
     e: u8,
-    f: u8,
+    f: FlagRegister,
     h: u8,
     l: u8,
-}
-
-struct FlagRegister {
-    zero: bool,
-    substraction: bool,
-    half_carry: bool,
-    carry: bool,
 }
 
 impl std::convert::From<FlagRegister> for u8 {
@@ -49,6 +60,19 @@ impl std::convert::From<u8> for FlagRegister {
 }
 
 impl Registers {
+    fn new() -> Registers {
+        Registers {
+            a: 0,
+            b: 0,
+            c: 0,
+            d: 0,
+            e: 0,
+            f: FlagRegister::new(),
+            h: 0,
+            l: 0,
+        }
+    }
+
     fn get_bc(&self) -> u16 {
         ((self.b as u16) << 8) | (self.c as u16)
     }
@@ -59,12 +83,12 @@ impl Registers {
     }
 
     fn get_af(&self) -> u16 {
-        ((self.a as u16) << 8) | (self.f as u16)
+        ((self.a as u16) << 8) | (u8::from(self.f) as u16)
     }
 
     fn set_af(&mut self, value: u16) {
         self.a = (value >> 8) as u8;
-        self.f = value as u8;
+        self.f = FlagRegister::from(value as u8);
     }
 
     fn get_de(&self) -> u16 {
@@ -83,50 +107,23 @@ mod tests {
 
     #[test]
     fn test_bc() {
-        let mut regs = Registers {
-            a: 10,
-            b: 1,
-            c: 3,
-            d: 4,
-            e: 5,
-            f: 6,
-            h: 7,
-            l: 8,
-        };
-        regs.set_bc(0b0011_1000);
-        assert_eq!(regs.get_bc(), 0b0011_1000);
+        let mut regs = Registers::new();
+        regs.set_bc(0b0011_1000_1010_0110);
+        assert_eq!(regs.get_bc(), 0b0011_1000_1010_0110);
     }
 
     #[test]
     fn test_af() {
-        let mut regs = Registers {
-            a: 10,
-            b: 1,
-            c: 3,
-            d: 4,
-            e: 5,
-            f: 6,
-            h: 7,
-            l: 8,
-        };
-        regs.set_af(0b0010_1101);
-        assert_eq!(regs.get_af(), 0b0010_1101);
+        let mut regs = Registers::new();
+        regs.set_af(0b0011_1000_1010_0000);
+        assert_eq!(regs.get_af(), 0b0011_1000_1010_0000);
     }
 
     #[test]
     fn test_de() {
-        let mut regs = Registers {
-            a: 10,
-            b: 1,
-            c: 3,
-            d: 4,
-            e: 5,
-            f: 6,
-            h: 7,
-            l: 8,
-        };
-        regs.set_de(0b1010_1001);
-        assert_eq!(regs.get_de(), 0b1010_1001);
+        let mut regs = Registers::new();
+        regs.set_de(0b0011_1000_1010_0110);
+        assert_eq!(regs.get_de(), 0b0011_1000_1010_0110);
     }
 
     #[test]
