@@ -1,11 +1,32 @@
 mod register;
 
 struct Cpu {
-    registers: Registers;
-};
+    registers: Registers,
+    pc: u16,
+    bus: MemoryBus,
+}
+
+struct MemoryBus {
+    memory: [u8, 0xFFFF]
+}
+
+impl MemoryBus {
+    fn read_byte (&self, address: u16) -> u8 {
+        self.memory[address]
+    }
+}
 
 enum Instruction {
     ADD(ArithmeticTarget),
+}
+
+impl Instruction {
+    fn from_byte(byte: u8) -> Option<Instruction> {
+        match byte {
+            0x80 => Some(Instruction::ADD(ArithmeticTarget::B)),
+            _ => None
+        }
+    }
 }
 
 enum ArithmeticTarget {
@@ -19,7 +40,18 @@ enum ArithmeticTarget {
 }
 
 impl Cpu {
-    fn execute(&mut self, instruction: Instruction) {
+
+    fn step(&mut self) {
+        let instruction_byte = self.bus.read_byte(self.pc);
+
+        let next_pc = if let Some(instruction) = instruction::from_byte(instruction_byte) {
+            self.execute(instruction)
+        } else {
+            panic!("Unknown instruction found for 0x{:x}", instruction_byte)
+        }
+    }
+
+    fn execute(&mut self, instruction: Instruction) -> u16 {
         match instruction {
             Instruction::ADD(target) => {
                 match target => {
@@ -28,14 +60,17 @@ impl Cpu {
                         let new_value = self.add(value);
                         self.registers.a = new_value;
 
+                        self.pc.wrapping_add(1)
                     }
                     _ => {
-
+                        // TODO: support more targets
+                        self.pc
                     }
                 }
             }
             _ => {
-
+                // TODO: support more instructions
+                self.pc
             }
         }
     }
