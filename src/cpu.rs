@@ -82,7 +82,7 @@ impl Cpu {
         }
     }
 
-    fn add(&mut self, value: u8) {
+    fn add(&mut self, value: u8) -> u8 {
         let (new_value, overflow) = self.registers.a.overflowing_add(value);
         self.registers.f.zero = new_value == 0;
         self.registers.f.substraction = false;
