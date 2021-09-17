@@ -73,31 +73,40 @@ impl Registers {
         }
     }
 
-    fn get_bc(&self) -> u16 {
+    fn read_bc(&self) -> u16 {
         ((self.b as u16) << 8) | (self.c as u16)
     }
 
-    fn set_bc(&mut self, value: u16) {
+    fn write_bc(&mut self, value: u16) {
         self.b = (value >> 8) as u8;
         self.c = value as u8;
     }
 
-    fn get_af(&self) -> u16 {
+    fn read_af(&self) -> u16 {
         ((self.a as u16) << 8) | (u8::from(self.f) as u16)
     }
 
-    fn set_af(&mut self, value: u16) {
+    fn write_af(&mut self, value: u16) {
         self.a = (value >> 8) as u8;
         self.f = FlagRegister::from(value as u8);
     }
 
-    fn get_de(&self) -> u16 {
+    fn read_de(&self) -> u16 {
         ((self.d as u16) << 8) | (self.e as u16)
     }
 
-    fn set_de(&mut self, value: u16) {
+    fn write_de(&mut self, value: u16) {
         self.d = (value >> 8) as u8;
         self.e = value as u8;
+    }
+
+    fn read_hl(&self) -> u16 {
+        ((self.h as u16) << 8) | (self.l as u16)
+    }
+
+    fn write_hl(&mut self, value: u16) {
+        self.h = (value >> 8) as u8;
+        self.l = value as u8;
     }
 }
 
@@ -108,22 +117,22 @@ mod tests {
     #[test]
     fn test_bc() {
         let mut regs = Registers::new();
-        regs.set_bc(0b0011_1000_1010_0110);
-        assert_eq!(regs.get_bc(), 0b0011_1000_1010_0110);
+        regs.write_bc(0b0011_1000_1010_0110);
+        assert_eq!(regs.read_bc(), 0b0011_1000_1010_0110);
     }
 
     #[test]
     fn test_af() {
         let mut regs = Registers::new();
-        regs.set_af(0b0011_1000_1010_0000);
-        assert_eq!(regs.get_af(), 0b0011_1000_1010_0000);
+        regs.write_af(0b0011_1000_1010_0000);
+        assert_eq!(regs.read_af(), 0b0011_1000_1010_0000);
     }
 
     #[test]
     fn test_de() {
         let mut regs = Registers::new();
-        regs.set_de(0b0011_1000_1010_0110);
-        assert_eq!(regs.get_de(), 0b0011_1000_1010_0110);
+        regs.write_de(0b0011_1000_1010_0110);
+        assert_eq!(regs.read_de(), 0b0011_1000_1010_0110);
     }
 
     #[test]
