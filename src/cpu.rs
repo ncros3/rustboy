@@ -17,6 +17,8 @@ impl Cpu {
         let next_pc = if let Some(instruction) = instruction::from_byte(instruction_byte) {
             // execute instruction
             self.execute(instruction)
+            // modulo operation to avoid overflowing effects
+            self.pc.wrapping_add(1)
         } else {
             panic!("Unknown instruction found for 0x{:x}", instruction_byte)
         }
@@ -30,50 +32,42 @@ impl Cpu {
                         let value = self.registers.a;
                         let new_value = self.add(value);
                         self.registers.a = new_value;
-                        // modulo operation to avoid overflowing effects
-                        self.pc.wrapping_add(1)
                     }
                     ArithmeticTarget::B => {
                         let value = self.registers.b;
                         let new_value = self.add(value);
                         self.registers.a = new_value;
-                        // modulo operation to avoid overflowing effects
-                        self.pc.wrapping_add(1)
                     }
                     ArithmeticTarget::C => {
                         let value = self.registers.c;
                         let new_value = self.add(value);
                         self.registers.a = new_value;
-                        // modulo operation to avoid overflowing effects
-                        self.pc.wrapping_add(1)
                     }
                     ArithmeticTarget::D => {
                         let value = self.registers.d;
                         let new_value = self.add(value);
                         self.registers.a = new_value;
-                        // modulo operation to avoid overflowing effects
-                        self.pc.wrapping_add(1)
                     }
                     ArithmeticTarget::E => {
                         let value = self.registers.e;
                         let new_value = self.add(value);
                         self.registers.a = new_value;
-                        // modulo operation to avoid overflowing effects
-                        self.pc.wrapping_add(1)
                     }
                     ArithmeticTarget::H => {
                         let value = self.registers.h;
                         let new_value = self.add(value);
                         self.registers.a = new_value;
-                        // modulo operation to avoid overflowing effects
-                        self.pc.wrapping_add(1)
                     }
                     ArithmeticTarget::L => {
                         let value = self.registers.l;
                         let new_value = self.add(value);
                         self.registers.a = new_value;
-                        // modulo operation to avoid overflowing effects
-                        self.pc.wrapping_add(1)
+                    }
+                    ArithmeticTarget::HL => {
+                        let address = self.registers.read_hl();
+                        let value = self.bus.read_byte(address);
+                        let new_value = self.add(value);
+                        self.registers.a = new_value;
                     }
                     _ => {
                         // TODO: support more targets
