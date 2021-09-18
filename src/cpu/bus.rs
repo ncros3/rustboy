@@ -17,3 +17,19 @@ impl Bus {
         self.memory[address as usize] = data;
     }
 }
+
+#[cfg(test)]
+mod bus_tests {
+    use super::*;
+
+    #[test]
+    fn test_read_write_bus() {
+        let mut bus = Bus::new();
+        bus.write_byte(0x0001, 0xAA);
+        bus.write_byte(0x0002, 0x55);
+        bus.write_byte(0x0010, 0xAA);
+        assert_eq!(bus.read_byte(0x0001), 0xAA);
+        assert_eq!(bus.read_byte(0x0002), 0x55);
+        assert_eq!(bus.read_byte(0x0010), 0xAA);
+    }
+}
