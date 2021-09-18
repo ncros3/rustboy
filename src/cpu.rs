@@ -113,7 +113,7 @@ mod cpu_tests {
     use crate::cpu::instruction::Instruction::ADD;
 
     #[test]
-    fn test_add() {
+    fn test_add_registers() {
         let mut cpu = Cpu::new();
         cpu.registers.write_bc(0b0011_1000_1010_0110);
         cpu.execute(ADD(B));
