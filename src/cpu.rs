@@ -110,6 +110,7 @@ impl Cpu {
 mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::B;
+    use crate::cpu::instruction::ArithmeticTarget::HL;
     use crate::cpu::instruction::Instruction::ADD;
 
     #[test]
@@ -118,5 +119,17 @@ mod cpu_tests {
         cpu.registers.write_bc(0b0011_1000_1010_0110);
         cpu.execute(ADD(B));
         assert_eq!(cpu.registers.read_af(), 0b0011_1000_0000_0000);
+    }
+
+    #[test]
+    fn test_add_memory() {
+        let mut cpu = Cpu::new();
+        let address = 0x1234;
+        let data = 0xAA;
+
+        cpu.bus.write_byte(address, data);
+        cpu.registers.write_hl(address);
+        cpu.execute(ADD(HL));
+        assert_eq!(cpu.registers.read_af(), 0xAA00);
     }
 }
