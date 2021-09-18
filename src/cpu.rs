@@ -1,33 +1,46 @@
-mod register;
-mod instruction;
 mod bus;
+mod instruction;
+mod register;
 
-struct Cpu {
+use bus::Bus;
+use instruction::{ArithmeticTarget, Instruction};
+use register::Registers;
+
+pub struct Cpu {
     registers: Registers,
     pc: u16,
-    bus: MemoryBus,
+    sp: u16,
+    bus: Bus,
 }
 
 impl Cpu {
+    pub fn new() -> Cpu {
+        Cpu {
+            registers: Registers::new(),
+            pc: 0x0000,
+            sp: 0x0000,
+            bus: Bus::new(),
+        }
+    }
 
     fn run(&mut self) {
         // fetch instruction
         let instruction_byte = self.bus.read_byte(self.pc);
         // decode instruction
-        let next_pc = if let Some(instruction) = instruction::from_byte(instruction_byte) {
+        let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte) {
             // execute instruction
-            self.execute(instruction)
+            self.execute(instruction);
             // modulo operation to avoid overflowing effects
-            self.pc.wrapping_add(1)
+            self.pc.wrapping_add(1);
         } else {
-            panic!("Unknown instruction found for 0x{:x}", instruction_byte)
-        }
+            panic!("Unknown instruction found for 0x{:x}", instruction_byte);
+        };
     }
 
-    fn execute(&mut self, instruction: Instruction) -> u16 {
+    fn execute(&mut self, instruction: Instruction) {
         match instruction {
             Instruction::ADD(target) => {
-                match target => {
+                match target {
                     ArithmeticTarget::A => {
                         let value = self.registers.a;
                         let new_value = self.add(value);
@@ -71,13 +84,11 @@ impl Cpu {
                     }
                     _ => {
                         // TODO: support more targets
-                        self.pc
                     }
                 }
             }
             _ => {
                 // TODO: support more instructions
-                self.pc
             }
         }
     }
@@ -92,5 +103,20 @@ impl Cpu {
         // than the addition caused a carry from the lower nibble to the upper nibble.
         self.registers.f.half_carry = (self.registers.a & 0xF) + (value & 0xF) > 0xF;
         new_value
+    }
+}
+
+#[cfg(test)]
+mod cpu_tests {
+    use super::*;
+    use crate::cpu::instruction::ArithmeticTarget::B;
+    use crate::cpu::instruction::Instruction::ADD;
+
+    #[test]
+    fn test_add() {
+        let mut cpu = Cpu::new();
+        cpu.registers.write_bc(0b0011_1000_1010_0110);
+        cpu.execute(ADD(B));
+        assert_eq!(cpu.registers.read_af(), 0b0011_1000_0000_0000);
     }
 }

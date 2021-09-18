@@ -4,11 +4,11 @@ const HALF_CARRY_BIT: u8 = 5;
 const CARRY_BIT: u8 = 4;
 
 #[derive(Copy, Clone)]
-struct FlagRegister {
-    zero: bool,
-    substraction: bool,
-    half_carry: bool,
-    carry: bool,
+pub struct FlagRegister {
+    pub zero: bool,
+    pub substraction: bool,
+    pub half_carry: bool,
+    pub carry: bool,
 }
 
 impl FlagRegister {
@@ -20,18 +20,6 @@ impl FlagRegister {
             carry: false,
         }
     }
-}
-
-#[derive(Copy, Clone)]
-pub struct Registers {
-    a: u8,
-    b: u8,
-    c: u8,
-    d: u8,
-    e: u8,
-    f: FlagRegister,
-    h: u8,
-    l: u8,
 }
 
 impl std::convert::From<FlagRegister> for u8 {
@@ -59,8 +47,20 @@ impl std::convert::From<u8> for FlagRegister {
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct Registers {
+    pub a: u8,
+    pub b: u8,
+    pub c: u8,
+    pub d: u8,
+    pub e: u8,
+    pub f: FlagRegister,
+    pub h: u8,
+    pub l: u8,
+}
+
 impl Registers {
-    fn new() -> Registers {
+    pub fn new() -> Registers {
         Registers {
             a: 0,
             b: 0,
@@ -73,45 +73,45 @@ impl Registers {
         }
     }
 
-    fn read_bc(&self) -> u16 {
+    pub fn read_bc(&self) -> u16 {
         ((self.b as u16) << 8) | (self.c as u16)
     }
 
-    fn write_bc(&mut self, value: u16) {
+    pub fn write_bc(&mut self, value: u16) {
         self.b = (value >> 8) as u8;
         self.c = value as u8;
     }
 
-    fn read_af(&self) -> u16 {
+    pub fn read_af(&self) -> u16 {
         ((self.a as u16) << 8) | (u8::from(self.f) as u16)
     }
 
-    fn write_af(&mut self, value: u16) {
+    pub fn write_af(&mut self, value: u16) {
         self.a = (value >> 8) as u8;
         self.f = FlagRegister::from(value as u8);
     }
 
-    fn read_de(&self) -> u16 {
+    pub fn read_de(&self) -> u16 {
         ((self.d as u16) << 8) | (self.e as u16)
     }
 
-    fn write_de(&mut self, value: u16) {
+    pub fn write_de(&mut self, value: u16) {
         self.d = (value >> 8) as u8;
         self.e = value as u8;
     }
 
-    fn read_hl(&self) -> u16 {
+    pub fn read_hl(&self) -> u16 {
         ((self.h as u16) << 8) | (self.l as u16)
     }
 
-    fn write_hl(&mut self, value: u16) {
+    pub fn write_hl(&mut self, value: u16) {
         self.h = (value >> 8) as u8;
         self.l = value as u8;
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod registers_tests {
     use super::*;
 
     #[test]

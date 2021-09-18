@@ -1,4 +1,4 @@
-enum ArithmeticTarget {
+pub enum ArithmeticTarget {
     A,
     B,
     C,
@@ -9,13 +9,13 @@ enum ArithmeticTarget {
     HL,
 }
 
-enum Instruction {
+pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
 }
 
 impl Instruction {
-    fn from_byte(byte: u8) -> Option<Instruction> {
+    pub fn from_byte(byte: u8) -> Option<Instruction> {
         match byte {
             // ADD
             0x80 => Some(Instruction::ADD(ArithmeticTarget::B)),
