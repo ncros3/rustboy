@@ -85,12 +85,8 @@ impl Cpu {
         match instruction {
             Instruction::ADD(target) => arithmetic_instruction!(target, self.add),
             Instruction::ADDC(target) => arithmetic_instruction!(target, self.addc),
-            Instruction::SUB(target) => self.pc,
-            Instruction::SBC(target) => self.pc,
-            _ => {
-                // TODO: support more instructions
-                self.pc
-            }
+            Instruction::SUB(target) => arithmetic_instruction!(target, self.sub),
+            Instruction::SBC(target) => arithmetic_instruction!(target, self.subc),
         }
     }
 
@@ -107,8 +103,8 @@ impl Cpu {
     }
 
     fn addc(&mut self, value: u8) -> u8 {
-        let (intermediate_value, first_overflow) =
-            value.overflowing_add(self.registers.f.carry as u8);
+        let carry = self.registers.f.carry as u8;
+        let (intermediate_value, first_overflow) = value.overflowing_add(carry as u8);
         let (new_value, second_overflow) = self.registers.a.overflowing_add(intermediate_value);
         self.registers.f.zero = new_value == 0;
         self.registers.f.substraction = false;
@@ -116,7 +112,33 @@ impl Cpu {
         // Half Carry is set if adding the lower bits of the value and register A
         // together result in a value bigger than 0xF. If the result is larger than 0xF
         // than the addition caused a carry from the lower nibble to the upper nibble.
-        self.registers.f.half_carry = (self.registers.a & 0xF) + (intermediate_value & 0xF) > 0xF;
+        self.registers.f.half_carry = (self.registers.a & 0xF) + (value & 0xF) + carry > 0xF;
+        new_value
+    }
+
+    fn sub(&mut self, value: u8) -> u8 {
+        let (new_value, overflow) = self.registers.a.overflowing_sub(value);
+        self.registers.f.zero = new_value == 0;
+        self.registers.f.substraction = false;
+        self.registers.f.carry = overflow;
+        // Half Carry is set if adding the lower bits of the value and register A
+        // together result in a value bigger than 0xF. If the result is larger than 0xF
+        // than the addition caused a carry from the lower nibble to the upper nibble.
+        self.registers.f.half_carry = (self.registers.a & 0xF) < (value & 0xF);
+        new_value
+    }
+
+    fn subc(&mut self, value: u8) -> u8 {
+        let carry = self.registers.f.carry as u8;
+        let (intermediate_value, first_overflow) = value.overflowing_sub(carry);
+        let (new_value, second_overflow) = self.registers.a.overflowing_sub(intermediate_value);
+        self.registers.f.zero = new_value == 0;
+        self.registers.f.substraction = true;
+        self.registers.f.carry = first_overflow || second_overflow;
+        // Half Carry is set if adding the lower bits of the value and register A
+        // together result in a value bigger than 0xF. If the result is larger than 0xF
+        // than the addition caused a carry from the lower nibble to the upper nibble.
+        self.registers.f.half_carry = (self.registers.a & 0xF) < (value & 0xF) + carry;
         new_value
     }
 }
@@ -124,8 +146,8 @@ impl Cpu {
 #[cfg(test)]
 mod cpu_tests {
     use super::*;
-    use crate::cpu::instruction::ArithmeticTarget::{B, D8, HL};
-    use crate::cpu::instruction::Instruction::{ADD, ADDC};
+    use crate::cpu::instruction::ArithmeticTarget::{B, C, D8, HL};
+    use crate::cpu::instruction::Instruction::{ADD, ADDC, SBC, SUB};
 
     #[test]
     fn test_add_registers() {
@@ -170,7 +192,7 @@ mod cpu_tests {
         cpu.registers.write_af(0x0110);
         cpu.registers.write_bc(0xFF00);
         cpu.execute(ADDC(B));
-        assert_eq!(cpu.registers.read_af(), 0x0110);
+        assert_eq!(cpu.registers.read_af(), 0x0130);
     }
 
     #[test]
@@ -195,5 +217,23 @@ mod cpu_tests {
         cpu.registers.write_af(0x0110);
         cpu.execute(ADDC(D8));
         assert_eq!(cpu.registers.read_af(), 0x2500);
+    }
+
+    #[test]
+    fn test_sub_registers() {
+        let mut cpu = Cpu::new();
+        cpu.registers.write_bc(0xAABB);
+        cpu.registers.write_af(0xFF00);
+        cpu.execute(SUB(C));
+        assert_eq!(cpu.registers.read_af(), 0x4400);
+    }
+
+    #[test]
+    fn test_subc_registers() {
+        let mut cpu = Cpu::new();
+        cpu.registers.write_bc(0xAABB);
+        cpu.registers.write_af(0xFF10);
+        cpu.execute(SBC(C));
+        assert_eq!(cpu.registers.read_af(), 0x4540);
     }
 }
