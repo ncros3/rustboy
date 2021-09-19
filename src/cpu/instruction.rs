@@ -12,6 +12,8 @@ pub enum ArithmeticTarget {
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
+    SUB(ArithmeticTarget),
+    SBC(ArithmeticTarget),
 }
 
 impl Instruction {
@@ -36,6 +38,26 @@ impl Instruction {
             0x8D => Some(Instruction::ADDC(ArithmeticTarget::L)),
             0x8E => Some(Instruction::ADDC(ArithmeticTarget::HL)),
             0x8F => Some(Instruction::ADDC(ArithmeticTarget::A)),
+
+            // SUB
+            0x90 => Some(Instruction::SUB(ArithmeticTarget::B)),
+            0x91 => Some(Instruction::SUB(ArithmeticTarget::C)),
+            0x92 => Some(Instruction::SUB(ArithmeticTarget::D)),
+            0x93 => Some(Instruction::SUB(ArithmeticTarget::E)),
+            0x94 => Some(Instruction::SUB(ArithmeticTarget::H)),
+            0x95 => Some(Instruction::SUB(ArithmeticTarget::L)),
+            0x96 => Some(Instruction::SUB(ArithmeticTarget::HL)),
+            0x97 => Some(Instruction::SUB(ArithmeticTarget::A)),
+
+            // SBC
+            0x98 => Some(Instruction::SBC(ArithmeticTarget::B)),
+            0x99 => Some(Instruction::SBC(ArithmeticTarget::C)),
+            0x9A => Some(Instruction::SBC(ArithmeticTarget::D)),
+            0x9B => Some(Instruction::SBC(ArithmeticTarget::E)),
+            0x9C => Some(Instruction::SBC(ArithmeticTarget::H)),
+            0x9D => Some(Instruction::SBC(ArithmeticTarget::L)),
+            0x9E => Some(Instruction::SBC(ArithmeticTarget::HL)),
+            0x9F => Some(Instruction::SBC(ArithmeticTarget::A)),
 
             _ => None,
         }
