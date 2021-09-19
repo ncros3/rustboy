@@ -119,7 +119,7 @@ impl Cpu {
     fn sub(&mut self, value: u8) -> u8 {
         let (new_value, overflow) = self.registers.a.overflowing_sub(value);
         self.registers.f.zero = new_value == 0;
-        self.registers.f.substraction = false;
+        self.registers.f.substraction = true;
         self.registers.f.carry = overflow;
         // Half Carry is set if adding the lower bits of the value and register A
         // together result in a value bigger than 0xF. If the result is larger than 0xF
@@ -225,7 +225,7 @@ mod cpu_tests {
         cpu.registers.write_bc(0xAABB);
         cpu.registers.write_af(0xFF00);
         cpu.execute(SUB(C));
-        assert_eq!(cpu.registers.read_af(), 0x4400);
+        assert_eq!(cpu.registers.read_af(), 0x4440);
     }
 
     #[test]
