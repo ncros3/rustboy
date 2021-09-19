@@ -6,6 +6,34 @@ use bus::Bus;
 use instruction::{ArithmeticTarget, Instruction};
 use register::Registers;
 
+macro_rules! run_instruction_in_register {
+    ($register: ident, $self:ident, $instruction:ident) => {{
+        let value = $self.registers.$register;
+        let new_value = $self.$instruction(value);
+        $self.registers.a = new_value;
+    }};
+}
+
+macro_rules! arithmetic_instruction {
+    ($target: ident, $self:ident.$instruction:ident) => {{
+        match $target {
+            ArithmeticTarget::A => run_instruction_in_register!(a, $self, $instruction),
+            ArithmeticTarget::B => run_instruction_in_register!(b, $self, $instruction),
+            ArithmeticTarget::C => run_instruction_in_register!(c, $self, $instruction),
+            ArithmeticTarget::D => run_instruction_in_register!(d, $self, $instruction),
+            ArithmeticTarget::E => run_instruction_in_register!(e, $self, $instruction),
+            ArithmeticTarget::H => run_instruction_in_register!(h, $self, $instruction),
+            ArithmeticTarget::L => run_instruction_in_register!(l, $self, $instruction),
+            ArithmeticTarget::HL => {
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                let new_value = $self.$instruction(value);
+                $self.registers.a = new_value;
+            }
+        }
+    }};
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -39,103 +67,10 @@ impl Cpu {
 
     fn execute(&mut self, instruction: Instruction) {
         match instruction {
-            Instruction::ADD(target) => {
-                match target {
-                    ArithmeticTarget::A => {
-                        let value = self.registers.a;
-                        let new_value = self.add(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::B => {
-                        let value = self.registers.b;
-                        let new_value = self.add(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::C => {
-                        let value = self.registers.c;
-                        let new_value = self.add(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::D => {
-                        let value = self.registers.d;
-                        let new_value = self.add(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::E => {
-                        let value = self.registers.e;
-                        let new_value = self.add(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::H => {
-                        let value = self.registers.h;
-                        let new_value = self.add(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::L => {
-                        let value = self.registers.l;
-                        let new_value = self.add(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::HL => {
-                        let address = self.registers.read_hl();
-                        let value = self.bus.read_byte(address);
-                        let new_value = self.add(value);
-                        self.registers.a = new_value;
-                    }
-                    _ => {
-                        // TODO: support more targets
-                    }
-                }
-            }
-
-            Instruction::ADDC(target) => {
-                match target {
-                    ArithmeticTarget::A => {
-                        let value = self.registers.a;
-                        let new_value = self.addc(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::B => {
-                        let value = self.registers.b;
-                        let new_value = self.addc(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::C => {
-                        let value = self.registers.c;
-                        let new_value = self.addc(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::D => {
-                        let value = self.registers.d;
-                        let new_value = self.addc(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::E => {
-                        let value = self.registers.e;
-                        let new_value = self.addc(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::H => {
-                        let value = self.registers.h;
-                        let new_value = self.addc(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::L => {
-                        let value = self.registers.l;
-                        let new_value = self.addc(value);
-                        self.registers.a = new_value;
-                    }
-                    ArithmeticTarget::HL => {
-                        let address = self.registers.read_hl();
-                        let value = self.bus.read_byte(address);
-                        let new_value = self.addc(value);
-                        self.registers.a = new_value;
-                    }
-                    _ => {
-                        // TODO: support more targets
-                    }
-                }
-            }
+            Instruction::ADD(target) => arithmetic_instruction!(target, self.add),
+            Instruction::ADDC(target) => arithmetic_instruction!(target, self.addc),
+            Instruction::SUB(target) => {}
+            Instruction::SBC(target) => {}
             _ => {
                 // TODO: support more instructions
             }
