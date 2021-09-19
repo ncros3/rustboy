@@ -11,6 +11,9 @@ macro_rules! run_instruction_in_register {
         let value = $self.registers.$register;
         let new_value = $self.$instruction(value);
         $self.registers.a = new_value;
+        // compute next PC value
+        // modulo operation to avoid overflowing effects
+        $self.pc.wrapping_add(1)
     }};
 }
 
@@ -29,6 +32,18 @@ macro_rules! arithmetic_instruction {
                 let value = $self.bus.read_byte(address);
                 let new_value = $self.$instruction(value);
                 $self.registers.a = new_value;
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            ArithmeticTarget::D8 => {
+                let address = $self.pc.wrapping_add(1);
+                let value = $self.bus.read_byte(address);
+                let new_value = $self.$instruction(value);
+                $self.registers.a = new_value;
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(2)
             }
         }
     }};
@@ -57,22 +72,24 @@ impl Cpu {
         // decode instruction
         let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte) {
             // execute instruction
-            self.execute(instruction);
-            // modulo operation to avoid overflowing effects
-            self.pc.wrapping_add(1);
+            self.execute(instruction)
         } else {
             panic!("Unknown instruction found for 0x{:x}", instruction_byte);
         };
+
+        // update PC value
+        self.pc = next_pc;
     }
 
-    fn execute(&mut self, instruction: Instruction) {
+    fn execute(&mut self, instruction: Instruction) -> u16 {
         match instruction {
             Instruction::ADD(target) => arithmetic_instruction!(target, self.add),
             Instruction::ADDC(target) => arithmetic_instruction!(target, self.addc),
-            Instruction::SUB(target) => {}
-            Instruction::SBC(target) => {}
+            Instruction::SUB(target) => self.pc,
+            Instruction::SBC(target) => self.pc,
             _ => {
                 // TODO: support more instructions
+                self.pc
             }
         }
     }
@@ -107,10 +124,8 @@ impl Cpu {
 #[cfg(test)]
 mod cpu_tests {
     use super::*;
-    use crate::cpu::instruction::ArithmeticTarget::B;
-    use crate::cpu::instruction::ArithmeticTarget::HL;
-    use crate::cpu::instruction::Instruction::ADD;
-    use crate::cpu::instruction::Instruction::ADDC;
+    use crate::cpu::instruction::ArithmeticTarget::{B, D8, HL};
+    use crate::cpu::instruction::Instruction::{ADD, ADDC};
 
     #[test]
     fn test_add_registers() {
@@ -130,6 +145,17 @@ mod cpu_tests {
         cpu.registers.write_hl(address);
         cpu.execute(ADD(HL));
         assert_eq!(cpu.registers.read_af(), 0xAA00);
+    }
+
+    #[test]
+    fn test_add_immediate() {
+        let mut cpu = Cpu::new();
+        let address = 0x0001;
+        let data = 0x23;
+
+        cpu.bus.write_byte(address, data);
+        cpu.execute(ADD(D8));
+        assert_eq!(cpu.registers.read_af(), 0x2300);
     }
 
     #[test]
@@ -157,5 +183,17 @@ mod cpu_tests {
         cpu.registers.write_hl(address);
         cpu.execute(ADDC(HL));
         assert_eq!(cpu.registers.read_af(), 0xAA00);
+    }
+
+    #[test]
+    fn test_addc_immediate() {
+        let mut cpu = Cpu::new();
+        let address = 0x0001;
+        let data = 0x23;
+
+        cpu.bus.write_byte(address, data);
+        cpu.registers.write_af(0x0110);
+        cpu.execute(ADDC(D8));
+        assert_eq!(cpu.registers.read_af(), 0x2500);
     }
 }
