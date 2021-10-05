@@ -90,6 +90,7 @@ impl Cpu {
             Instruction::AND(target) => arithmetic_instruction!(target, self.and),
             Instruction::XOR(target) => arithmetic_instruction!(target, self.xor),
             Instruction::OR(target) => arithmetic_instruction!(target, self.or),
+            Instruction::CP(target) => arithmetic_instruction!(target, self.cp),
         }
     }
 
@@ -171,13 +172,22 @@ impl Cpu {
         self.registers.f.carry = false;
         new_value
     }
+
+    fn cp(&mut self, value: u8) -> u8 {
+        let new_value = self.registers.a;
+        self.registers.f.zero = self.registers.a == value;
+        self.registers.f.substraction = true;
+        self.registers.f.half_carry = (self.registers.a & 0xF) < (value & 0xF);
+        self.registers.f.carry = self.registers.a < value;
+        new_value
+    }
 }
 
 #[cfg(test)]
 mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D8, HL};
-    use crate::cpu::instruction::Instruction::{ADD, ADDC, AND, OR, SBC, SUB, XOR};
+    use crate::cpu::instruction::Instruction::{ADD, ADDC, AND, CP, OR, SBC, SUB, XOR};
 
     #[test]
     fn test_add_registers() {
@@ -292,5 +302,20 @@ mod cpu_tests {
         cpu.registers.write_af(0x2100);
         cpu.execute(OR(C));
         assert_eq!(cpu.registers.read_af(), 0x2300);
+    }
+
+    #[test]
+    fn test_cp_registers() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.write_bc(0x0022);
+        cpu.registers.write_af(0x2200);
+        cpu.execute(CP(C));
+        assert_eq!(cpu.registers.read_af(), 0x22C0);
+
+        cpu.registers.write_bc(0x0033);
+        cpu.registers.write_af(0x2200);
+        cpu.execute(CP(C));
+        assert_eq!(cpu.registers.read_af(), 0x2270);
     }
 }
