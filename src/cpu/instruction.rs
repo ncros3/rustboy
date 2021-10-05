@@ -15,6 +15,8 @@ pub enum Instruction {
     ADDC(ArithmeticTarget),
     SUB(ArithmeticTarget),
     SBC(ArithmeticTarget),
+    AND(ArithmeticTarget),
+    OR(ArithmeticTarget),
 }
 
 impl Instruction {
@@ -63,6 +65,28 @@ impl Instruction {
             0x9E => Some(Instruction::SBC(ArithmeticTarget::HL)),
             0x9F => Some(Instruction::SBC(ArithmeticTarget::A)),
             0xDE => Some(Instruction::SBC(ArithmeticTarget::D8)),
+
+            // AND
+            0xA0 => Some(Instruction::AND(ArithmeticTarget::B)),
+            0xA1 => Some(Instruction::AND(ArithmeticTarget::C)),
+            0xA2 => Some(Instruction::AND(ArithmeticTarget::D)),
+            0xA3 => Some(Instruction::AND(ArithmeticTarget::E)),
+            0xA4 => Some(Instruction::AND(ArithmeticTarget::H)),
+            0xA5 => Some(Instruction::AND(ArithmeticTarget::L)),
+            0xA6 => Some(Instruction::AND(ArithmeticTarget::HL)),
+            0xA7 => Some(Instruction::AND(ArithmeticTarget::A)),
+            0xE6 => Some(Instruction::AND(ArithmeticTarget::D8)),
+
+            // OR
+            0xB0 => Some(Instruction::OR(ArithmeticTarget::B)),
+            0xB1 => Some(Instruction::OR(ArithmeticTarget::C)),
+            0xB2 => Some(Instruction::OR(ArithmeticTarget::D)),
+            0xB3 => Some(Instruction::OR(ArithmeticTarget::E)),
+            0xB4 => Some(Instruction::OR(ArithmeticTarget::H)),
+            0xB5 => Some(Instruction::OR(ArithmeticTarget::L)),
+            0xB6 => Some(Instruction::OR(ArithmeticTarget::HL)),
+            0xB7 => Some(Instruction::OR(ArithmeticTarget::A)),
+            0xF6 => Some(Instruction::OR(ArithmeticTarget::D8)),
 
             _ => None,
         }
