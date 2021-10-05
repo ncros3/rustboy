@@ -17,6 +17,7 @@ pub enum Instruction {
     SBC(ArithmeticTarget),
     AND(ArithmeticTarget),
     OR(ArithmeticTarget),
+    XOR(ArithmeticTarget),
 }
 
 impl Instruction {
@@ -76,6 +77,17 @@ impl Instruction {
             0xA6 => Some(Instruction::AND(ArithmeticTarget::HL)),
             0xA7 => Some(Instruction::AND(ArithmeticTarget::A)),
             0xE6 => Some(Instruction::AND(ArithmeticTarget::D8)),
+
+            // XOR
+            0xA8 => Some(Instruction::XOR(ArithmeticTarget::B)),
+            0xA9 => Some(Instruction::XOR(ArithmeticTarget::C)),
+            0xAA => Some(Instruction::XOR(ArithmeticTarget::D)),
+            0xAB => Some(Instruction::XOR(ArithmeticTarget::E)),
+            0xAC => Some(Instruction::XOR(ArithmeticTarget::H)),
+            0xAD => Some(Instruction::XOR(ArithmeticTarget::L)),
+            0xAE => Some(Instruction::XOR(ArithmeticTarget::HL)),
+            0xAF => Some(Instruction::XOR(ArithmeticTarget::A)),
+            0xEE => Some(Instruction::XOR(ArithmeticTarget::D8)),
 
             // OR
             0xB0 => Some(Instruction::OR(ArithmeticTarget::B)),
