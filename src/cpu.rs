@@ -87,6 +87,8 @@ impl Cpu {
             Instruction::ADDC(target) => arithmetic_instruction!(target, self.addc),
             Instruction::SUB(target) => arithmetic_instruction!(target, self.sub),
             Instruction::SBC(target) => arithmetic_instruction!(target, self.subc),
+            Instruction::AND(target) => arithmetic_instruction!(target, self.and),
+            Instruction::OR(target) => arithmetic_instruction!(target, self.or),
         }
     }
 
@@ -141,13 +143,31 @@ impl Cpu {
         self.registers.f.half_carry = (self.registers.a & 0xF) < (value & 0xF) + carry;
         new_value
     }
+
+    fn and(&mut self, value: u8) -> u8 {
+        let new_value = self.registers.a & value;
+        self.registers.f.zero = new_value == 0;
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = true;
+        self.registers.f.carry = false;
+        new_value
+    }
+
+    fn or(&mut self, value: u8) -> u8 {
+        let new_value = self.registers.a | value;
+        self.registers.f.zero = new_value == 0;
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.carry = false;
+        new_value
+    }
 }
 
 #[cfg(test)]
 mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D8, HL};
-    use crate::cpu::instruction::Instruction::{ADD, ADDC, SBC, SUB};
+    use crate::cpu::instruction::Instruction::{ADD, ADDC, AND, OR, SBC, SUB};
 
     #[test]
     fn test_add_registers() {
@@ -235,5 +255,23 @@ mod cpu_tests {
         cpu.registers.write_af(0xFF10);
         cpu.execute(SBC(C));
         assert_eq!(cpu.registers.read_af(), 0x4540);
+    }
+
+    #[test]
+    fn test_and_registers() {
+        let mut cpu = Cpu::new();
+        cpu.registers.write_bc(0xAABB);
+        cpu.registers.write_af(0xAA00);
+        cpu.execute(AND(B));
+        assert_eq!(cpu.registers.read_af(), 0xAA20);
+    }
+
+    #[test]
+    fn test_or_registers() {
+        let mut cpu = Cpu::new();
+        cpu.registers.write_bc(0x0022);
+        cpu.registers.write_af(0x2100);
+        cpu.execute(OR(C));
+        assert_eq!(cpu.registers.read_af(), 0x2300);
     }
 }
