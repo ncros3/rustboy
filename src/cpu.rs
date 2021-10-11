@@ -3,7 +3,7 @@ mod instruction;
 mod register;
 
 use bus::Bus;
-use instruction::{ArithmeticTarget, Instruction};
+use instruction::{ArithmeticTarget, IncDecTarget, Instruction};
 use register::Registers;
 
 macro_rules! run_instruction_in_register {
@@ -44,6 +44,40 @@ macro_rules! arithmetic_instruction {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(2)
+            }
+        }
+    }};
+}
+
+macro_rules! run_inc_dec_in_register {
+    ($register: ident, $self:ident.$instruction:ident) => {{
+        let value = $self.registers.$register;
+        let new_value = $self.$instruction(value);
+        $self.registers.$register = new_value;
+        // compute next PC value
+        // modulo operation to avoid overflowing effects
+        $self.pc.wrapping_add(1)
+    }};
+}
+
+macro_rules! inc_dec_instruction {
+    ($target: ident, $self:ident.$instruction:ident) => {{
+        match $target {
+            IncDecTarget::A => run_inc_dec_in_register!(a, $self.$instruction),
+            IncDecTarget::B => run_inc_dec_in_register!(b, $self.$instruction),
+            IncDecTarget::C => run_inc_dec_in_register!(c, $self.$instruction),
+            IncDecTarget::D => run_inc_dec_in_register!(d, $self.$instruction),
+            IncDecTarget::E => run_inc_dec_in_register!(e, $self.$instruction),
+            IncDecTarget::H => run_inc_dec_in_register!(h, $self.$instruction),
+            IncDecTarget::L => run_inc_dec_in_register!(l, $self.$instruction),
+            IncDecTarget::HL => {
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                let new_value = $self.$instruction(value);
+                $self.bus.write_byte(address, new_value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
             }
         }
     }};
@@ -91,6 +125,7 @@ impl Cpu {
             Instruction::XOR(target) => arithmetic_instruction!(target, self.xor),
             Instruction::OR(target) => arithmetic_instruction!(target, self.or),
             Instruction::CP(target) => arithmetic_instruction!(target, self.cp),
+            Instruction::INC(target) => inc_dec_instruction!(target, self.inc),
         }
     }
 
@@ -181,13 +216,23 @@ impl Cpu {
         self.registers.f.carry = self.registers.a < value;
         new_value
     }
+
+    fn inc(&mut self, value: u8) -> u8 {
+        let (new_value, overflow) = value.overflowing_add(1);
+        self.registers.f.zero = new_value == 0;
+        self.registers.f.substraction = true;
+        self.registers.f.half_carry = (value & 0xF) + 1 > 0xF;
+        self.registers.f.carry = overflow;
+        new_value
+    }
 }
 
 #[cfg(test)]
 mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D8, HL};
-    use crate::cpu::instruction::Instruction::{ADD, ADDC, AND, CP, OR, SBC, SUB, XOR};
+    use crate::cpu::instruction::IncDecTarget;
+    use crate::cpu::instruction::Instruction::{ADD, ADDC, AND, CP, INC, OR, SBC, SUB, XOR};
 
     #[test]
     fn test_add_registers() {
@@ -317,5 +362,24 @@ mod cpu_tests {
         cpu.registers.write_af(0x2200);
         cpu.execute(CP(C));
         assert_eq!(cpu.registers.read_af(), 0x2270);
+    }
+
+    #[test]
+    fn test_inc_registers() {
+        let mut cpu = Cpu::new();
+        cpu.registers.write_bc(0x2200);
+        cpu.execute(INC(IncDecTarget::B));
+        assert_eq!(cpu.registers.read_bc(), 0x2300);
+
+        cpu.registers.write_bc(0x22FF);
+        cpu.execute(INC(IncDecTarget::C));
+        assert_eq!(cpu.registers.read_bc(), 0x2200);
+
+        let address = 0x1234;
+        let data = 0xAA;
+        cpu.bus.write_byte(address, data);
+        cpu.registers.write_hl(address);
+        cpu.execute(INC(IncDecTarget::HL));
+        assert_eq!(cpu.bus.read_byte(address), 0xAB);
     }
 }

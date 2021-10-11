@@ -10,6 +10,17 @@ pub enum ArithmeticTarget {
     D8,
 }
 
+pub enum IncDecTarget {
+    A,
+    B,
+    C,
+    D,
+    E,
+    H,
+    L,
+    HL,
+}
+
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
@@ -19,6 +30,7 @@ pub enum Instruction {
     OR(ArithmeticTarget),
     XOR(ArithmeticTarget),
     CP(ArithmeticTarget),
+    INC(IncDecTarget),
 }
 
 impl Instruction {
@@ -111,6 +123,16 @@ impl Instruction {
             0xBE => Some(Instruction::CP(ArithmeticTarget::HL)),
             0xBF => Some(Instruction::CP(ArithmeticTarget::A)),
             0xFE => Some(Instruction::CP(ArithmeticTarget::D8)),
+
+            // INC
+            0x04 => Some(Instruction::INC(IncDecTarget::B)),
+            0x0C => Some(Instruction::INC(IncDecTarget::C)),
+            0x14 => Some(Instruction::INC(IncDecTarget::D)),
+            0x1C => Some(Instruction::INC(IncDecTarget::E)),
+            0x24 => Some(Instruction::INC(IncDecTarget::H)),
+            0x2C => Some(Instruction::INC(IncDecTarget::L)),
+            0x34 => Some(Instruction::INC(IncDecTarget::HL)),
+            0x3C => Some(Instruction::INC(IncDecTarget::A)),
 
             _ => None,
         }
