@@ -31,6 +31,7 @@ pub enum Instruction {
     XOR(ArithmeticTarget),
     CP(ArithmeticTarget),
     INC(IncDecTarget),
+    DEC(IncDecTarget),
 }
 
 impl Instruction {
@@ -133,6 +134,16 @@ impl Instruction {
             0x2C => Some(Instruction::INC(IncDecTarget::L)),
             0x34 => Some(Instruction::INC(IncDecTarget::HL)),
             0x3C => Some(Instruction::INC(IncDecTarget::A)),
+
+            // DEC
+            0x05 => Some(Instruction::DEC(IncDecTarget::B)),
+            0x0D => Some(Instruction::DEC(IncDecTarget::C)),
+            0x15 => Some(Instruction::DEC(IncDecTarget::D)),
+            0x1D => Some(Instruction::DEC(IncDecTarget::E)),
+            0x25 => Some(Instruction::DEC(IncDecTarget::H)),
+            0x2D => Some(Instruction::DEC(IncDecTarget::L)),
+            0x35 => Some(Instruction::DEC(IncDecTarget::HL)),
+            0x3D => Some(Instruction::DEC(IncDecTarget::A)),
 
             _ => None,
         }
