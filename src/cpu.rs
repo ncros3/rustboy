@@ -217,23 +217,18 @@ impl Cpu {
     }
 
     fn inc(&mut self, value: u8) -> u8 {
-        let (new_value, overflow) = value.overflowing_add(1);
+        let new_value = value.wrapping_add(1);
         self.registers.f.zero = new_value == 0;
         self.registers.f.substraction = false;
-        self.registers.f.half_carry = (value & 0xF) + 1 > 0xF;
-        self.registers.f.carry = overflow;
+        self.registers.f.half_carry = (value & 0xF) == 0xF;
         new_value
     }
 
     fn dec(&mut self, value: u8) -> u8 {
-        let (new_value, overflow) = value.overflowing_sub(1);
+        let new_value = value.wrapping_sub(1);
         self.registers.f.zero = new_value == 0;
         self.registers.f.substraction = true;
-        self.registers.f.carry = overflow;
-        // Half Carry is set if adding the lower bits of the value and register A
-        // together result in a value bigger than 0xF. If the result is larger than 0xF
-        // than the addition caused a carry from the lower nibble to the upper nibble.
-        self.registers.f.half_carry = (self.registers.a & 0xF) == 0;
+        self.registers.f.half_carry = (value & 0xF) == 0;
         new_value
     }
 }
