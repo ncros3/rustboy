@@ -136,6 +136,13 @@ mod registers_tests {
     }
 
     #[test]
+    fn test_hl() {
+        let mut regs = Registers::new();
+        regs.write_de(0b0011_1011_1010_0110);
+        assert_eq!(regs.read_de(), 0b0011_1011_1010_0110);
+    }
+
+    #[test]
     fn test_flag() {
         let flag_byte = u8::from(FlagRegister {
             zero: true,
