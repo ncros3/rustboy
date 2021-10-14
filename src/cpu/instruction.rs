@@ -21,6 +21,13 @@ pub enum IncDecTarget {
     HL,
 }
 
+pub enum U16Target {
+    BC,
+    DE,
+    HL,
+    SP,
+}
+
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
@@ -32,6 +39,7 @@ pub enum Instruction {
     CP(ArithmeticTarget),
     INC(IncDecTarget),
     DEC(IncDecTarget),
+    INC16(U16Target),
 }
 
 impl Instruction {
@@ -134,6 +142,12 @@ impl Instruction {
             0x2C => Some(Instruction::INC(IncDecTarget::L)),
             0x34 => Some(Instruction::INC(IncDecTarget::HL)),
             0x3C => Some(Instruction::INC(IncDecTarget::A)),
+
+            // INC 16 bits
+            0x03 => Some(Instruction::INC16(U16Target::BC)),
+            0x13 => Some(Instruction::INC16(U16Target::DE)),
+            0x23 => Some(Instruction::INC16(U16Target::HL)),
+            0x33 => Some(Instruction::INC16(U16Target::SP)),
 
             // DEC
             0x05 => Some(Instruction::DEC(IncDecTarget::B)),
