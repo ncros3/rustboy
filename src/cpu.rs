@@ -3,7 +3,7 @@ mod instruction;
 mod register;
 
 use bus::Bus;
-use instruction::{ArithmeticTarget, IncDecTarget, Instruction};
+use instruction::{ArithmeticTarget, IncDecTarget, Instruction, U16Target};
 use register::Registers;
 
 macro_rules! run_instruction_in_register {
@@ -79,6 +79,43 @@ macro_rules! inc_dec_instruction {
             }
         }
     }};
+
+    ($target: ident => $flag:ident => $self:ident.$instruction:ident) => {{
+        match $target {
+            U16Target::BC => {
+                let value_in_register = $self.registers.read_bc();
+                let new_value = $self.$instruction(value_in_register);
+                $self.registers.write_bc(new_value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            U16Target::DE => {
+                let value_in_register = $self.registers.read_de();
+                let new_value = $self.$instruction(value_in_register);
+                $self.registers.write_de(new_value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            U16Target::HL => {
+                let value_in_register = $self.registers.read_hl();
+                let new_value = $self.$instruction(value_in_register);
+                $self.registers.write_hl(new_value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            U16Target::SP => {
+                let value_in_register = $self.sp;
+                let new_value = $self.$instruction(value_in_register);
+                $self.sp = new_value;
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+        }
+    }};
 }
 
 pub struct Cpu {
@@ -124,6 +161,7 @@ impl Cpu {
             Instruction::OR(target) => arithmetic_instruction!(target, self.or),
             Instruction::CP(target) => arithmetic_instruction!(target, self.cp),
             Instruction::INC(target) => inc_dec_instruction!(target, self.inc),
+            Instruction::INC16(target) => inc_dec_instruction!(target => u16 => self.inc16),
             Instruction::DEC(target) => inc_dec_instruction!(target, self.dec),
         }
     }
@@ -224,6 +262,11 @@ impl Cpu {
         new_value
     }
 
+    fn inc16(&mut self, value: u16) -> u16 {
+        let new_value = value.wrapping_add(1);
+        new_value
+    }
+
     fn dec(&mut self, value: u8) -> u8 {
         let new_value = value.wrapping_sub(1);
         self.registers.f.zero = new_value == 0;
@@ -237,8 +280,10 @@ impl Cpu {
 mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D8, HL};
-    use crate::cpu::instruction::IncDecTarget;
-    use crate::cpu::instruction::Instruction::{ADD, ADDC, AND, CP, DEC, INC, OR, SBC, SUB, XOR};
+    use crate::cpu::instruction::Instruction::{
+        ADD, ADDC, AND, CP, DEC, INC, INC16, OR, SBC, SUB, XOR,
+    };
+    use crate::cpu::instruction::{IncDecTarget, U16Target};
 
     #[test]
     fn test_add_registers() {
@@ -387,6 +432,26 @@ mod cpu_tests {
         cpu.registers.write_hl(address);
         cpu.execute(INC(IncDecTarget::HL));
         assert_eq!(cpu.bus.read_byte(address), 0xAB);
+    }
+
+    #[test]
+    fn test_inc16_registers() {
+        let mut cpu = Cpu::new();
+        cpu.registers.write_bc(0x2200);
+        cpu.execute(INC16(U16Target::BC));
+        assert_eq!(cpu.registers.read_bc(), 0x2201);
+
+        cpu.registers.write_de(0x22FF);
+        cpu.execute(INC16(U16Target::DE));
+        assert_eq!(cpu.registers.read_de(), 0x2300);
+
+        cpu.registers.write_hl(0xFFFF);
+        cpu.execute(INC16(U16Target::HL));
+        assert_eq!(cpu.registers.read_hl(), 0x0000);
+
+        cpu.sp = 0x3578;
+        cpu.execute(INC16(U16Target::SP));
+        assert_eq!(cpu.sp, 0x3579);
     }
 
     #[test]
