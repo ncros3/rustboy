@@ -163,6 +163,7 @@ impl Cpu {
             Instruction::INC(target) => inc_dec_instruction!(target, self.inc),
             Instruction::INC16(target) => inc_dec_instruction!(target => u16 => self.inc16),
             Instruction::DEC(target) => inc_dec_instruction!(target, self.dec),
+            Instruction::DEC16(target) => inc_dec_instruction!(target => u16 => self.dec16),
         }
     }
 
@@ -274,6 +275,11 @@ impl Cpu {
         self.registers.f.half_carry = (value & 0xF) == 0;
         new_value
     }
+
+    fn dec16(&mut self, value: u16) -> u16 {
+        let new_value = value.wrapping_sub(1);
+        new_value
+    }
 }
 
 #[cfg(test)]
@@ -281,7 +287,7 @@ mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D8, HL};
     use crate::cpu::instruction::Instruction::{
-        ADD, ADDC, AND, CP, DEC, INC, INC16, OR, SBC, SUB, XOR,
+        ADD, ADDC, AND, CP, DEC, DEC16, INC, INC16, OR, SBC, SUB, XOR,
     };
     use crate::cpu::instruction::{IncDecTarget, U16Target};
 
@@ -471,5 +477,25 @@ mod cpu_tests {
         cpu.registers.write_hl(address);
         cpu.execute(DEC(IncDecTarget::HL));
         assert_eq!(cpu.bus.read_byte(address), 0xA9);
+    }
+
+    #[test]
+    fn test_dec16_registers() {
+        let mut cpu = Cpu::new();
+        cpu.registers.write_bc(0x2200);
+        cpu.execute(DEC16(U16Target::BC));
+        assert_eq!(cpu.registers.read_bc(), 0x21FF);
+
+        cpu.registers.write_de(0x0000);
+        cpu.execute(DEC16(U16Target::DE));
+        assert_eq!(cpu.registers.read_de(), 0xFFFF);
+
+        cpu.registers.write_hl(0x1279);
+        cpu.execute(DEC16(U16Target::HL));
+        assert_eq!(cpu.registers.read_hl(), 0x1278);
+
+        cpu.sp = 0x0001;
+        cpu.execute(DEC16(U16Target::SP));
+        assert_eq!(cpu.sp, 0x0000);
     }
 }

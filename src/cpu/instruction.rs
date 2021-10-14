@@ -40,6 +40,7 @@ pub enum Instruction {
     INC(IncDecTarget),
     DEC(IncDecTarget),
     INC16(U16Target),
+    DEC16(U16Target),
 }
 
 impl Instruction {
@@ -158,6 +159,12 @@ impl Instruction {
             0x2D => Some(Instruction::DEC(IncDecTarget::L)),
             0x35 => Some(Instruction::DEC(IncDecTarget::HL)),
             0x3D => Some(Instruction::DEC(IncDecTarget::A)),
+
+            // DEC 16 bits
+            0x0B => Some(Instruction::DEC16(U16Target::BC)),
+            0x1B => Some(Instruction::DEC16(U16Target::DE)),
+            0x2B => Some(Instruction::DEC16(U16Target::HL)),
+            0x3B => Some(Instruction::DEC16(U16Target::SP)),
 
             _ => None,
         }
