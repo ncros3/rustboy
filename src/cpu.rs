@@ -56,6 +56,43 @@ macro_rules! arithmetic_instruction {
             }
         }
     }};
+
+    ($target: ident => $flag:ident => $self:ident.$instruction:ident) => {{
+        match $target {
+            U16Target::BC => {
+                let value_in_register = $self.registers.read_bc();
+                let new_value = $self.$instruction(value_in_register);
+                $self.registers.write_hl(new_value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            U16Target::DE => {
+                let value_in_register = $self.registers.read_de();
+                let new_value = $self.$instruction(value_in_register);
+                $self.registers.write_hl(new_value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            U16Target::HL => {
+                let value_in_register = $self.registers.read_hl();
+                let new_value = $self.$instruction(value_in_register);
+                $self.registers.write_hl(new_value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            U16Target::SP => {
+                let value_in_register = $self.sp;
+                let new_value = $self.$instruction(value_in_register);
+                $self.registers.write_hl(new_value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+        }
+    }};
 }
 
 macro_rules! inc_dec_instruction {
@@ -153,6 +190,7 @@ impl Cpu {
     fn execute(&mut self, instruction: Instruction) -> u16 {
         match instruction {
             Instruction::ADD(target) => arithmetic_instruction!(target, self.add),
+            Instruction::ADD16(target) => arithmetic_instruction!(target => u16 => self.add16),
             Instruction::ADDC(target) => arithmetic_instruction!(target, self.addc),
             Instruction::SUB(target) => arithmetic_instruction!(target, self.sub),
             Instruction::SBC(target) => arithmetic_instruction!(target, self.subc),
@@ -176,6 +214,18 @@ impl Cpu {
         // together result in a value bigger than 0xF. If the result is larger than 0xF
         // than the addition caused a carry from the lower nibble to the upper nibble.
         self.registers.f.half_carry = (self.registers.a & 0xF) + (value & 0xF) > 0xF;
+        new_value
+    }
+
+    fn add16(&mut self, value: u16) -> u16 {
+        let hl_value = self.registers.read_hl();
+        let (new_value, overflow) = hl_value.overflowing_add(value);
+        self.registers.f.substraction = false;
+        self.registers.f.carry = overflow;
+        // Half carry tests if we flow over the 11th bit i.e. does adding the two
+        // numbers together cause the 11th bit to flip
+        let mask = 0b111_1111_1111; // mask out bits 11-15
+        self.registers.f.half_carry = (value & mask) + (hl_value & mask) > mask;
         new_value
     }
 
@@ -287,7 +337,7 @@ mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D8, HL};
     use crate::cpu::instruction::Instruction::{
-        ADD, ADDC, AND, CP, DEC, DEC16, INC, INC16, OR, SBC, SUB, XOR,
+        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, OR, SBC, SUB, XOR,
     };
     use crate::cpu::instruction::{IncDecTarget, U16Target};
 
@@ -320,6 +370,29 @@ mod cpu_tests {
         cpu.bus.write_byte(address, data);
         cpu.execute(ADD(D8));
         assert_eq!(cpu.registers.read_af(), 0x2300);
+    }
+
+    #[test]
+    fn test_add16_registers() {
+        let mut cpu = Cpu::new();
+        cpu.registers.write_bc(0x2200);
+        cpu.registers.write_hl(0x0125);
+        cpu.execute(ADD16(U16Target::BC));
+        assert_eq!(cpu.registers.read_hl(), 0x2325);
+
+        cpu.registers.write_de(0x00FF);
+        cpu.registers.write_hl(0xFF01);
+        cpu.execute(ADD16(U16Target::DE));
+        assert_eq!(cpu.registers.read_hl(), 0x0000);
+
+        cpu.registers.write_hl(0xF025);
+        cpu.execute(ADD16(U16Target::HL));
+        assert_eq!(cpu.registers.read_hl(), 0xE04A);
+
+        cpu.sp = 0x0001;
+        cpu.registers.write_hl(0xF025);
+        cpu.execute(ADD16(U16Target::SP));
+        assert_eq!(cpu.registers.read_hl(), 0xF026);
     }
 
     #[test]
