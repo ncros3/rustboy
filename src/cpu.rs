@@ -7,19 +7,10 @@ use instruction::{ArithmeticTarget, IncDecTarget, Instruction, U16Target};
 use register::Registers;
 
 macro_rules! run_instruction_in_register {
-    ($register: ident, $self:ident, $instruction:ident) => {{
-        let value = $self.registers.$register;
+    ($register_in: ident => $register_out: ident, $self:ident.$instruction:ident) => {{
+        let value = $self.registers.$register_in;
         let new_value = $self.$instruction(value);
-        $self.registers.a = new_value;
-        // compute next PC value
-        // modulo operation to avoid overflowing effects
-        $self.pc.wrapping_add(1)
-    }};
-
-    ($register: ident, $self:ident.$instruction:ident) => {{
-        let value = $self.registers.$register;
-        let new_value = $self.$instruction(value);
-        $self.registers.$register = new_value;
+        $self.registers.$register_out = new_value;
         // compute next PC value
         // modulo operation to avoid overflowing effects
         $self.pc.wrapping_add(1)
@@ -38,13 +29,13 @@ macro_rules! run_instruction_in_register {
 macro_rules! arithmetic_instruction {
     ($target: ident, $self:ident.$instruction:ident) => {{
         match $target {
-            ArithmeticTarget::A => run_instruction_in_register!(a, $self, $instruction),
-            ArithmeticTarget::B => run_instruction_in_register!(b, $self, $instruction),
-            ArithmeticTarget::C => run_instruction_in_register!(c, $self, $instruction),
-            ArithmeticTarget::D => run_instruction_in_register!(d, $self, $instruction),
-            ArithmeticTarget::E => run_instruction_in_register!(e, $self, $instruction),
-            ArithmeticTarget::H => run_instruction_in_register!(h, $self, $instruction),
-            ArithmeticTarget::L => run_instruction_in_register!(l, $self, $instruction),
+            ArithmeticTarget::A => run_instruction_in_register!(a => a, $self.$instruction),
+            ArithmeticTarget::B => run_instruction_in_register!(b => a, $self.$instruction),
+            ArithmeticTarget::C => run_instruction_in_register!(c => a, $self.$instruction),
+            ArithmeticTarget::D => run_instruction_in_register!(d => a, $self.$instruction),
+            ArithmeticTarget::E => run_instruction_in_register!(e => a, $self.$instruction),
+            ArithmeticTarget::H => run_instruction_in_register!(h => a, $self.$instruction),
+            ArithmeticTarget::L => run_instruction_in_register!(l => a, $self.$instruction),
             ArithmeticTarget::HL => {
                 let address = $self.registers.read_hl();
                 let value = $self.bus.read_byte(address);
@@ -86,13 +77,13 @@ macro_rules! arithmetic_instruction {
 macro_rules! inc_dec_instruction {
     ($target: ident, $self:ident.$instruction:ident) => {{
         match $target {
-            IncDecTarget::A => run_instruction_in_register!(a, $self.$instruction),
-            IncDecTarget::B => run_instruction_in_register!(b, $self.$instruction),
-            IncDecTarget::C => run_instruction_in_register!(c, $self.$instruction),
-            IncDecTarget::D => run_instruction_in_register!(d, $self.$instruction),
-            IncDecTarget::E => run_instruction_in_register!(e, $self.$instruction),
-            IncDecTarget::H => run_instruction_in_register!(h, $self.$instruction),
-            IncDecTarget::L => run_instruction_in_register!(l, $self.$instruction),
+            IncDecTarget::A => run_instruction_in_register!(a => a, $self.$instruction),
+            IncDecTarget::B => run_instruction_in_register!(b => b, $self.$instruction),
+            IncDecTarget::C => run_instruction_in_register!(c => c, $self.$instruction),
+            IncDecTarget::D => run_instruction_in_register!(d => d, $self.$instruction),
+            IncDecTarget::E => run_instruction_in_register!(e => e, $self.$instruction),
+            IncDecTarget::H => run_instruction_in_register!(h => h, $self.$instruction),
+            IncDecTarget::L => run_instruction_in_register!(l => l, $self.$instruction),
             IncDecTarget::HL => {
                 let address = $self.registers.read_hl();
                 let value = $self.bus.read_byte(address);
