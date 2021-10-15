@@ -113,6 +113,96 @@ macro_rules! inc_dec_instruction {
     }};
 }
 
+macro_rules! load_in_register {
+    ($input_register: ident => $main_register: ident, $self:ident) => {{
+        let value = $self.registers.$input_register;
+        $self.registers.$main_register = value;
+        // compute next PC value
+        // modulo operation to avoid overflowing effects
+        $self.pc.wrapping_add(1)
+    }};
+}
+
+macro_rules! load_input_register {
+    ($input_register: ident => $main_register: ident, $self:ident) => {{
+        match $input_register {
+            ArithmeticTarget::A => load_in_register!(a => $main_register, $self),
+            ArithmeticTarget::B => load_in_register!(b => $main_register, $self),
+            ArithmeticTarget::C => load_in_register!(c => $main_register, $self),
+            ArithmeticTarget::D => load_in_register!(d => $main_register, $self),
+            ArithmeticTarget::E => load_in_register!(e => $main_register, $self),
+            ArithmeticTarget::H => load_in_register!(h => $main_register, $self),
+            ArithmeticTarget::L => load_in_register!(l => $main_register, $self),
+            ArithmeticTarget::HL => {
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                $self.registers.$main_register = value;
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            ArithmeticTarget::D8 => {
+                let address = $self.pc.wrapping_add(1);
+                let value = $self.bus.read_byte(address);
+                $self.registers.$main_register = value;
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(2)
+            }
+        }
+    }};
+}
+
+macro_rules! load_in_memory {
+    ($input_register: ident, $self:ident) => {{
+        let address = $self.registers.read_hl();
+        let value = $self.registers.$input_register;
+        $self.bus.write_byte(address, value);
+        // compute next PC value
+        // modulo operation to avoid overflowing effects
+        $self.pc.wrapping_add(1)
+    }};
+}
+
+macro_rules! load_reg_in_memory {
+    ($input_register: ident, $self:ident) => {{
+        match $input_register {
+            ArithmeticTarget::A => load_in_memory!(a, $self),
+            ArithmeticTarget::B => load_in_memory!(b, $self),
+            ArithmeticTarget::C => load_in_memory!(c, $self),
+            ArithmeticTarget::D => load_in_memory!(d, $self),
+            ArithmeticTarget::E => load_in_memory!(e, $self),
+            ArithmeticTarget::H => load_in_memory!(h, $self),
+            ArithmeticTarget::L => load_in_memory!(l, $self),
+            ArithmeticTarget::HL => 0,
+            ArithmeticTarget::D8 => {
+                let value_address = $self.pc.wrapping_add(1);
+                let value = $self.bus.read_byte(value_address);
+                let mem_address = $self.registers.read_hl();
+                $self.bus.write_byte(mem_address, value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(2)
+            }
+        }
+    }};
+}
+
+macro_rules! load_instruction {
+    ($input_register: ident => $main_register: ident, $self:ident) => {{
+        match $main_register {
+            IncDecTarget::A => load_input_register!($input_register => a, $self),
+            IncDecTarget::B => load_input_register!($input_register => b, $self),
+            IncDecTarget::C => load_input_register!($input_register => c, $self),
+            IncDecTarget::D => load_input_register!($input_register => d, $self),
+            IncDecTarget::E => load_input_register!($input_register => e, $self),
+            IncDecTarget::H => load_input_register!($input_register => h, $self),
+            IncDecTarget::L => load_input_register!($input_register => l, $self),
+            IncDecTarget::HL => load_reg_in_memory!($input_register, $self),
+        }
+    }};
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -147,6 +237,7 @@ impl Cpu {
 
     fn execute(&mut self, instruction: Instruction) -> u16 {
         match instruction {
+            // Arithmetic instructions
             Instruction::ADD(target) => arithmetic_instruction!(target, self.add),
             Instruction::ADD16(target) => arithmetic_instruction!(target => u16 => self.add16),
             Instruction::ADDC(target) => arithmetic_instruction!(target, self.addc),
@@ -156,11 +247,17 @@ impl Cpu {
             Instruction::XOR(target) => arithmetic_instruction!(target, self.xor),
             Instruction::OR(target) => arithmetic_instruction!(target, self.or),
             Instruction::CP(target) => arithmetic_instruction!(target, self.cp),
+
+            // Increment & decrement instructions
             Instruction::INC(target) => inc_dec_instruction!(target, self.inc),
             Instruction::INC16(target) => inc_dec_instruction!(target => u16 => self.inc16),
             Instruction::DEC(target) => inc_dec_instruction!(target, self.dec),
             Instruction::DEC16(target) => inc_dec_instruction!(target => u16 => self.dec16),
-            Instruction::LOAD(main_register, in_register) => 0,
+
+            // Load instructions
+            Instruction::LOAD(main_register, in_register) => {
+                load_instruction!(in_register => main_register, self)
+            }
         }
     }
 
