@@ -160,6 +160,7 @@ impl Cpu {
             Instruction::INC16(target) => inc_dec_instruction!(target => u16 => self.inc16),
             Instruction::DEC(target) => inc_dec_instruction!(target, self.dec),
             Instruction::DEC16(target) => inc_dec_instruction!(target => u16 => self.dec16),
+            Instruction::LOAD(main_register, in_register) => 0,
         }
     }
 
