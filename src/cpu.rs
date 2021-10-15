@@ -16,7 +16,7 @@ macro_rules! run_instruction_in_register {
         $self.pc.wrapping_add(1)
     }};
 
-    ($read_reg: ident, $write_reg: ident, $self:ident.$instruction:ident) => {{
+    ($read_reg: ident => $target_type: ident => $write_reg: ident, $self:ident.$instruction:ident) => {{
         let value_in_register = $self.registers.$read_reg();
         let new_value = $self.$instruction(value_in_register);
         $self.registers.$write_reg(new_value);
@@ -59,9 +59,9 @@ macro_rules! arithmetic_instruction {
 
     ($target: ident => $flag:ident => $self:ident.$instruction:ident) => {{
         match $target {
-            U16Target::BC => run_instruction_in_register!(read_bc, write_hl, $self.$instruction),
-            U16Target::DE => run_instruction_in_register!(read_de, write_hl, $self.$instruction),
-            U16Target::HL => run_instruction_in_register!(read_hl, write_hl, $self.$instruction),
+            U16Target::BC => run_instruction_in_register!(read_bc => u16 => write_hl, $self.$instruction),
+            U16Target::DE => run_instruction_in_register!(read_de => u16 => write_hl, $self.$instruction),
+            U16Target::HL => run_instruction_in_register!(read_hl => u16 => write_hl, $self.$instruction),
             U16Target::SP => {
                 let value_in_register = $self.sp;
                 let new_value = $self.$instruction(value_in_register);
@@ -98,9 +98,9 @@ macro_rules! inc_dec_instruction {
 
     ($target: ident => $flag:ident => $self:ident.$instruction:ident) => {{
         match $target {
-            U16Target::BC => run_instruction_in_register!(read_bc, write_bc, $self.$instruction),
-            U16Target::DE => run_instruction_in_register!(read_de, write_de, $self.$instruction),
-            U16Target::HL => run_instruction_in_register!(read_hl, write_hl, $self.$instruction),
+            U16Target::BC => run_instruction_in_register!(read_bc => u16 => write_bc, $self.$instruction),
+            U16Target::DE => run_instruction_in_register!(read_de => u16 => write_de, $self.$instruction),
+            U16Target::HL => run_instruction_in_register!(read_hl => u16 => write_hl, $self.$instruction),
             U16Target::SP => {
                 let value_in_register = $self.sp;
                 let new_value = $self.$instruction(value_in_register);
