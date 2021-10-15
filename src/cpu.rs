@@ -24,6 +24,15 @@ macro_rules! run_instruction_in_register {
         // modulo operation to avoid overflowing effects
         $self.pc.wrapping_add(1)
     }};
+
+    ($read_reg: ident, $write_reg: ident, $self:ident.$instruction:ident) => {{
+        let value_in_register = $self.registers.$read_reg();
+        let new_value = $self.$instruction(value_in_register);
+        $self.registers.$write_reg(new_value);
+        // compute next PC value
+        // modulo operation to avoid overflowing effects
+        $self.pc.wrapping_add(1)
+    }};
 }
 
 macro_rules! arithmetic_instruction {
@@ -59,30 +68,9 @@ macro_rules! arithmetic_instruction {
 
     ($target: ident => $flag:ident => $self:ident.$instruction:ident) => {{
         match $target {
-            U16Target::BC => {
-                let value_in_register = $self.registers.read_bc();
-                let new_value = $self.$instruction(value_in_register);
-                $self.registers.write_hl(new_value);
-                // compute next PC value
-                // modulo operation to avoid overflowing effects
-                $self.pc.wrapping_add(1)
-            }
-            U16Target::DE => {
-                let value_in_register = $self.registers.read_de();
-                let new_value = $self.$instruction(value_in_register);
-                $self.registers.write_hl(new_value);
-                // compute next PC value
-                // modulo operation to avoid overflowing effects
-                $self.pc.wrapping_add(1)
-            }
-            U16Target::HL => {
-                let value_in_register = $self.registers.read_hl();
-                let new_value = $self.$instruction(value_in_register);
-                $self.registers.write_hl(new_value);
-                // compute next PC value
-                // modulo operation to avoid overflowing effects
-                $self.pc.wrapping_add(1)
-            }
+            U16Target::BC => run_instruction_in_register!(read_bc, write_hl, $self.$instruction),
+            U16Target::DE => run_instruction_in_register!(read_de, write_hl, $self.$instruction),
+            U16Target::HL => run_instruction_in_register!(read_hl, write_hl, $self.$instruction),
             U16Target::SP => {
                 let value_in_register = $self.sp;
                 let new_value = $self.$instruction(value_in_register);
@@ -119,30 +107,9 @@ macro_rules! inc_dec_instruction {
 
     ($target: ident => $flag:ident => $self:ident.$instruction:ident) => {{
         match $target {
-            U16Target::BC => {
-                let value_in_register = $self.registers.read_bc();
-                let new_value = $self.$instruction(value_in_register);
-                $self.registers.write_bc(new_value);
-                // compute next PC value
-                // modulo operation to avoid overflowing effects
-                $self.pc.wrapping_add(1)
-            }
-            U16Target::DE => {
-                let value_in_register = $self.registers.read_de();
-                let new_value = $self.$instruction(value_in_register);
-                $self.registers.write_de(new_value);
-                // compute next PC value
-                // modulo operation to avoid overflowing effects
-                $self.pc.wrapping_add(1)
-            }
-            U16Target::HL => {
-                let value_in_register = $self.registers.read_hl();
-                let new_value = $self.$instruction(value_in_register);
-                $self.registers.write_hl(new_value);
-                // compute next PC value
-                // modulo operation to avoid overflowing effects
-                $self.pc.wrapping_add(1)
-            }
+            U16Target::BC => run_instruction_in_register!(read_bc, write_bc, $self.$instruction),
+            U16Target::DE => run_instruction_in_register!(read_de, write_de, $self.$instruction),
+            U16Target::HL => run_instruction_in_register!(read_hl, write_hl, $self.$instruction),
             U16Target::SP => {
                 let value_in_register = $self.sp;
                 let new_value = $self.$instruction(value_in_register);
