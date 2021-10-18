@@ -188,21 +188,6 @@ macro_rules! load_reg_in_memory {
     }};
 }
 
-macro_rules! load_instruction {
-    ($input_register: ident => $main_register: ident, $self:ident) => {{
-        match $main_register {
-            IncDecTarget::A => load_input_register!($input_register => a, $self),
-            IncDecTarget::B => load_input_register!($input_register => b, $self),
-            IncDecTarget::C => load_input_register!($input_register => c, $self),
-            IncDecTarget::D => load_input_register!($input_register => d, $self),
-            IncDecTarget::E => load_input_register!($input_register => e, $self),
-            IncDecTarget::H => load_input_register!($input_register => h, $self),
-            IncDecTarget::L => load_input_register!($input_register => l, $self),
-            IncDecTarget::HL => load_reg_in_memory!($input_register, $self),
-        }
-    }};
-}
-
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -255,9 +240,7 @@ impl Cpu {
             Instruction::DEC16(target) => inc_dec_instruction!(target => u16 => self.dec16),
 
             // Load instructions
-            Instruction::LOAD(main_register, in_register) => {
-                load_instruction!(in_register => main_register, self)
-            }
+            Instruction::LOAD(main_reg, input_reg) => self.load(input_reg, main_reg),
         }
     }
 
@@ -386,14 +369,27 @@ impl Cpu {
         let new_value = value.wrapping_sub(1);
         new_value
     }
+
+    fn load(&mut self, input_register: ArithmeticTarget, main_register: IncDecTarget) -> u16 {
+        match main_register {
+            IncDecTarget::A => load_input_register!(input_register => a, self),
+            IncDecTarget::B => load_input_register!(input_register => b, self),
+            IncDecTarget::C => load_input_register!(input_register => c, self),
+            IncDecTarget::D => load_input_register!(input_register => d, self),
+            IncDecTarget::E => load_input_register!(input_register => e, self),
+            IncDecTarget::H => load_input_register!(input_register => h, self),
+            IncDecTarget::L => load_input_register!(input_register => l, self),
+            IncDecTarget::HL => load_reg_in_memory!(input_register, self),
+        }
+    }
 }
 
 #[cfg(test)]
 mod cpu_tests {
     use super::*;
-    use crate::cpu::instruction::ArithmeticTarget::{B, C, D8, HL};
+    use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
-        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, OR, SBC, SUB, XOR,
+        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, OR, SBC, SUB, XOR,
     };
     use crate::cpu::instruction::{IncDecTarget, U16Target};
 
@@ -626,5 +622,46 @@ mod cpu_tests {
         cpu.sp = 0x0001;
         cpu.execute(DEC16(U16Target::SP));
         assert_eq!(cpu.sp, 0x0000);
+    }
+
+    #[test]
+    fn test_load_registers() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.write_de(0x0057);
+        cpu.execute(LOAD(IncDecTarget::B, E));
+        assert_eq!(cpu.registers.read_bc(), 0x5700);
+
+        cpu.registers.write_hl(0x6400);
+        cpu.execute(LOAD(IncDecTarget::C, H));
+        assert_eq!(cpu.registers.read_bc(), 0x5764);
+
+        let mut mem_address = 0x0001;
+        let mut data = 0x23;
+        cpu.bus.write_byte(mem_address, data);
+        cpu.execute(LOAD(IncDecTarget::A, D8));
+        assert_eq!(cpu.registers.read_af(), 0x2300);
+
+        mem_address = 0x0010;
+        cpu.registers.write_hl(mem_address);
+        cpu.execute(LOAD(IncDecTarget::HL, D8));
+        assert_eq!(cpu.bus.read_byte(mem_address), 0x23);
+
+        mem_address = 0x002A;
+        cpu.registers.write_hl(mem_address);
+        cpu.registers.write_de(0xD500);
+        cpu.execute(LOAD(IncDecTarget::HL, D));
+        assert_eq!(cpu.bus.read_byte(mem_address), 0xD5);
+
+        mem_address = 0x00C8;
+        data = 0x5F;
+        cpu.bus.write_byte(mem_address, data);
+        cpu.registers.write_hl(mem_address);
+        cpu.execute(LOAD(IncDecTarget::A, HL));
+        assert_eq!(cpu.registers.read_af(), 0x5F00);
+
+        cpu.registers.write_de(0x0000);
+        cpu.execute(LOAD(IncDecTarget::E, HL));
+        assert_eq!(cpu.registers.read_de(), 0x005F);
     }
 }
