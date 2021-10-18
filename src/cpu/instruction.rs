@@ -28,6 +28,13 @@ pub enum U16Target {
     SP,
 }
 
+pub enum Load16Target {
+    BC,
+    DE,
+    HL_plus,
+    HL_minus,
+}
+
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
@@ -43,6 +50,9 @@ pub enum Instruction {
     DEC16(U16Target),
     ADD16(U16Target),
     LOAD(IncDecTarget, ArithmeticTarget),
+    LOAD_INDIRECT(Load16Target),
+    LOAD_16(U16Target),
+    STORE_INDIRECT(Load16Target),
 }
 
 impl Instruction {
@@ -252,6 +262,21 @@ impl Instruction {
             0x7D => Some(Instruction::LOAD(IncDecTarget::A, ArithmeticTarget::L)),
             0x7E => Some(Instruction::LOAD(IncDecTarget::A, ArithmeticTarget::HL)),
             0x3E => Some(Instruction::LOAD(IncDecTarget::A, ArithmeticTarget::D8)),
+
+            0x0A => Some(Instruction::LOAD_INDIRECT(Load16Target::BC)),
+            0x1A => Some(Instruction::LOAD_INDIRECT(Load16Target::DE)),
+            0x2A => Some(Instruction::LOAD_INDIRECT(Load16Target::HL_plus)),
+            0x3A => Some(Instruction::LOAD_INDIRECT(Load16Target::HL_minus)),
+
+            0x01 => Some(Instruction::LOAD_16(U16Target::BC)),
+            0x11 => Some(Instruction::LOAD_16(U16Target::DE)),
+            0x21 => Some(Instruction::LOAD_16(U16Target::HL)),
+            0x31 => Some(Instruction::LOAD_16(U16Target::SP)),
+
+            0x02 => Some(Instruction::STORE_INDIRECT(Load16Target::BC)),
+            0x12 => Some(Instruction::STORE_INDIRECT(Load16Target::DE)),
+            0x22 => Some(Instruction::STORE_INDIRECT(Load16Target::HL_plus)),
+            0x32 => Some(Instruction::STORE_INDIRECT(Load16Target::HL_minus)),
 
             _ => None,
         }

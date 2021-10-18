@@ -3,7 +3,7 @@ mod instruction;
 mod register;
 
 use bus::Bus;
-use instruction::{ArithmeticTarget, IncDecTarget, Instruction, U16Target};
+use instruction::{ArithmeticTarget, IncDecTarget, Instruction, Load16Target, U16Target};
 use register::Registers;
 
 macro_rules! run_instruction_in_register {
@@ -188,6 +188,135 @@ macro_rules! load_reg_in_memory {
     }};
 }
 
+macro_rules! load_indirect {
+    ($register: ident, $self:ident) => {{
+        match $register {
+            Load16Target::BC => {
+                let address = $self.registers.read_bc();
+                let value = $self.bus.read_byte(address);
+                $self.registers.a = value;
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            Load16Target::DE => {
+                let address = $self.registers.read_de();
+                let value = $self.bus.read_byte(address);
+                $self.registers.a = value;
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            Load16Target::HL_plus => {
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                $self.registers.a = value;
+                let new_address = address.wrapping_add(1);
+                $self.registers.write_hl(new_address);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            Load16Target::HL_minus => {
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                $self.registers.a = value;
+                let new_address = address.wrapping_sub(1);
+                $self.registers.write_hl(new_address);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+        }
+    }};
+}
+
+macro_rules! store_indirect {
+    ($register: ident, $self:ident) => {{
+        match $register {
+            Load16Target::BC => {
+                let value = $self.registers.a;
+                let address = $self.registers.read_bc();
+                $self.bus.write_byte(address, value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            Load16Target::DE => {
+                let value = $self.registers.a;
+                let address = $self.registers.read_de();
+                $self.bus.write_byte(address, value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            Load16Target::HL_plus => {
+                let value = $self.registers.a;
+                let address = $self.registers.read_hl();
+                $self.bus.write_byte(address, value);
+                let new_address = address.wrapping_add(1);
+                $self.registers.write_hl(new_address);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+            Load16Target::HL_minus => {
+                let value = $self.registers.a;
+                let address = $self.registers.read_hl();
+                $self.bus.write_byte(address, value);
+                let new_address = address.wrapping_sub(1);
+                $self.registers.write_hl(new_address);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(1)
+            }
+        }
+    }};
+}
+
+macro_rules! load_immediate {
+    ($register: ident, $self:ident) => {{
+        match $register {
+            U16Target::BC => {
+                let first_immediate = $self.pc.wrapping_add(1);
+                let second_immediate = $self.pc.wrapping_add(1);
+                let value = (first_immediate as u16) + ((second_immediate as u16) << 8);
+                $self.registers.write_bc(value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(3)
+            }
+            U16Target::DE => {
+                let first_immediate = $self.pc.wrapping_add(1);
+                let second_immediate = $self.pc.wrapping_add(1);
+                let value = (first_immediate as u16) + ((second_immediate as u16) << 8);
+                $self.registers.write_de(value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(3)
+            }
+            U16Target::HL => {
+                let first_immediate = $self.pc.wrapping_add(1);
+                let second_immediate = $self.pc.wrapping_add(1);
+                let value = (first_immediate as u16) + ((second_immediate as u16) << 8);
+                $self.registers.write_hl(value);
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(3)
+            }
+            U16Target::SP => {
+                let first_immediate = $self.pc.wrapping_add(1);
+                let second_immediate = $self.pc.wrapping_add(1);
+                let value = (first_immediate as u16) + ((second_immediate as u16) << 8);
+                $self.sp = value;
+                // compute next PC value
+                // modulo operation to avoid overflowing effects
+                $self.pc.wrapping_add(3)
+            }
+        }
+    }};
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -239,8 +368,11 @@ impl Cpu {
             Instruction::DEC(target) => inc_dec_instruction!(target, self.dec),
             Instruction::DEC16(target) => inc_dec_instruction!(target => u16 => self.dec16),
 
-            // Load instructions
+            // Load & Store instructions
             Instruction::LOAD(main_reg, input_reg) => self.load(input_reg, main_reg),
+            Instruction::LOAD_INDIRECT(target) => load_indirect!(target, self),
+            Instruction::LOAD_16(target) => load_immediate!(target, self),
+            Instruction::STORE_INDIRECT(target) => store_indirect!(target, self),
         }
     }
 
