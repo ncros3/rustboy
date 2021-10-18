@@ -278,36 +278,44 @@ macro_rules! load_immediate {
     ($register: ident, $self:ident) => {{
         match $register {
             U16Target::BC => {
-                let first_immediate = $self.pc.wrapping_add(1);
-                let second_immediate = $self.pc.wrapping_add(1);
-                let value = (first_immediate as u16) + ((second_immediate as u16) << 8);
+                let low_address = $self.pc.wrapping_add(1);
+                let high_address = $self.pc.wrapping_add(2);
+                let low_byte = $self.bus.read_byte(low_address);
+                let high_byte = $self.bus.read_byte(high_address);
+                let value = (low_byte as u16) + ((high_byte as u16) << 8);
                 $self.registers.write_bc(value);
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(3)
             }
             U16Target::DE => {
-                let first_immediate = $self.pc.wrapping_add(1);
-                let second_immediate = $self.pc.wrapping_add(1);
-                let value = (first_immediate as u16) + ((second_immediate as u16) << 8);
+                let low_address = $self.pc.wrapping_add(1);
+                let high_address = $self.pc.wrapping_add(2);
+                let low_byte = $self.bus.read_byte(low_address);
+                let high_byte = $self.bus.read_byte(high_address);
+                let value = (low_byte as u16) + ((high_byte as u16) << 8);
                 $self.registers.write_de(value);
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(3)
             }
             U16Target::HL => {
-                let first_immediate = $self.pc.wrapping_add(1);
-                let second_immediate = $self.pc.wrapping_add(1);
-                let value = (first_immediate as u16) + ((second_immediate as u16) << 8);
+                let low_address = $self.pc.wrapping_add(1);
+                let high_address = $self.pc.wrapping_add(2);
+                let low_byte = $self.bus.read_byte(low_address);
+                let high_byte = $self.bus.read_byte(high_address);
+                let value = (low_byte as u16) + ((high_byte as u16) << 8);
                 $self.registers.write_hl(value);
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(3)
             }
             U16Target::SP => {
-                let first_immediate = $self.pc.wrapping_add(1);
-                let second_immediate = $self.pc.wrapping_add(1);
-                let value = (first_immediate as u16) + ((second_immediate as u16) << 8);
+                let low_address = $self.pc.wrapping_add(1);
+                let high_address = $self.pc.wrapping_add(2);
+                let low_byte = $self.bus.read_byte(low_address);
+                let high_byte = $self.bus.read_byte(high_address);
+                let value = (low_byte as u16) + ((high_byte as u16) << 8);
                 $self.sp = value;
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
@@ -371,7 +379,7 @@ impl Cpu {
             // Load & Store instructions
             Instruction::LOAD(main_reg, input_reg) => self.load(input_reg, main_reg),
             Instruction::LOAD_INDIRECT(target) => load_indirect!(target, self),
-            Instruction::LOAD_16(target) => load_immediate!(target, self),
+            Instruction::LOAD_IMMEDIATE(target) => load_immediate!(target, self),
             Instruction::STORE_INDIRECT(target) => store_indirect!(target, self),
         }
     }
@@ -521,9 +529,10 @@ mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
-        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, OR, SBC, SUB, XOR,
+        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, LOAD_IMMEDIATE, LOAD_INDIRECT, OR,
+        SBC, STORE_INDIRECT, SUB, XOR,
     };
-    use crate::cpu::instruction::{IncDecTarget, U16Target};
+    use crate::cpu::instruction::{IncDecTarget, Load16Target, U16Target};
 
     #[test]
     fn test_add_registers() {
@@ -795,5 +804,59 @@ mod cpu_tests {
         cpu.registers.write_de(0x0000);
         cpu.execute(LOAD(IncDecTarget::E, HL));
         assert_eq!(cpu.registers.read_de(), 0x005F);
+    }
+
+    #[test]
+    fn test_load_indirect() {
+        let mut cpu = Cpu::new();
+
+        let mem_address = 0x00D8;
+        let mut data = 0x56;
+        cpu.bus.write_byte(mem_address, data);
+        cpu.registers.write_bc(mem_address);
+        cpu.execute(LOAD_INDIRECT(Load16Target::BC));
+        assert_eq!(cpu.registers.read_af(), 0x5600);
+
+        data = 0xC6;
+        cpu.bus.write_byte(mem_address, data);
+        cpu.registers.write_hl(mem_address);
+        cpu.execute(LOAD_INDIRECT(Load16Target::HL_plus));
+        assert_eq!(cpu.registers.read_af(), 0xC600);
+        assert_eq!(cpu.registers.read_hl(), 0x00D9);
+    }
+
+    #[test]
+    fn test_load_immediate() {
+        let mut cpu = Cpu::new();
+
+        let low_data = 0x4C;
+        let high_data = 0xB7;
+        let value = ((high_data as u16) << 8) + low_data as u16;
+        cpu.bus.write_byte(0x0001, low_data);
+        cpu.bus.write_byte(0x0002, high_data);
+        cpu.execute(LOAD_IMMEDIATE(U16Target::DE));
+        assert_eq!(cpu.registers.read_de(), value);
+
+        cpu.execute(LOAD_IMMEDIATE(U16Target::SP));
+        assert_eq!(cpu.sp, value);
+    }
+
+    #[test]
+    fn test_store_indirect() {
+        let mut cpu = Cpu::new();
+
+        let mem_address = 0x00D8;
+        let mut data = 0x5600;
+        cpu.registers.write_af(data);
+        cpu.registers.write_de(mem_address);
+        cpu.execute(STORE_INDIRECT(Load16Target::DE));
+        assert_eq!(cpu.bus.read_byte(mem_address), 0x56);
+
+        data = 0xC600;
+        cpu.registers.write_af(data);
+        cpu.registers.write_hl(mem_address);
+        cpu.execute(STORE_INDIRECT(Load16Target::HL_minus));
+        assert_eq!(cpu.bus.read_byte(mem_address), 0xC6);
+        assert_eq!(cpu.registers.read_hl(), 0x00D7);
     }
 }
