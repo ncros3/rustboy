@@ -3,7 +3,10 @@ mod instruction;
 mod register;
 
 use bus::Bus;
-use instruction::{ArithmeticTarget, IncDecTarget, Instruction, Load16Target, U16Target};
+use instruction::{
+    ArithmeticTarget, IncDecTarget, Instruction, JumpImmediateTarget, JumpRelativeTarget,
+    Load16Target, U16Target,
+};
 use register::Registers;
 
 macro_rules! run_instruction_in_register {
@@ -381,6 +384,10 @@ impl Cpu {
             Instruction::LOAD_INDIRECT(target) => load_indirect!(target, self),
             Instruction::LOAD_IMMEDIATE(target) => load_immediate!(target, self),
             Instruction::STORE_INDIRECT(target) => store_indirect!(target, self),
+
+            // Jump instructions
+            Instruction::JUMP_RELATIVE(target) => self.jump_relative(target),
+            Instruction::JUMP_IMMEDIATE(target) => 0,
         }
     }
 
@@ -521,6 +528,58 @@ impl Cpu {
             IncDecTarget::L => load_input_register!(input_register => l, self),
             IncDecTarget::HL => load_reg_in_memory!(input_register, self),
         }
+    }
+
+    fn jump_relative(&mut self, target: JumpRelativeTarget) -> u16 {
+        let mut new_pc: u16 = 0;
+        match target {
+            JumpRelativeTarget::NZ => {
+                let flag_value = self.registers.f.zero;
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                if !flag_value {
+                    new_pc = self.pc.wrapping_add(immediate as u16);
+                } else {
+                    new_pc = self.pc.wrapping_add(2);
+                }
+            }
+            JumpRelativeTarget::NC => {
+                let flag_value = self.registers.f.carry;
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                if !flag_value {
+                    new_pc = self.pc.wrapping_add(immediate as u16);
+                } else {
+                    new_pc = self.pc.wrapping_add(2);
+                }
+            }
+            JumpRelativeTarget::IMMEDIATE => {
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                new_pc = self.pc.wrapping_add(immediate as u16);
+            }
+            JumpRelativeTarget::Z => {
+                let flag_value = self.registers.f.zero;
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                if flag_value {
+                    new_pc = self.pc.wrapping_add(immediate as u16);
+                } else {
+                    new_pc = self.pc.wrapping_add(2);
+                }
+            }
+            JumpRelativeTarget::C => {
+                let flag_value = self.registers.f.carry;
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                if flag_value {
+                    new_pc = self.pc.wrapping_add(immediate as u16);
+                } else {
+                    new_pc = self.pc.wrapping_add(2);
+                }
+            }
+        }
+        new_pc
     }
 }
 
