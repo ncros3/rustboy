@@ -3,7 +3,10 @@ mod instruction;
 mod register;
 
 use bus::Bus;
-use instruction::{ArithmeticTarget, IncDecTarget, Instruction, Load16Target, U16Target};
+use instruction::{
+    ArithmeticTarget, IncDecTarget, Instruction, JumpImmediateTarget, JumpRelativeTarget,
+    Load16Target, U16Target,
+};
 use register::Registers;
 
 macro_rules! run_instruction_in_register {
@@ -381,6 +384,10 @@ impl Cpu {
             Instruction::LOAD_INDIRECT(target) => load_indirect!(target, self),
             Instruction::LOAD_IMMEDIATE(target) => load_immediate!(target, self),
             Instruction::STORE_INDIRECT(target) => store_indirect!(target, self),
+
+            // Jump instructions
+            Instruction::JUMP_RELATIVE(target) => self.jump_relative(target),
+            Instruction::JUMP_IMMEDIATE(target) => 0,
         }
     }
 
@@ -522,6 +529,58 @@ impl Cpu {
             IncDecTarget::HL => load_reg_in_memory!(input_register, self),
         }
     }
+
+    fn jump_relative(&mut self, target: JumpRelativeTarget) -> u16 {
+        let mut new_pc: u16 = 0;
+        match target {
+            JumpRelativeTarget::NZ => {
+                let flag_value = self.registers.f.zero;
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                if !flag_value {
+                    new_pc = self.pc.wrapping_add(immediate as u16);
+                } else {
+                    new_pc = self.pc.wrapping_add(2);
+                }
+            }
+            JumpRelativeTarget::NC => {
+                let flag_value = self.registers.f.carry;
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                if !flag_value {
+                    new_pc = self.pc.wrapping_add(immediate as u16);
+                } else {
+                    new_pc = self.pc.wrapping_add(2);
+                }
+            }
+            JumpRelativeTarget::IMMEDIATE => {
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                new_pc = self.pc.wrapping_add(immediate as u16);
+            }
+            JumpRelativeTarget::Z => {
+                let flag_value = self.registers.f.zero;
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                if flag_value {
+                    new_pc = self.pc.wrapping_add(immediate as u16);
+                } else {
+                    new_pc = self.pc.wrapping_add(2);
+                }
+            }
+            JumpRelativeTarget::C => {
+                let flag_value = self.registers.f.carry;
+                let immediate_address = self.pc.wrapping_add(1);
+                let immediate = self.bus.read_byte(immediate_address);
+                if flag_value {
+                    new_pc = self.pc.wrapping_add(immediate as u16);
+                } else {
+                    new_pc = self.pc.wrapping_add(2);
+                }
+            }
+        }
+        new_pc
+    }
 }
 
 #[cfg(test)]
@@ -529,8 +588,8 @@ mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
-        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, LOAD_IMMEDIATE, LOAD_INDIRECT, OR,
-        SBC, STORE_INDIRECT, SUB, XOR,
+        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, JUMP_RELATIVE, LOAD, LOAD_IMMEDIATE,
+        LOAD_INDIRECT, OR, SBC, STORE_INDIRECT, SUB, XOR,
     };
     use crate::cpu::instruction::{IncDecTarget, Load16Target, U16Target};
 
@@ -858,5 +917,36 @@ mod cpu_tests {
         cpu.execute(STORE_INDIRECT(Load16Target::HL_minus));
         assert_eq!(cpu.bus.read_byte(mem_address), 0xC6);
         assert_eq!(cpu.registers.read_hl(), 0x00D7);
+    }
+
+    #[test]
+    fn test_jump_relative() {
+        let mut cpu = Cpu::new();
+
+        // first, fill memory with program
+        let base_address: u16 = 0x0000;
+        let jump: u8 = 0x05;
+        let program: [u8; 10] = [0x20, jump, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(base_address + index, data);
+            index += 1;
+        }
+
+        // run CPU to do the jump
+        cpu.run();
+        assert_eq!(
+            cpu.bus.read_byte(cpu.pc),
+            cpu.bus.read_byte(base_address + (jump as u16))
+        );
+
+        // reset CPU and run it with the flag, we don't do the jump
+        cpu.registers.f.zero = true;
+        cpu.pc = base_address;
+        cpu.run();
+        assert_eq!(
+            cpu.bus.read_byte(cpu.pc),
+            cpu.bus.read_byte(base_address + 2)
+        );
     }
 }
