@@ -328,6 +328,31 @@ macro_rules! load_immediate {
     }};
 }
 
+macro_rules! jump_from_immediate {
+    ($negative: ident, $self:ident.$instruction:ident, $flag:ident) => {{
+        let flag_value = $self.registers.f.$flag;
+        let immediate_address = $self.pc.wrapping_add(1);
+        let immediate = $self.bus.read_byte(immediate_address);
+        $self.$instruction($negative, flag_value, immediate)
+    }};
+}
+
+macro_rules! jump {
+    ($flag: ident, $self:ident.$instruction:ident) => {{
+        match $flag {
+            JumpRelativeTarget::NZ => jump_from_immediate!(true, $self.$instruction, zero),
+            JumpRelativeTarget::NC => jump_from_immediate!(true, $self.$instruction, carry),
+            JumpRelativeTarget::Z => jump_from_immediate!(false, $self.$instruction, zero),
+            JumpRelativeTarget::C => jump_from_immediate!(false, $self.$instruction, carry),
+            JumpRelativeTarget::IMMEDIATE => {
+                let immediate_address = $self.pc.wrapping_add(1);
+                let immediate = $self.bus.read_byte(immediate_address);
+                $self.pc.wrapping_add(immediate as u16)
+            }
+        }
+    }};
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -386,7 +411,7 @@ impl Cpu {
             Instruction::STORE_INDIRECT(target) => store_indirect!(target, self),
 
             // Jump instructions
-            Instruction::JUMP_RELATIVE(target) => self.jump_relative(target),
+            Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
             Instruction::JUMP_IMMEDIATE(target) => 0,
         }
     }
@@ -530,53 +555,17 @@ impl Cpu {
         }
     }
 
-    fn jump_relative(&mut self, target: JumpRelativeTarget) -> u16 {
-        match target {
-            JumpRelativeTarget::NZ => {
-                let flag_value = self.registers.f.zero;
-                let immediate_address = self.pc.wrapping_add(1);
-                let immediate = self.bus.read_byte(immediate_address);
-                if !flag_value {
-                    self.pc.wrapping_add(immediate as u16)
-                } else {
-                    self.pc.wrapping_add(2)
-                }
-            }
-            JumpRelativeTarget::NC => {
-                let flag_value = self.registers.f.carry;
-                let immediate_address = self.pc.wrapping_add(1);
-                let immediate = self.bus.read_byte(immediate_address);
-                if !flag_value {
-                    self.pc.wrapping_add(immediate as u16)
-                } else {
-                    self.pc.wrapping_add(2)
-                }
-            }
-            JumpRelativeTarget::IMMEDIATE => {
-                let immediate_address = self.pc.wrapping_add(1);
-                let immediate = self.bus.read_byte(immediate_address);
-                self.pc.wrapping_add(immediate as u16)
-            }
-            JumpRelativeTarget::Z => {
-                let flag_value = self.registers.f.zero;
-                let immediate_address = self.pc.wrapping_add(1);
-                let immediate = self.bus.read_byte(immediate_address);
-                if flag_value {
-                    self.pc.wrapping_add(immediate as u16)
-                } else {
-                    self.pc.wrapping_add(2)
-                }
-            }
-            JumpRelativeTarget::C => {
-                let flag_value = self.registers.f.carry;
-                let immediate_address = self.pc.wrapping_add(1);
-                let immediate = self.bus.read_byte(immediate_address);
-                if flag_value {
-                    self.pc.wrapping_add(immediate as u16)
-                } else {
-                    self.pc.wrapping_add(2)
-                }
-            }
+    fn jump_relative(&mut self, negative: bool, flag: bool, immediate: u8) -> u16 {
+        let mut new_flag = flag;
+        // inverse flag if negative option is selected
+        if negative {
+            new_flag = !flag;
+        }
+        // do the jump following the flag value
+        if new_flag {
+            self.pc.wrapping_add(immediate as u16)
+        } else {
+            self.pc.wrapping_add(2)
         }
     }
 }
