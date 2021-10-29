@@ -1021,13 +1021,13 @@ mod cpu_tests {
     }
 
     #[test]
-    fn test_jump_immediate_carry() {
+    fn test_jump_immediate_zero() {
         let mut cpu = Cpu::new();
 
         // first, fill memory with program
         let base_address: u16 = 0x0000;
         let jump: u8 = 0x05;
-        let jump_carry: u8 = 0xDA;
+        let jump_carry: u8 = 0xCA;
         let program: [u8; 10] = [
             jump_carry, jump, 0x00, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
         ];
@@ -1038,7 +1038,7 @@ mod cpu_tests {
         }
 
         // run CPU to do the jump
-        cpu.registers.f.carry = true;
+        cpu.registers.f.zero = true;
         cpu.run();
         assert_eq!(
             cpu.bus.read_byte(cpu.pc),
@@ -1046,7 +1046,7 @@ mod cpu_tests {
         );
 
         // reset CPU and run it with the flag, we don't do the jump
-        cpu.registers.f.carry = false;
+        cpu.registers.f.zero = false;
         cpu.pc = base_address;
         cpu.run();
         assert_eq!(
