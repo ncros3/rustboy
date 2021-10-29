@@ -412,7 +412,7 @@ impl Cpu {
             // Jump instructions
             Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
             Instruction::JUMP_IMMEDIATE(target) => jump!(target, self.jump_immediate),
-            Instruction::JUMP_INDIRECT => 0,
+            Instruction::JUMP_INDIRECT => self.jump_indirect(),
         }
     }
 
@@ -582,6 +582,11 @@ impl Cpu {
         } else {
             self.pc.wrapping_add(3)
         }
+    }
+
+    fn jump_indirect(&mut self) -> u16 {
+        // get the immediate from memory
+        self.registers.read_hl()
     }
 }
 
@@ -1048,5 +1053,25 @@ mod cpu_tests {
             cpu.bus.read_byte(cpu.pc),
             cpu.bus.read_byte(base_address + 3)
         );
+    }
+
+    #[test]
+    fn test_jump_indirect() {
+        let mut cpu = Cpu::new();
+
+        // first, fill memory with program
+        let jump_inst: u8 = 0xE9;
+        let program: [u8; 8] = [jump_inst, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index, data);
+            index += 1;
+        }
+
+        let jump: u16 = 0x05;
+        cpu.registers.write_hl(jump);
+        // run CPU to do the jump
+        cpu.run();
+        assert_eq!(cpu.bus.read_byte(cpu.pc), cpu.bus.read_byte(jump));
     }
 }
