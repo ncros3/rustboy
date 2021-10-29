@@ -327,7 +327,7 @@ macro_rules! load_immediate {
     }};
 }
 
-macro_rules! jump_from_immediate {
+macro_rules! jump_with_flag {
     ($negative: ident, $self:ident.$instruction:ident, $flag:ident) => {{
         let flag_value = $self.registers.f.$flag;
         $self.$instruction($negative, flag_value)
@@ -337,15 +337,11 @@ macro_rules! jump_from_immediate {
 macro_rules! jump {
     ($flag: ident, $self:ident.$instruction:ident) => {{
         match $flag {
-            JumpTarget::NZ => jump_from_immediate!(true, $self.$instruction, zero),
-            JumpTarget::NC => jump_from_immediate!(true, $self.$instruction, carry),
-            JumpTarget::Z => jump_from_immediate!(false, $self.$instruction, zero),
-            JumpTarget::C => jump_from_immediate!(false, $self.$instruction, carry),
-            JumpTarget::IMMEDIATE => {
-                let immediate_address = $self.pc.wrapping_add(1);
-                let immediate = $self.bus.read_byte(immediate_address);
-                $self.pc.wrapping_add(immediate as u16)
-            }
+            JumpTarget::NZ => jump_with_flag!(true, $self.$instruction, zero),
+            JumpTarget::NC => jump_with_flag!(true, $self.$instruction, carry),
+            JumpTarget::Z => jump_with_flag!(false, $self.$instruction, zero),
+            JumpTarget::C => jump_with_flag!(false, $self.$instruction, carry),
+            JumpTarget::IMMEDIATE => $self.$instruction(false, true),
         }
     }};
 }
@@ -409,7 +405,7 @@ impl Cpu {
 
             // Jump instructions
             Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
-            Instruction::JUMP_IMMEDIATE(target) => 0,
+            Instruction::JUMP_IMMEDIATE(target) => jump!(target, self.jump_immediate),
             Instruction::JUMP_INDIRECT => 0,
         }
     }
@@ -571,9 +567,16 @@ impl Cpu {
         }
     }
 
-    fn jump_immediate(&mut self, negative: bool, flag: bool, immediate: u16) -> u16 {
-        let mut new_flag = flag;
+    fn jump_immediate(&mut self, negative: bool, flag: bool) -> u16 {
+        // get the immediate from memory
+        let first_immediate_address = self.pc.wrapping_add(1);
+        let low_immediate = self.bus.read_byte(first_immediate_address);
+        let second_immediate_address = self.pc.wrapping_add(2);
+        let high_immediate = self.bus.read_byte(second_immediate_address);
+        let immediate = ((high_immediate as u16) << 8) | (low_immediate as u16);
+
         // inverse flag if negative option is selected
+        let mut new_flag = flag;
         if negative {
             new_flag = !flag;
         }
@@ -989,6 +992,66 @@ mod cpu_tests {
         assert_eq!(
             cpu.bus.read_byte(cpu.pc),
             cpu.bus.read_byte(base_address + 2)
+        );
+    }
+
+    #[test]
+    fn test_jump_relative_immediate() {
+        let mut cpu = Cpu::new();
+
+        // first, fill memory with program
+        let base_address: u16 = 0x0000;
+        let jump: u8 = 0x06;
+        let jump_inst: u8 = 0x18;
+        let program: [u8; 10] = [
+            jump_inst, jump, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+        ];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(base_address + index, data);
+            index += 1;
+        }
+
+        // run CPU to do the jump
+        cpu.run();
+        assert_eq!(
+            cpu.bus.read_byte(cpu.pc),
+            cpu.bus.read_byte(base_address + (jump as u16))
+        );
+    }
+
+    #[test]
+    fn test_jump_immediate_carry() {
+        let mut cpu = Cpu::new();
+
+        // first, fill memory with program
+        let base_address: u16 = 0x0000;
+        let jump: u8 = 0x05;
+        let jump_carry: u8 = 0xDA;
+        let program: [u8; 10] = [
+            jump_carry, jump, 0x00, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+        ];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(base_address + index, data);
+            index += 1;
+        }
+
+        // run CPU to do the jump
+        cpu.registers.f.carry = true;
+        cpu.run();
+        assert_eq!(
+            cpu.bus.read_byte(cpu.pc),
+            cpu.bus.read_byte(base_address + (jump as u16))
+        );
+
+        // reset CPU and run it with the flag, we don't do the jump
+        cpu.registers.f.carry = false;
+        cpu.pc = base_address;
+        cpu.run();
+        assert_eq!(
+            cpu.bus.read_byte(cpu.pc),
+            cpu.bus.read_byte(base_address + 3)
         );
     }
 }
