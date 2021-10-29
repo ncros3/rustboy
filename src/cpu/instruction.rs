@@ -35,21 +35,12 @@ pub enum Load16Target {
     HL_minus,
 }
 
-pub enum JumpRelativeTarget {
+pub enum JumpTarget {
     IMMEDIATE,
     NZ,
     NC,
     Z,
     C,
-}
-
-pub enum JumpImmediateTarget {
-    IMMEDIATE,
-    NZ,
-    NC,
-    Z,
-    C,
-    HL,
 }
 
 pub enum Instruction {
@@ -70,8 +61,9 @@ pub enum Instruction {
     LOAD_INDIRECT(Load16Target),
     LOAD_IMMEDIATE(U16Target),
     STORE_INDIRECT(Load16Target),
-    JUMP_RELATIVE(JumpRelativeTarget),
-    JUMP_IMMEDIATE(JumpImmediateTarget),
+    JUMP_RELATIVE(JumpTarget),
+    JUMP_IMMEDIATE(JumpTarget),
+    JUMP_INDIRECT,
 }
 
 impl Instruction {
@@ -298,18 +290,19 @@ impl Instruction {
             0x32 => Some(Instruction::STORE_INDIRECT(Load16Target::HL_minus)),
 
             // JUMP instructions
-            0x20 => Some(Instruction::JUMP_RELATIVE(JumpRelativeTarget::NZ)),
-            0x30 => Some(Instruction::JUMP_RELATIVE(JumpRelativeTarget::NC)),
-            0x18 => Some(Instruction::JUMP_RELATIVE(JumpRelativeTarget::IMMEDIATE)),
-            0x28 => Some(Instruction::JUMP_RELATIVE(JumpRelativeTarget::Z)),
-            0x38 => Some(Instruction::JUMP_RELATIVE(JumpRelativeTarget::C)),
+            0x20 => Some(Instruction::JUMP_RELATIVE(JumpTarget::NZ)),
+            0x30 => Some(Instruction::JUMP_RELATIVE(JumpTarget::NC)),
+            0x18 => Some(Instruction::JUMP_RELATIVE(JumpTarget::IMMEDIATE)),
+            0x28 => Some(Instruction::JUMP_RELATIVE(JumpTarget::Z)),
+            0x38 => Some(Instruction::JUMP_RELATIVE(JumpTarget::C)),
 
-            0xC2 => Some(Instruction::JUMP_IMMEDIATE(JumpImmediateTarget::NZ)),
-            0xD2 => Some(Instruction::JUMP_IMMEDIATE(JumpImmediateTarget::NC)),
-            0xC3 => Some(Instruction::JUMP_IMMEDIATE(JumpImmediateTarget::IMMEDIATE)),
-            0xE9 => Some(Instruction::JUMP_IMMEDIATE(JumpImmediateTarget::HL)),
-            0xCA => Some(Instruction::JUMP_IMMEDIATE(JumpImmediateTarget::Z)),
-            0xDA => Some(Instruction::JUMP_IMMEDIATE(JumpImmediateTarget::C)),
+            0xC2 => Some(Instruction::JUMP_IMMEDIATE(JumpTarget::NZ)),
+            0xD2 => Some(Instruction::JUMP_IMMEDIATE(JumpTarget::NC)),
+            0xC3 => Some(Instruction::JUMP_IMMEDIATE(JumpTarget::IMMEDIATE)),
+            0xCA => Some(Instruction::JUMP_IMMEDIATE(JumpTarget::Z)),
+            0xDA => Some(Instruction::JUMP_IMMEDIATE(JumpTarget::C)),
+
+            0xE9 => Some(Instruction::JUMP_INDIRECT),
 
             _ => None,
         }

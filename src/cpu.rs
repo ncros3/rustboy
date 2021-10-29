@@ -4,8 +4,7 @@ mod register;
 
 use bus::Bus;
 use instruction::{
-    ArithmeticTarget, IncDecTarget, Instruction, JumpImmediateTarget, JumpRelativeTarget,
-    Load16Target, U16Target,
+    ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, U16Target,
 };
 use register::Registers;
 
@@ -340,11 +339,11 @@ macro_rules! jump_from_immediate {
 macro_rules! jump {
     ($flag: ident, $self:ident.$instruction:ident) => {{
         match $flag {
-            JumpRelativeTarget::NZ => jump_from_immediate!(true, $self.$instruction, zero),
-            JumpRelativeTarget::NC => jump_from_immediate!(true, $self.$instruction, carry),
-            JumpRelativeTarget::Z => jump_from_immediate!(false, $self.$instruction, zero),
-            JumpRelativeTarget::C => jump_from_immediate!(false, $self.$instruction, carry),
-            JumpRelativeTarget::IMMEDIATE => {
+            JumpTarget::NZ => jump_from_immediate!(true, $self.$instruction, zero),
+            JumpTarget::NC => jump_from_immediate!(true, $self.$instruction, carry),
+            JumpTarget::Z => jump_from_immediate!(false, $self.$instruction, zero),
+            JumpTarget::C => jump_from_immediate!(false, $self.$instruction, carry),
+            JumpTarget::IMMEDIATE => {
                 let immediate_address = $self.pc.wrapping_add(1);
                 let immediate = $self.bus.read_byte(immediate_address);
                 $self.pc.wrapping_add(immediate as u16)
@@ -413,6 +412,7 @@ impl Cpu {
             // Jump instructions
             Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
             Instruction::JUMP_IMMEDIATE(target) => 0,
+            Instruction::JUMP_INDIRECT => 0,
         }
     }
 
