@@ -330,9 +330,7 @@ macro_rules! load_immediate {
 macro_rules! jump_from_immediate {
     ($negative: ident, $self:ident.$instruction:ident, $flag:ident) => {{
         let flag_value = $self.registers.f.$flag;
-        let immediate_address = $self.pc.wrapping_add(1);
-        let immediate = $self.bus.read_byte(immediate_address);
-        $self.$instruction($negative, flag_value, immediate)
+        $self.$instruction($negative, flag_value)
     }};
 }
 
@@ -555,9 +553,13 @@ impl Cpu {
         }
     }
 
-    fn jump_relative(&mut self, negative: bool, flag: bool, immediate: u8) -> u16 {
-        let mut new_flag = flag;
+    fn jump_relative(&mut self, negative: bool, flag: bool) -> u16 {
+        // get the immediate from memory
+        let immediate_address = self.pc.wrapping_add(1);
+        let immediate = self.bus.read_byte(immediate_address);
+
         // inverse flag if negative option is selected
+        let mut new_flag = flag;
         if negative {
             new_flag = !flag;
         }
@@ -566,6 +568,21 @@ impl Cpu {
             self.pc.wrapping_add(immediate as u16)
         } else {
             self.pc.wrapping_add(2)
+        }
+    }
+
+    fn jump_immediate(&mut self, negative: bool, flag: bool, immediate: u16) -> u16 {
+        let mut new_flag = flag;
+        // inverse flag if negative option is selected
+        if negative {
+            new_flag = !flag;
+        }
+        // do the jump following the flag value
+        if new_flag {
+            self.pc = immediate;
+            self.pc
+        } else {
+            self.pc.wrapping_add(3)
         }
     }
 }
