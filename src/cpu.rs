@@ -578,8 +578,7 @@ impl Cpu {
 
         // do the jump following the flag value
         if flag {
-            self.pc = immediate;
-            self.pc
+            immediate
         } else {
             self.pc.wrapping_add(3)
         }
