@@ -330,7 +330,13 @@ macro_rules! load_immediate {
 macro_rules! jump_with_flag {
     ($negative: ident, $self:ident.$instruction:ident, $flag:ident) => {{
         let flag_value = $self.registers.f.$flag;
-        $self.$instruction($negative, flag_value)
+        // inverse flag if negative option is selected
+        let mut new_flag = flag_value;
+        if $negative {
+            new_flag = !flag_value;
+        }
+        // execute instruction
+        $self.$instruction(new_flag)
     }};
 }
 
@@ -341,7 +347,7 @@ macro_rules! jump {
             JumpTarget::NC => jump_with_flag!(true, $self.$instruction, carry),
             JumpTarget::Z => jump_with_flag!(false, $self.$instruction, zero),
             JumpTarget::C => jump_with_flag!(false, $self.$instruction, carry),
-            JumpTarget::IMMEDIATE => $self.$instruction(false, true),
+            JumpTarget::IMMEDIATE => $self.$instruction(true),
         }
     }};
 }
@@ -549,25 +555,20 @@ impl Cpu {
         }
     }
 
-    fn jump_relative(&mut self, negative: bool, flag: bool) -> u16 {
+    fn jump_relative(&mut self, flag: bool) -> u16 {
         // get the immediate from memory
         let immediate_address = self.pc.wrapping_add(1);
         let immediate = self.bus.read_byte(immediate_address);
 
-        // inverse flag if negative option is selected
-        let mut new_flag = flag;
-        if negative {
-            new_flag = !flag;
-        }
         // do the jump following the flag value
-        if new_flag {
+        if flag {
             self.pc.wrapping_add(immediate as u16)
         } else {
             self.pc.wrapping_add(2)
         }
     }
 
-    fn jump_immediate(&mut self, negative: bool, flag: bool) -> u16 {
+    fn jump_immediate(&mut self, flag: bool) -> u16 {
         // get the immediate from memory
         let first_immediate_address = self.pc.wrapping_add(1);
         let low_immediate = self.bus.read_byte(first_immediate_address);
@@ -575,13 +576,8 @@ impl Cpu {
         let high_immediate = self.bus.read_byte(second_immediate_address);
         let immediate = ((high_immediate as u16) << 8) | (low_immediate as u16);
 
-        // inverse flag if negative option is selected
-        let mut new_flag = flag;
-        if negative {
-            new_flag = !flag;
-        }
         // do the jump following the flag value
-        if new_flag {
+        if flag {
             self.pc = immediate;
             self.pc
         } else {
