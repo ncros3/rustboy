@@ -1,1 +1,1 @@
-Here can be found custom logo for the project.
+Here can be found custom logo for the project. Use the STARGAZE font for the project title.
