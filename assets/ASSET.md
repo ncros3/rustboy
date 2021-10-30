@@ -1,0 +1,1 @@
+Here can be found custom logo for the project.
