@@ -43,6 +43,12 @@ pub enum JumpTarget {
     C,
 }
 
+pub enum SPTarget {
+    FROM_SP,
+    TO_HL,
+    TO_SP,
+}
+
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
@@ -61,6 +67,7 @@ pub enum Instruction {
     LOAD_INDIRECT(Load16Target),
     LOAD_IMMEDIATE(U16Target),
     STORE_INDIRECT(Load16Target),
+    LOAD_SP(SPTarget),
     JUMP_RELATIVE(JumpTarget),
     JUMP_IMMEDIATE(JumpTarget),
     JUMP_INDIRECT,
@@ -288,6 +295,10 @@ impl Instruction {
             0x12 => Some(Instruction::STORE_INDIRECT(Load16Target::DE)),
             0x22 => Some(Instruction::STORE_INDIRECT(Load16Target::HL_plus)),
             0x32 => Some(Instruction::STORE_INDIRECT(Load16Target::HL_minus)),
+
+            0x08 => Some(Instruction::LOAD_SP(SPTarget::FROM_SP)),
+            0xF8 => Some(Instruction::LOAD_SP(SPTarget::TO_HL)),
+            0xF9 => Some(Instruction::LOAD_SP(SPTarget::TO_SP)),
 
             // JUMP instructions
             0x20 => Some(Instruction::JUMP_RELATIVE(JumpTarget::NZ)),

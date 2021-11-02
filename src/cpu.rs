@@ -4,7 +4,7 @@ mod register;
 
 use bus::Bus;
 use instruction::{
-    ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, U16Target,
+    ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, SPTarget, U16Target,
 };
 use register::Registers;
 
@@ -408,6 +408,7 @@ impl Cpu {
             Instruction::LOAD_INDIRECT(target) => load_indirect!(target, self),
             Instruction::LOAD_IMMEDIATE(target) => load_immediate!(target, self),
             Instruction::STORE_INDIRECT(target) => store_indirect!(target, self),
+            Instruction::LOAD_SP(target) => self.load_sp(target),
 
             // Jump instructions
             Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
@@ -552,6 +553,48 @@ impl Cpu {
             IncDecTarget::H => load_input_register!(input_register => h, self),
             IncDecTarget::L => load_input_register!(input_register => l, self),
             IncDecTarget::HL => load_reg_in_memory!(input_register, self),
+        }
+    }
+
+    fn load_sp(&mut self, target: SPTarget) -> u16 {
+        match target {
+            SPTarget::FROM_SP => {
+                let low_byte_address = self.pc.wrapping_add(1) as u16;
+                let high_byte_address = self.pc.wrapping_add(2) as u16;
+                let address = low_byte_address + (high_byte_address << 8);
+
+                // save Stack Pointer lower byte
+                let mut data = (self.sp & 0x00FF) as u8;
+                self.bus.write_byte(address, data);
+                // save Stack Pointer higher byte
+                data = ((self.pc & 0xFF00) >> 8) as u8;
+                self.bus.write_byte(address + 1, data);
+
+                // return next program counter value
+                self.pc.wrapping_add(3)
+            }
+            SPTarget::TO_HL => {
+                let address = self.pc.wrapping_add(1);
+                let value = self.bus.read_byte(address) as i8 as i16 as u16;
+                let data_to_store = self.pc.wrapping_add(value);
+                self.registers.write_hl(data_to_store as u16);
+
+                // update flags
+                self.registers.f.zero = false;
+                self.registers.f.substraction = false;
+                self.registers.f.half_carry = (self.sp & 0xF) + (value & 0xF) > 0xF;
+                self.registers.f.carry = (self.sp & 0xFF) + (value & 0xFF) > 0xFF;
+
+                // return next program counter value
+                self.pc.wrapping_add(2)
+            }
+            SPTarget::TO_SP => {
+                let value = self.registers.read_hl();
+                self.pc = value;
+
+                // return next program counter value
+                self.pc.wrapping_add(1)
+            }
         }
     }
 
