@@ -559,15 +559,15 @@ impl Cpu {
     fn load_sp(&mut self, target: SPTarget) -> u16 {
         match target {
             SPTarget::FROM_SP => {
-                let low_byte_address = self.pc.wrapping_add(1) as u16;
-                let high_byte_address = self.pc.wrapping_add(2) as u16;
+                let low_byte_address = self.bus.read_byte(self.pc.wrapping_add(1)) as u16;
+                let high_byte_address = self.bus.read_byte(self.pc.wrapping_add(2)) as u16;
                 let address = low_byte_address + (high_byte_address << 8);
 
                 // save Stack Pointer lower byte
                 let mut data = (self.sp & 0x00FF) as u8;
                 self.bus.write_byte(address, data);
                 // save Stack Pointer higher byte
-                data = ((self.pc & 0xFF00) >> 8) as u8;
+                data = ((self.sp & 0xFF00) >> 8) as u8;
                 self.bus.write_byte(address + 1, data);
 
                 // return next program counter value
@@ -638,10 +638,10 @@ mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
-        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, LOAD_IMMEDIATE, LOAD_INDIRECT, OR,
-        SBC, STORE_INDIRECT, SUB, XOR,
+        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, LOAD_IMMEDIATE, LOAD_INDIRECT,
+        LOAD_SP, OR, SBC, STORE_INDIRECT, SUB, XOR,
     };
-    use crate::cpu::instruction::{IncDecTarget, Load16Target, U16Target};
+    use crate::cpu::instruction::{IncDecTarget, Load16Target, SPTarget, U16Target};
 
     #[test]
     fn test_add_registers() {
@@ -1116,5 +1116,60 @@ mod cpu_tests {
         // run CPU to do the jump
         cpu.run();
         assert_eq!(cpu.bus.read_byte(cpu.pc), cpu.bus.read_byte(jump));
+    }
+
+    #[test]
+    fn test_load_from_hl_to_sp() {
+        let mut cpu = Cpu::new();
+
+        let data: u16 = 0xA7D8;
+        cpu.registers.write_hl(data);
+        cpu.execute(LOAD_SP(SPTarget::TO_SP));
+        assert_eq!(cpu.pc, data);
+    }
+
+    #[test]
+    fn test_load_from_sp_to_hl() {
+        let mut cpu = Cpu::new();
+
+        // first, fill memory with program
+        let jump_inst: u8 = 0xF8;
+        let program: [u8; 2] = [jump_inst, 0x05];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index, data);
+            index += 1;
+        }
+
+        cpu.run();
+        assert_eq!(cpu.registers.read_hl(), 0x05);
+    }
+
+    #[test]
+    fn test_load_from_sp_to_mem() {
+        let mut cpu = Cpu::new();
+
+        // first, fill memory with program
+        let base_address = 0x24C8;
+        let jump_inst: u8 = 0x08;
+        let low_address = 0x05;
+        let high_address = 0xA1;
+        let address = (low_address as u16) + ((high_address as u16) << 8);
+        let program: [u8; 3] = [jump_inst, low_address, high_address];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_address;
+        cpu.sp = 0x57A8;
+        cpu.run();
+        assert_eq!((cpu.sp & 0x00FF) as u8, cpu.bus.read_byte(address));
+        assert_eq!(
+            ((cpu.sp & 0xFF00) >> 8) as u8,
+            cpu.bus.read_byte(address + 1)
+        );
     }
 }
