@@ -1232,4 +1232,109 @@ mod cpu_tests {
             cpu.bus.read_byte(address + 1)
         );
     }
+
+    #[test]
+    fn test_load_ram_from_one_byte() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory
+        let ram_data_address = 0xFFA5;
+        let data = 0xF8;
+        cpu.bus.write_byte(ram_data_address, data);
+
+        // initialize ROM memory
+        let base_program_address = 0x0000;
+        let jump_inst: u8 = 0xF0;
+        let program: [u8; 2] = [jump_inst, (ram_data_address & 0x00FF) as u8];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_program_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_program_address;
+        cpu.run();
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(0xFFA5));
+    }
+
+    #[test]
+    fn test_load_ram_from_two_bytes() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory
+        let ram_data_address = 0xFFA5;
+        let data = 0xF8;
+        cpu.bus.write_byte(ram_data_address, data);
+
+        // initialize ROM memory
+        let base_program_address = 0x0000;
+        let jump_inst: u8 = 0xFA;
+        let program: [u8; 3] = [
+            jump_inst,
+            (ram_data_address & 0x00FF) as u8,
+            ((ram_data_address & 0xFF00) >> 8) as u8,
+        ];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_program_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_program_address;
+        cpu.run();
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(0xFFA5));
+    }
+
+    #[test]
+    fn test_load_ram_from_register() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory
+        let ram_data_address = 0xFFA5;
+        let data = 0xF8;
+        cpu.bus.write_byte(ram_data_address, data);
+
+        // initialize ROM memory
+        let base_program_address = 0x0000;
+        let jump_inst: u8 = 0xF2;
+        let program: [u8; 1] = [jump_inst];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_program_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_program_address;
+        cpu.registers.c = (ram_data_address & 0x00FF) as u8;
+        cpu.run();
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(0xFFA5));
+    }
+
+    #[test]
+    fn test_store_ram_from_one_byte() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory
+        let ram_data_address = 0xFFA5;
+        let data = 0xF8;
+
+        // initialize ROM memory
+        let base_program_address = 0x0000;
+        let jump_inst: u8 = 0xE0;
+        let program: [u8; 2] = [jump_inst, (ram_data_address & 0x00FF) as u8];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_program_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_program_address;
+        cpu.registers.a = (ram_data_address & 0x00FF) as u8;
+        cpu.run();
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(0xFFA5));
+    }
 }
