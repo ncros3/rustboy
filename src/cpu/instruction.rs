@@ -49,6 +49,12 @@ pub enum SPTarget {
     TO_SP,
 }
 
+pub enum RamTarget {
+    OneByteAddress,
+    AddressFromRegister,
+    TwoBytesAddress,
+}
+
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
@@ -68,6 +74,8 @@ pub enum Instruction {
     LOAD_IMMEDIATE(U16Target),
     STORE_INDIRECT(Load16Target),
     LOAD_SP(SPTarget),
+    LOAD_RAM(RamTarget),
+    STORE_RAM(RamTarget),
     JUMP_RELATIVE(JumpTarget),
     JUMP_IMMEDIATE(JumpTarget),
     JUMP_INDIRECT,
@@ -299,6 +307,14 @@ impl Instruction {
             0x08 => Some(Instruction::LOAD_SP(SPTarget::FROM_SP)),
             0xF8 => Some(Instruction::LOAD_SP(SPTarget::TO_HL)),
             0xF9 => Some(Instruction::LOAD_SP(SPTarget::TO_SP)),
+
+            0xF0 => Some(Instruction::LOAD_RAM(RamTarget::OneByteAddress)),
+            0xF2 => Some(Instruction::LOAD_RAM(RamTarget::AddressFromRegister)),
+            0xFA => Some(Instruction::LOAD_RAM(RamTarget::TwoBytesAddress)),
+
+            0xE0 => Some(Instruction::STORE_RAM(RamTarget::OneByteAddress)),
+            0xE2 => Some(Instruction::STORE_RAM(RamTarget::AddressFromRegister)),
+            0xEA => Some(Instruction::STORE_RAM(RamTarget::TwoBytesAddress)),
 
             // JUMP instructions
             0x20 => Some(Instruction::JUMP_RELATIVE(JumpTarget::NZ)),
