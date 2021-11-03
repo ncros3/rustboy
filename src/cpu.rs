@@ -1255,7 +1255,7 @@ mod cpu_tests {
         // set cpu and run it
         cpu.pc = base_program_address;
         cpu.run();
-        assert_eq!(cpu.registers.a, cpu.bus.read_byte(0xFFA5));
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
     }
 
     #[test]
@@ -1284,7 +1284,7 @@ mod cpu_tests {
         // set cpu and run it
         cpu.pc = base_program_address;
         cpu.run();
-        assert_eq!(cpu.registers.a, cpu.bus.read_byte(0xFFA5));
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
     }
 
     #[test]
@@ -1310,7 +1310,7 @@ mod cpu_tests {
         cpu.pc = base_program_address;
         cpu.registers.c = (ram_data_address & 0x00FF) as u8;
         cpu.run();
-        assert_eq!(cpu.registers.a, cpu.bus.read_byte(0xFFA5));
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
     }
 
     #[test]
@@ -1333,8 +1333,8 @@ mod cpu_tests {
 
         // set cpu and run it
         cpu.pc = base_program_address;
-        cpu.registers.a = (ram_data_address & 0x00FF) as u8;
+        cpu.registers.a = data;
         cpu.run();
-        assert_eq!(cpu.registers.a, cpu.bus.read_byte(0xFFA5));
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
     }
 }
