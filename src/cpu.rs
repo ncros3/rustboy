@@ -410,8 +410,8 @@ impl Cpu {
             Instruction::LOAD_IMMEDIATE(target) => load_immediate!(target, self),
             Instruction::STORE_INDIRECT(target) => store_indirect!(target, self),
             Instruction::LOAD_SP(target) => self.load_sp(target),
-            Instruction::LOAD_RAM(target) => self.load_ram(target),
-            Instruction::STORE_RAM(target) => 0,
+            Instruction::LOAD_RAM(target) => self.load_store_ram(target, true),
+            Instruction::STORE_RAM(target) => self.load_store_ram(target, false),
 
             // Jump instructions
             Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
@@ -601,50 +601,23 @@ impl Cpu {
         }
     }
 
-    fn load_ram(&mut self, target: RamTarget) -> u16 {
+    fn load_store_ram(&mut self, target: RamTarget, load: bool) -> u16 {
         match target {
             RamTarget::OneByteAddress => {
                 // get address from instruction
                 let base_ram_address = 0xFF00;
                 let immediate_address = self.pc.wrapping_add(1);
                 let ram_offset = self.bus.read_byte(immediate_address) as u16;
-                // read data from ram memory & load it in register a
-                self.registers.a = self.bus.read_byte(base_ram_address + ram_offset);
-                // return next program counter value
-                self.pc.wrapping_add(2)
-            }
-            RamTarget::AddressFromRegister => {
-                // get address from instruction
-                let base_ram_address = 0xFF00;
-                let ram_offset = self.registers.c as u16;
-                // read data from ram memory & load it in register a
-                self.registers.a = self.bus.read_byte(base_ram_address + ram_offset);
-                // return next program counter value
-                self.pc.wrapping_add(1)
-            }
-            RamTarget::TwoBytesAddress => {
-                // get address from instruction
-                let low_byte_address = self.bus.read_byte(self.pc.wrapping_add(1)) as u16;
-                let high_byte_address = self.bus.read_byte(self.pc.wrapping_add(2)) as u16;
-                let address = low_byte_address + (high_byte_address << 8);
-                // read data from ram memory & load it in register a
-                self.registers.a = self.bus.read_byte(address);
-                // return next program counter value
-                self.pc.wrapping_add(3)
-            }
-        }
-    }
 
-    fn store_ram(&mut self, target: RamTarget) -> u16 {
-        match target {
-            RamTarget::OneByteAddress => {
-                // get address from instruction
-                let base_ram_address = 0xFF00;
-                let immediate_address = self.pc.wrapping_add(1);
-                let ram_offset = self.bus.read_byte(immediate_address) as u16;
-                // read data from register A & store it in RAM
-                self.bus
-                    .write_byte(base_ram_address + ram_offset, self.registers.a);
+                if load {
+                    // read data from ram memory & load it in register a
+                    self.registers.a = self.bus.read_byte(base_ram_address + ram_offset);
+                } else {
+                    // read data from register A & store it in RAM
+                    self.bus
+                        .write_byte(base_ram_address + ram_offset, self.registers.a);
+                }
+
                 // return next program counter value
                 self.pc.wrapping_add(2)
             }
@@ -652,9 +625,16 @@ impl Cpu {
                 // get address from instruction
                 let base_ram_address = 0xFF00;
                 let ram_offset = self.registers.c as u16;
-                // read data from register A & store it in RAM
-                self.bus
-                    .write_byte(base_ram_address + ram_offset, self.registers.a);
+
+                if load {
+                    // read data from ram memory & load it in register a
+                    self.registers.a = self.bus.read_byte(base_ram_address + ram_offset);
+                } else {
+                    // read data from register A & store it in RAM
+                    self.bus
+                        .write_byte(base_ram_address + ram_offset, self.registers.a);
+                }
+
                 // return next program counter value
                 self.pc.wrapping_add(1)
             }
@@ -663,9 +643,15 @@ impl Cpu {
                 let low_byte_address = self.bus.read_byte(self.pc.wrapping_add(1)) as u16;
                 let high_byte_address = self.bus.read_byte(self.pc.wrapping_add(2)) as u16;
                 let address = low_byte_address + (high_byte_address << 8);
-                // read data from ram memory & load it in register a
-                // read data from register A & store it in RAM
-                self.bus.write_byte(address, self.registers.a);
+
+                if load {
+                    // read data from ram memory & load it in register a
+                    self.registers.a = self.bus.read_byte(address);
+                } else {
+                    // read data from register A & store it in RAM
+                    self.bus.write_byte(address, self.registers.a);
+                }
+
                 // return next program counter value
                 self.pc.wrapping_add(3)
             }
