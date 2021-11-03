@@ -4,7 +4,8 @@ mod register;
 
 use bus::Bus;
 use instruction::{
-    ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, SPTarget, U16Target,
+    ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, RamTarget, SPTarget,
+    U16Target,
 };
 use register::Registers;
 
@@ -409,6 +410,8 @@ impl Cpu {
             Instruction::LOAD_IMMEDIATE(target) => load_immediate!(target, self),
             Instruction::STORE_INDIRECT(target) => store_indirect!(target, self),
             Instruction::LOAD_SP(target) => self.load_sp(target),
+            Instruction::LOAD_RAM(target) => self.load_store_ram(target, true),
+            Instruction::STORE_RAM(target) => self.load_store_ram(target, false),
 
             // Jump instructions
             Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
@@ -594,6 +597,63 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(1)
+            }
+        }
+    }
+
+    fn load_store_ram(&mut self, target: RamTarget, load: bool) -> u16 {
+        match target {
+            RamTarget::OneByteAddress => {
+                // get address from instruction
+                let base_ram_address = 0xFF00;
+                let immediate_address = self.pc.wrapping_add(1);
+                let ram_offset = self.bus.read_byte(immediate_address) as u16;
+
+                if load {
+                    // read data from ram memory & load it in register a
+                    self.registers.a = self.bus.read_byte(base_ram_address + ram_offset);
+                } else {
+                    // read data from register A & store it in RAM
+                    self.bus
+                        .write_byte(base_ram_address + ram_offset, self.registers.a);
+                }
+
+                // return next program counter value
+                self.pc.wrapping_add(2)
+            }
+            RamTarget::AddressFromRegister => {
+                // get address from instruction
+                let base_ram_address = 0xFF00;
+                let ram_offset = self.registers.c as u16;
+
+                if load {
+                    // read data from ram memory & load it in register a
+                    self.registers.a = self.bus.read_byte(base_ram_address + ram_offset);
+                } else {
+                    // read data from register A & store it in RAM
+                    self.bus
+                        .write_byte(base_ram_address + ram_offset, self.registers.a);
+                }
+
+                // return next program counter value
+                self.pc.wrapping_add(1)
+            }
+            RamTarget::TwoBytesAddress => {
+                // get address from instruction
+                let low_byte_address = self.bus.read_byte(self.pc.wrapping_add(1)) as u16;
+                let high_byte_address = self.bus.read_byte(self.pc.wrapping_add(2)) as u16;
+                let address = low_byte_address + (high_byte_address << 8);
+
+                if load {
+                    // read data from ram memory & load it in register a
+                    self.registers.a = self.bus.read_byte(address);
+                } else {
+                    // read data from register A & store it in RAM
+                    self.bus.write_byte(address, self.registers.a);
+                }
+
+                // return next program counter value
+                self.pc.wrapping_add(3)
             }
         }
     }
@@ -1171,5 +1231,110 @@ mod cpu_tests {
             ((cpu.sp & 0xFF00) >> 8) as u8,
             cpu.bus.read_byte(address + 1)
         );
+    }
+
+    #[test]
+    fn test_load_ram_from_one_byte() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory
+        let ram_data_address = 0xFFA5;
+        let data = 0xF8;
+        cpu.bus.write_byte(ram_data_address, data);
+
+        // initialize ROM memory
+        let base_program_address = 0x0000;
+        let jump_inst: u8 = 0xF0;
+        let program: [u8; 2] = [jump_inst, (ram_data_address & 0x00FF) as u8];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_program_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_program_address;
+        cpu.run();
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
+    }
+
+    #[test]
+    fn test_load_ram_from_two_bytes() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory
+        let ram_data_address = 0xFFA5;
+        let data = 0xF8;
+        cpu.bus.write_byte(ram_data_address, data);
+
+        // initialize ROM memory
+        let base_program_address = 0x0000;
+        let jump_inst: u8 = 0xFA;
+        let program: [u8; 3] = [
+            jump_inst,
+            (ram_data_address & 0x00FF) as u8,
+            ((ram_data_address & 0xFF00) >> 8) as u8,
+        ];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_program_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_program_address;
+        cpu.run();
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
+    }
+
+    #[test]
+    fn test_load_ram_from_register() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory
+        let ram_data_address = 0xFFA5;
+        let data = 0xF8;
+        cpu.bus.write_byte(ram_data_address, data);
+
+        // initialize ROM memory
+        let base_program_address = 0x0000;
+        let jump_inst: u8 = 0xF2;
+        let program: [u8; 1] = [jump_inst];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_program_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_program_address;
+        cpu.registers.c = (ram_data_address & 0x00FF) as u8;
+        cpu.run();
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
+    }
+
+    #[test]
+    fn test_store_ram_from_one_byte() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory
+        let ram_data_address = 0xFFA5;
+        let data = 0xF8;
+
+        // initialize ROM memory
+        let base_program_address = 0x0000;
+        let jump_inst: u8 = 0xE0;
+        let program: [u8; 2] = [jump_inst, (ram_data_address & 0x00FF) as u8];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_program_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_program_address;
+        cpu.registers.a = data;
+        cpu.run();
+        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
     }
 }
