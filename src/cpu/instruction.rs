@@ -88,6 +88,7 @@ pub enum Instruction {
     JUMP_INDIRECT,
     POP(PopPushTarget),
     PUSH(PopPushTarget),
+    AddSp,
 }
 
 impl Instruction {
@@ -120,6 +121,9 @@ impl Instruction {
             0x8E => Some(Instruction::ADDC(ArithmeticTarget::HL)),
             0x8F => Some(Instruction::ADDC(ArithmeticTarget::A)),
             0xCE => Some(Instruction::ADDC(ArithmeticTarget::D8)),
+
+            // ADD Stack pointer
+            0xE8 => Some(Instruction::AddSp),
 
             // SUB
             0x90 => Some(Instruction::SUB(ArithmeticTarget::B)),

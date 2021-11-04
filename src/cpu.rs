@@ -467,6 +467,7 @@ impl Cpu {
             Instruction::XOR(target) => arithmetic_instruction!(target, self.xor),
             Instruction::OR(target) => arithmetic_instruction!(target, self.or),
             Instruction::CP(target) => arithmetic_instruction!(target, self.cp),
+            Instruction::AddSp => self.add_sp(),
 
             // Increment & decrement instructions
             Instruction::INC(target) => inc_dec_instruction!(target, self.inc),
@@ -790,6 +791,21 @@ impl Cpu {
         self.bus.write_byte(low_stack_address, low_byte);
         // update stack pointer
         self.sp = self.sp.wrapping_sub(2);
+    }
+
+    fn add_sp(&mut self) -> u16 {
+        let address = self.pc.wrapping_add(1);
+        let value = self.bus.read_byte(address) as i8 as i16 as u16;
+        self.sp = self.sp.wrapping_add(value);
+
+        // update flags
+        self.registers.f.zero = false;
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = (self.sp & 0xF) + (value & 0xF) > 0xF;
+        self.registers.f.carry = (self.sp & 0xFF) + (value & 0xFF) > 0xFF;
+
+        // return next program counter value
+        self.pc.wrapping_add(2)
     }
 }
 
@@ -1462,5 +1478,33 @@ mod cpu_tests {
         // test pop instruction
         cpu.execute(POP(PopPushTarget::HL));
         assert_eq!(cpu.registers.read_hl(), push_data);
+    }
+
+    #[test]
+    fn test_add_sp() {
+        let mut cpu = Cpu::new();
+
+        // init parameters
+        let data_to_add = 0x88;
+        let sp_init = 0xF147;
+
+        // initialize ROM memory
+        let base_program_address = 0x0000;
+        let inst: u8 = 0xE8;
+        let program: [u8; 2] = [inst, data_to_add as u8];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index + base_program_address, data);
+            index += 1;
+        }
+
+        // set cpu and run it
+        cpu.pc = base_program_address;
+        cpu.sp = sp_init;
+        cpu.run();
+        assert_eq!(
+            sp_init.wrapping_add(data_to_add as i8 as i16 as u16),
+            cpu.sp
+        );
     }
 }
