@@ -1,9 +1,9 @@
 pub enum InterruptSources {
-    VBLANK = 0,
-    LCD_STAT = 1,
-    TIMER = 2,
-    SERIAL = 3,
-    JOYPAD = 4,
+    VBLANK,
+    LCD_STAT,
+    TIMER,
+    SERIAL,
+    JOYPAD,
 }
 
 pub struct Nvic {
