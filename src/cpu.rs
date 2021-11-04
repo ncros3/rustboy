@@ -1,5 +1,6 @@
 mod bus;
 mod instruction;
+mod nvic;
 mod register;
 
 use bus::Bus;
@@ -7,6 +8,7 @@ use instruction::{
     ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, PopPushTarget,
     RamTarget, SPTarget, U16Target,
 };
+use nvic::Nvic;
 use register::Registers;
 
 macro_rules! run_instruction_in_register {
@@ -428,6 +430,7 @@ pub struct Cpu {
     pc: u16,
     sp: u16,
     bus: Bus,
+    nvic: Nvic,
 }
 
 impl Cpu {
@@ -437,6 +440,7 @@ impl Cpu {
             pc: 0x0000,
             sp: 0x0000,
             bus: Bus::new(),
+            nvic: Nvic::new(),
         }
     }
 
