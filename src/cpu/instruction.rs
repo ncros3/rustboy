@@ -55,6 +55,13 @@ pub enum RamTarget {
     TwoBytesAddress,
 }
 
+pub enum PopPushTarget {
+    BC,
+    DE,
+    HL,
+    AF,
+}
+
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
@@ -79,6 +86,9 @@ pub enum Instruction {
     JUMP_RELATIVE(JumpTarget),
     JUMP_IMMEDIATE(JumpTarget),
     JUMP_INDIRECT,
+    POP(PopPushTarget),
+    PUSH(PopPushTarget),
+    AddSp,
 }
 
 impl Instruction {
@@ -111,6 +121,9 @@ impl Instruction {
             0x8E => Some(Instruction::ADDC(ArithmeticTarget::HL)),
             0x8F => Some(Instruction::ADDC(ArithmeticTarget::A)),
             0xCE => Some(Instruction::ADDC(ArithmeticTarget::D8)),
+
+            // ADD Stack pointer
+            0xE8 => Some(Instruction::AddSp),
 
             // SUB
             0x90 => Some(Instruction::SUB(ArithmeticTarget::B)),
@@ -330,6 +343,17 @@ impl Instruction {
             0xDA => Some(Instruction::JUMP_IMMEDIATE(JumpTarget::C)),
 
             0xE9 => Some(Instruction::JUMP_INDIRECT),
+
+            // POP & PUSH instructions
+            0xC1 => Some(Instruction::POP(PopPushTarget::BC)),
+            0xD1 => Some(Instruction::POP(PopPushTarget::DE)),
+            0xE1 => Some(Instruction::POP(PopPushTarget::HL)),
+            0xF1 => Some(Instruction::POP(PopPushTarget::AF)),
+
+            0xC5 => Some(Instruction::PUSH(PopPushTarget::BC)),
+            0xD5 => Some(Instruction::PUSH(PopPushTarget::DE)),
+            0xE5 => Some(Instruction::PUSH(PopPushTarget::HL)),
+            0xF5 => Some(Instruction::PUSH(PopPushTarget::AF)),
 
             _ => None,
         }
