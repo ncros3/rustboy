@@ -4,8 +4,8 @@ mod register;
 
 use bus::Bus;
 use instruction::{
-    ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, RamTarget, SPTarget,
-    U16Target,
+    ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, PopPushTarget,
+    RamTarget, SPTarget, U16Target,
 };
 use register::Registers;
 
@@ -353,6 +353,76 @@ macro_rules! jump {
     }};
 }
 
+macro_rules! pop {
+    ($target:ident, $self:ident) => {{
+        match $target {
+            PopPushTarget::BC => {
+                let pop_data = $self.pop();
+                $self.registers.write_bc(pop_data);
+
+                // return next pc
+                $self.pc.wrapping_add(1)
+            }
+            PopPushTarget::DE => {
+                let pop_data = $self.pop();
+                $self.registers.write_de(pop_data);
+
+                // return next pc
+                $self.pc.wrapping_add(1)
+            }
+            PopPushTarget::HL => {
+                let pop_data = $self.pop();
+                $self.registers.write_hl(pop_data);
+
+                // return next pc
+                $self.pc.wrapping_add(1)
+            }
+            PopPushTarget::AF => {
+                let pop_data = $self.pop();
+                $self.registers.write_af(pop_data);
+
+                // return next pc
+                $self.pc.wrapping_add(1)
+            }
+        }
+    }};
+}
+
+macro_rules! push {
+    ($target: ident, $self:ident) => {{
+        match $target {
+            PopPushTarget::BC => {
+                let push_data = $self.registers.read_bc();
+                $self.push(push_data);
+
+                // return next pc
+                $self.pc.wrapping_add(1)
+            }
+            PopPushTarget::DE => {
+                let push_data = $self.registers.read_de();
+                $self.push(push_data);
+
+                // return next pc
+                $self.pc.wrapping_add(1)
+            }
+            PopPushTarget::HL => {
+                let push_data = $self.registers.read_hl();
+                $self.push(push_data);
+
+                // return next pc
+                $self.pc.wrapping_add(1)
+            }
+            PopPushTarget::AF => {
+                let push_data = $self.registers.read_af();
+                $self.push(push_data);
+
+                // return next pc
+                $self.pc.wrapping_add(1)
+            }
+        }
+    }};
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -417,6 +487,10 @@ impl Cpu {
             Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
             Instruction::JUMP_IMMEDIATE(target) => jump!(target, self.jump_immediate),
             Instruction::JUMP_INDIRECT => self.jump_indirect(),
+
+            // Pop & Push instructions
+            Instruction::POP(target) => pop!(target, self),
+            Instruction::PUSH(target) => push!(target, self),
         }
     }
 
@@ -691,6 +765,32 @@ impl Cpu {
         // get the immediate from memory
         self.registers.read_hl()
     }
+
+    fn pop(&mut self) -> u16 {
+        // get stack pointer values
+        let low_stack_address = self.sp;
+        let high_stack_address = self.sp.wrapping_add(1);
+        // update stack pointer
+        self.sp = self.sp.wrapping_add(2);
+        // read data from RAM memory
+        let low_byte = self.bus.read_byte(low_stack_address) as u16;
+        let high_byte = self.bus.read_byte(high_stack_address) as u16;
+        low_byte + (high_byte << 8)
+    }
+
+    fn push(&mut self, push_data: u16) {
+        // get bytes from data
+        let high_byte = ((push_data & 0xFF00) >> 8) as u8;
+        let low_byte = (push_data & 0x00FF) as u8;
+        // get stack pointer values
+        let high_stack_address = self.sp.wrapping_sub(1);
+        let low_stack_address = self.sp.wrapping_sub(2);
+        // save data in memory
+        self.bus.write_byte(high_stack_address, high_byte);
+        self.bus.write_byte(low_stack_address, low_byte);
+        // update stack pointer
+        self.sp = self.sp.wrapping_sub(2);
+    }
 }
 
 #[cfg(test)]
@@ -699,9 +799,9 @@ mod cpu_tests {
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
         ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, LOAD_IMMEDIATE, LOAD_INDIRECT,
-        LOAD_SP, OR, SBC, STORE_INDIRECT, SUB, XOR,
+        LOAD_SP, OR, POP, PUSH, SBC, STORE_INDIRECT, SUB, XOR,
     };
-    use crate::cpu::instruction::{IncDecTarget, Load16Target, SPTarget, U16Target};
+    use crate::cpu::instruction::{IncDecTarget, Load16Target, PopPushTarget, SPTarget, U16Target};
 
     #[test]
     fn test_add_registers() {
@@ -1336,5 +1436,31 @@ mod cpu_tests {
         cpu.registers.a = data;
         cpu.run();
         assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
+    }
+
+    #[test]
+    fn test_push_and_pop() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory parameters
+        let ram_address = 0xFFA5;
+        let push_data = 0xD7F8;
+
+        // test push instruction
+        cpu.sp = ram_address;
+        cpu.registers.write_de(push_data);
+        cpu.execute(PUSH(PopPushTarget::DE));
+        assert_eq!(
+            cpu.bus.read_byte(ram_address.wrapping_sub(1)),
+            ((push_data & 0xFF00) >> 8) as u8
+        );
+        assert_eq!(
+            cpu.bus.read_byte(ram_address.wrapping_sub(2)),
+            (push_data & 0x00FF) as u8
+        );
+
+        // test pop instruction
+        cpu.execute(POP(PopPushTarget::HL));
+        assert_eq!(cpu.registers.read_hl(), push_data);
     }
 }
