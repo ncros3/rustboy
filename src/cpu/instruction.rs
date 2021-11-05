@@ -62,6 +62,17 @@ pub enum PopPushTarget {
     AF,
 }
 
+pub enum ResetTarget {
+    FLASH_0,
+    FLASH_1,
+    FLASH_2,
+    FLASH_3,
+    FLASH_4,
+    FLASH_5,
+    FLASH_6,
+    FLASH_7,
+}
+
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
@@ -86,6 +97,8 @@ pub enum Instruction {
     JUMP_RELATIVE(JumpTarget),
     JUMP_IMMEDIATE(JumpTarget),
     JUMP_INDIRECT,
+    RETURN(JumpTarget),
+    RESET(ResetTarget),
     POP(PopPushTarget),
     PUSH(PopPushTarget),
     AddSp,
@@ -343,6 +356,23 @@ impl Instruction {
             0xDA => Some(Instruction::JUMP_IMMEDIATE(JumpTarget::C)),
 
             0xE9 => Some(Instruction::JUMP_INDIRECT),
+
+            // RETURN instructions
+            0xC0 => Some(Instruction::RETURN(JumpTarget::NZ)),
+            0xD0 => Some(Instruction::RETURN(JumpTarget::NC)),
+            0xC8 => Some(Instruction::RETURN(JumpTarget::Z)),
+            0xD8 => Some(Instruction::RETURN(JumpTarget::C)),
+            0xC9 => Some(Instruction::RETURN(JumpTarget::IMMEDIATE)),
+
+            // RESET instructions
+            0xC7 => Some(Instruction::RESET(ResetTarget::FLASH_0)),
+            0xCF => Some(Instruction::RESET(ResetTarget::FLASH_1)),
+            0xD7 => Some(Instruction::RESET(ResetTarget::FLASH_2)),
+            0xDF => Some(Instruction::RESET(ResetTarget::FLASH_3)),
+            0xE7 => Some(Instruction::RESET(ResetTarget::FLASH_4)),
+            0xEF => Some(Instruction::RESET(ResetTarget::FLASH_5)),
+            0xF7 => Some(Instruction::RESET(ResetTarget::FLASH_6)),
+            0xFF => Some(Instruction::RESET(ResetTarget::FLASH_7)),
 
             // POP & PUSH instructions
             0xC1 => Some(Instruction::POP(PopPushTarget::BC)),
