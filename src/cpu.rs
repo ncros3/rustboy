@@ -6,7 +6,7 @@ mod register;
 use bus::Bus;
 use instruction::{
     ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, PopPushTarget,
-    RamTarget, SPTarget, U16Target,
+    RamTarget, ResetTarget, SPTarget, U16Target,
 };
 use nvic::Nvic;
 use register::Registers;
@@ -461,6 +461,21 @@ macro_rules! ret {
     }};
 }
 
+macro_rules! reset {
+    ($target: ident, $self:ident) => {{
+        match $target {
+            ResetTarget::FLASH_0 => $self.reset(0x00),
+            ResetTarget::FLASH_1 => $self.reset(0x08),
+            ResetTarget::FLASH_2 => $self.reset(0x10),
+            ResetTarget::FLASH_3 => $self.reset(0x18),
+            ResetTarget::FLASH_4 => $self.reset(0x20),
+            ResetTarget::FLASH_5 => $self.reset(0x28),
+            ResetTarget::FLASH_6 => $self.reset(0x30),
+            ResetTarget::FLASH_7 => $self.reset(0x38),
+        }
+    }};
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -531,6 +546,9 @@ impl Cpu {
 
             // Return instructions
             Instruction::RETURN(target) => ret!(target, self),
+
+            // Reset instructions
+            Instruction::RESET(target) => reset!(target, self),
 
             // Pop & Push instructions
             Instruction::POP(target) => pop!(target, self),
@@ -849,6 +867,13 @@ impl Cpu {
 
         // return next program counter value
         self.pc.wrapping_add(2)
+    }
+
+    fn reset(&mut self, addr_to_reset: u8) -> u16 {
+        // save PC value on the stack
+        self.push(self.pc.wrapping_add(1));
+        // return next PC value
+        addr_to_reset as u16
     }
 }
 
