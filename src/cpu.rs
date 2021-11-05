@@ -425,6 +425,42 @@ macro_rules! push {
     }};
 }
 
+macro_rules! ret {
+    ($target: ident, $self:ident) => {{
+        match $target {
+            JumpTarget::NZ => {
+                if !$self.registers.f.zero {
+                    $self.pop()
+                } else {
+                    $self.pc.wrapping_add(1)
+                }
+            }
+            JumpTarget::NC => {
+                if !$self.registers.f.carry {
+                    $self.pop()
+                } else {
+                    $self.pc.wrapping_add(1)
+                }
+            }
+            JumpTarget::Z => {
+                if $self.registers.f.zero {
+                    $self.pop()
+                } else {
+                    $self.pc.wrapping_add(1)
+                }
+            }
+            JumpTarget::C => {
+                if $self.registers.f.carry {
+                    $self.pop()
+                } else {
+                    $self.pc.wrapping_add(1)
+                }
+            }
+            JumpTarget::IMMEDIATE => $self.pop(),
+        }
+    }};
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -492,6 +528,9 @@ impl Cpu {
             Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
             Instruction::JUMP_IMMEDIATE(target) => jump!(target, self.jump_immediate),
             Instruction::JUMP_INDIRECT => self.jump_indirect(),
+
+            // Return instructions
+            Instruction::RETURN(target) => ret!(target, self),
 
             // Pop & Push instructions
             Instruction::POP(target) => pop!(target, self),
@@ -819,9 +858,11 @@ mod cpu_tests {
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
         ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, LOAD_IMMEDIATE, LOAD_INDIRECT,
-        LOAD_SP, OR, POP, PUSH, SBC, STORE_INDIRECT, SUB, XOR,
+        LOAD_SP, OR, POP, PUSH, RETURN, SBC, STORE_INDIRECT, SUB, XOR,
     };
-    use crate::cpu::instruction::{IncDecTarget, Load16Target, PopPushTarget, SPTarget, U16Target};
+    use crate::cpu::instruction::{
+        IncDecTarget, JumpTarget, Load16Target, PopPushTarget, SPTarget, U16Target,
+    };
 
     #[test]
     fn test_add_registers() {
@@ -1510,5 +1551,21 @@ mod cpu_tests {
             sp_init.wrapping_add(data_to_add as i8 as i16 as u16),
             cpu.sp
         );
+    }
+
+    #[test]
+    fn test_return() {
+        let mut cpu = Cpu::new();
+
+        // initialize RAM memory parameters
+        let ram_address = 0xFFA5;
+        let push_data = 0xD7F8;
+
+        // test push instruction
+        cpu.sp = ram_address;
+        cpu.registers.write_de(push_data);
+        cpu.execute(PUSH(PopPushTarget::DE));
+        let next_pc = cpu.execute(RETURN(JumpTarget::IMMEDIATE));
+        assert_eq!(next_pc, push_data);
     }
 }

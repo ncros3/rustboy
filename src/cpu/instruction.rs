@@ -86,6 +86,7 @@ pub enum Instruction {
     JUMP_RELATIVE(JumpTarget),
     JUMP_IMMEDIATE(JumpTarget),
     JUMP_INDIRECT,
+    RETURN(JumpTarget),
     POP(PopPushTarget),
     PUSH(PopPushTarget),
     AddSp,
@@ -343,6 +344,13 @@ impl Instruction {
             0xDA => Some(Instruction::JUMP_IMMEDIATE(JumpTarget::C)),
 
             0xE9 => Some(Instruction::JUMP_INDIRECT),
+
+            // RETURN instructions
+            0xC0 => Some(Instruction::RETURN(JumpTarget::NZ)),
+            0xD0 => Some(Instruction::RETURN(JumpTarget::NC)),
+            0xC8 => Some(Instruction::RETURN(JumpTarget::Z)),
+            0xD8 => Some(Instruction::RETURN(JumpTarget::C)),
+            0xC9 => Some(Instruction::RETURN(JumpTarget::IMMEDIATE)),
 
             // POP & PUSH instructions
             0xC1 => Some(Instruction::POP(PopPushTarget::BC)),
