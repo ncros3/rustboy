@@ -476,6 +476,13 @@ macro_rules! reset {
     }};
 }
 
+macro_rules! interrupt_enable {
+    ($enable: ident, $self:ident) => {{
+        $self.nvic.master_enable($enable);
+        $self.pc.wrapping_add(1)
+    }};
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -546,6 +553,7 @@ impl Cpu {
 
             // Return instructions
             Instruction::RETURN(target) => ret!(target, self),
+            Instruction::RETI => self.reti(),
 
             // Reset instructions
             Instruction::RESET(target) => reset!(target, self),
@@ -553,6 +561,10 @@ impl Cpu {
             // Pop & Push instructions
             Instruction::POP(target) => pop!(target, self),
             Instruction::PUSH(target) => push!(target, self),
+
+            // Interrupt instructions
+            Instruction::DI => interrupt_enable!(false, self),
+            Instruction::EI => interrupt_enable!(true, self),
         }
     }
 
@@ -875,6 +887,11 @@ impl Cpu {
         // return next PC value
         addr_to_reset as u16
     }
+
+    fn reti(&mut self) -> u16 {
+        self.nvic.interrupt_master_enable = true;
+        self.pop()
+    }
 }
 
 #[cfg(test)]
@@ -882,11 +899,11 @@ mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
-        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, LOAD_IMMEDIATE, LOAD_INDIRECT,
-        LOAD_SP, OR, POP, PUSH, RETURN, SBC, STORE_INDIRECT, SUB, XOR,
+        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, DI, EI, INC, INC16, LOAD, LOAD_IMMEDIATE,
+        LOAD_INDIRECT, LOAD_SP, OR, POP, PUSH, RESET, RETI, RETURN, SBC, STORE_INDIRECT, SUB, XOR,
     };
     use crate::cpu::instruction::{
-        IncDecTarget, JumpTarget, Load16Target, PopPushTarget, SPTarget, U16Target,
+        IncDecTarget, JumpTarget, Load16Target, PopPushTarget, ResetTarget, SPTarget, U16Target,
     };
 
     #[test]
@@ -1592,5 +1609,38 @@ mod cpu_tests {
         cpu.execute(PUSH(PopPushTarget::DE));
         let next_pc = cpu.execute(RETURN(JumpTarget::IMMEDIATE));
         assert_eq!(next_pc, push_data);
+    }
+
+    #[test]
+    fn test_reset() {
+        let mut cpu = Cpu::new();
+
+        // test push instruction
+        cpu.sp = 0xFFAF;
+        let next_pc = cpu.execute(RESET(ResetTarget::FLASH_1));
+        assert_eq!(next_pc, 0x08);
+    }
+
+    #[test]
+    fn test_interrupt() {
+        let mut cpu = Cpu::new();
+
+        cpu.execute(EI);
+        assert_eq!(cpu.nvic.interrupt_master_enable, true);
+
+        cpu.execute(DI);
+        assert_eq!(cpu.nvic.interrupt_master_enable, false);
+
+        // initialize RAM memory parameters
+        let ram_address = 0xFFA5;
+        let push_data = 0xD7F8;
+
+        // test push instruction
+        cpu.sp = ram_address;
+        cpu.registers.write_de(push_data);
+        cpu.execute(PUSH(PopPushTarget::DE));
+        let next_pc = cpu.execute(RETI);
+        assert_eq!(next_pc, push_data);
+        assert_eq!(cpu.nvic.interrupt_master_enable, true);
     }
 }
