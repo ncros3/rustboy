@@ -883,10 +883,10 @@ mod cpu_tests {
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
         ADD, ADD16, ADDC, AND, CP, DEC, DEC16, INC, INC16, LOAD, LOAD_IMMEDIATE, LOAD_INDIRECT,
-        LOAD_SP, OR, POP, PUSH, RETURN, SBC, STORE_INDIRECT, SUB, XOR,
+        LOAD_SP, OR, POP, PUSH, RESET, RETURN, SBC, STORE_INDIRECT, SUB, XOR,
     };
     use crate::cpu::instruction::{
-        IncDecTarget, JumpTarget, Load16Target, PopPushTarget, SPTarget, U16Target,
+        IncDecTarget, JumpTarget, Load16Target, PopPushTarget, ResetTarget, SPTarget, U16Target,
     };
 
     #[test]
@@ -1592,5 +1592,15 @@ mod cpu_tests {
         cpu.execute(PUSH(PopPushTarget::DE));
         let next_pc = cpu.execute(RETURN(JumpTarget::IMMEDIATE));
         assert_eq!(next_pc, push_data);
+    }
+
+    #[test]
+    fn test_reset() {
+        let mut cpu = Cpu::new();
+
+        // test push instruction
+        cpu.sp = 0xFFAF;
+        let next_pc = cpu.execute(RESET(ResetTarget::FLASH_1));
+        assert_eq!(next_pc, 0x08);
     }
 }
