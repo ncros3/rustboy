@@ -99,6 +99,7 @@ pub enum Instruction {
     JUMP_INDIRECT,
     RETURN(JumpTarget),
     RESET(ResetTarget),
+    CALL(JumpTarget),
     POP(PopPushTarget),
     PUSH(PopPushTarget),
     AddSp,
@@ -373,6 +374,13 @@ impl Instruction {
             0xEF => Some(Instruction::RESET(ResetTarget::FLASH_5)),
             0xF7 => Some(Instruction::RESET(ResetTarget::FLASH_6)),
             0xFF => Some(Instruction::RESET(ResetTarget::FLASH_7)),
+
+            // CALL instructions
+            0xC4 => Some(Instruction::CALL(JumpTarget::NZ)),
+            0xD4 => Some(Instruction::CALL(JumpTarget::NC)),
+            0xCC => Some(Instruction::CALL(JumpTarget::Z)),
+            0xDC => Some(Instruction::CALL(JumpTarget::C)),
+            0xCD => Some(Instruction::CALL(JumpTarget::IMMEDIATE)),
 
             // POP & PUSH instructions
             0xC1 => Some(Instruction::POP(PopPushTarget::BC)),

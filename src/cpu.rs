@@ -330,7 +330,7 @@ macro_rules! load_immediate {
     }};
 }
 
-macro_rules! jump_with_flag {
+macro_rules! control_with_flag {
     ($negative: ident, $self:ident.$instruction:ident, $flag:ident) => {{
         let flag_value = $self.registers.f.$flag;
         // inverse flag if negative option is selected
@@ -343,13 +343,13 @@ macro_rules! jump_with_flag {
     }};
 }
 
-macro_rules! jump {
+macro_rules! control {
     ($flag: ident, $self:ident.$instruction:ident) => {{
         match $flag {
-            JumpTarget::NZ => jump_with_flag!(true, $self.$instruction, zero),
-            JumpTarget::NC => jump_with_flag!(true, $self.$instruction, carry),
-            JumpTarget::Z => jump_with_flag!(false, $self.$instruction, zero),
-            JumpTarget::C => jump_with_flag!(false, $self.$instruction, carry),
+            JumpTarget::NZ => control_with_flag!(true, $self.$instruction, zero),
+            JumpTarget::NC => control_with_flag!(true, $self.$instruction, carry),
+            JumpTarget::Z => control_with_flag!(false, $self.$instruction, zero),
+            JumpTarget::C => control_with_flag!(false, $self.$instruction, carry),
             JumpTarget::IMMEDIATE => $self.$instruction(true),
         }
     }};
@@ -539,16 +539,13 @@ impl Cpu {
             Instruction::LOAD_RAM(target) => self.load_store_ram(target, true),
             Instruction::STORE_RAM(target) => self.load_store_ram(target, false),
 
-            // Jump instructions
-            Instruction::JUMP_RELATIVE(target) => jump!(target, self.jump_relative),
-            Instruction::JUMP_IMMEDIATE(target) => jump!(target, self.jump_immediate),
+            // JUMP / CALL / RETURN / RESET instructions
+            Instruction::JUMP_RELATIVE(target) => control!(target, self.jump_relative),
+            Instruction::JUMP_IMMEDIATE(target) => control!(target, self.jump_immediate),
             Instruction::JUMP_INDIRECT => self.jump_indirect(),
-
-            // Return instructions
             Instruction::RETURN(target) => ret!(target, self),
-
-            // Reset instructions
             Instruction::RESET(target) => reset!(target, self),
+            Instruction::CALL(target) => control!(target, self.call),
 
             // Pop & Push instructions
             Instruction::POP(target) => pop!(target, self),
@@ -874,6 +871,21 @@ impl Cpu {
         self.push(self.pc.wrapping_add(1));
         // return next PC value
         addr_to_reset as u16
+    }
+
+    fn call(&mut self, flag: bool) -> u16 {
+        // save the return address on the stack
+        self.push(self.pc.wrapping_add(3));
+        // get the call address
+        let low_byte_address = self.bus.read_byte(self.pc.wrapping_add(1));
+        let high_byte_address = self.bus.read_byte(self.pc.wrapping_add(2));
+        let call_address = (low_byte_address as u16) + ((high_byte_address as u16) << 8);
+        // do the call following the flag value
+        if flag {
+            call_address
+        } else {
+            self.pc.wrapping_add(3)
+        }
     }
 }
 
@@ -1592,5 +1604,25 @@ mod cpu_tests {
         cpu.execute(PUSH(PopPushTarget::DE));
         let next_pc = cpu.execute(RETURN(JumpTarget::IMMEDIATE));
         assert_eq!(next_pc, push_data);
+    }
+
+    #[test]
+    fn test_call() {
+        let mut cpu = Cpu::new();
+
+        // first, fill memory with program
+        let inst: u8 = 0xC4;
+        let program: [u8; 8] = [inst, 0x00, 0x05, 0x44, 0x55, 0x66, 0x77, 0x88];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index, data);
+            index += 1;
+        }
+
+        // run CPU to do the jump
+        let ram_address = 0xFFA5;
+        cpu.sp = ram_address;
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0500);
     }
 }
