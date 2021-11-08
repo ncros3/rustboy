@@ -73,6 +73,11 @@ pub enum ResetTarget {
     FLASH_7,
 }
 
+pub enum Direction {
+    LEFT,
+    RIGHT,
+}
+
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
@@ -106,6 +111,20 @@ pub enum Instruction {
     AddSp,
     EI,
     DI,
+    NOP,
+    STOP,
+    HALT,
+    SCF,
+    CPL,
+    CCF,
+    DAA,
+    RCA(Direction),
+    RA(Direction),
+    RC(Direction, IncDecTarget),
+    R(Direction, IncDecTarget),
+    SA(Direction, IncDecTarget),
+    SRL(IncDecTarget),
+    SWAP(IncDecTarget),
 }
 
 impl Instruction {
@@ -401,6 +420,21 @@ impl Instruction {
             // Interrupt instructions
             0xF3 => Some(Instruction::DI),
             0xFB => Some(Instruction::EI),
+
+            // Control instructions
+            0x00 => Some(Instruction::NOP),
+            0x10 => Some(Instruction::STOP),
+            0x76 => Some(Instruction::HALT),
+            0x27 => Some(Instruction::DAA),
+            0x37 => Some(Instruction::SCF),
+            0x2F => Some(Instruction::CPL),
+            0x3F => Some(Instruction::CCF),
+
+            // Rotate and Shift instructions
+            0x07 => Some(Instruction::RCA(Direction::LEFT)),
+            0x17 => Some(Instruction::RA(Direction::LEFT)),
+            0x0F => Some(Instruction::RCA(Direction::RIGHT)),
+            0x1F => Some(Instruction::RA(Direction::RIGHT)),
 
             _ => None,
         }

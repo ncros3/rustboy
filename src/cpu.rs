@@ -562,6 +562,19 @@ impl Cpu {
             // Interrupt instructions
             Instruction::DI => interrupt_enable!(false, self),
             Instruction::EI => interrupt_enable!(true, self),
+
+            // Control instructions
+            Instruction::NOP => 0,
+            Instruction::STOP => 0,
+            Instruction::HALT => 0,
+            Instruction::DAA => 0,
+            Instruction::SCF => 0,
+            Instruction::CPL => 0,
+            Instruction::CCF => 0,
+
+            // Rotate instructions
+            Instruction::RCA(direction) => 0,
+            Instruction::RA(direction) => 0,
         }
     }
 
