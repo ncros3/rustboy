@@ -1655,6 +1655,7 @@ mod cpu_tests {
         assert_eq!(next_pc, push_data);
         assert_eq!(cpu.nvic.interrupt_master_enable, true);
     }
+    #[test]
     fn test_call() {
         let mut cpu = Cpu::new();
 
