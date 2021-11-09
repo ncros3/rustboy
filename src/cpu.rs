@@ -483,12 +483,20 @@ macro_rules! interrupt_enable {
     }};
 }
 
+#[derive(PartialEq)]
+pub enum CpuMode {
+    RUN,
+    STOP,
+    HALT,
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
     sp: u16,
     bus: Bus,
     nvic: Nvic,
+    mode: CpuMode,
 }
 
 impl Cpu {
@@ -499,22 +507,26 @@ impl Cpu {
             sp: 0x0000,
             bus: Bus::new(),
             nvic: Nvic::new(),
+            mode: CpuMode::RUN,
         }
     }
 
     fn run(&mut self) {
-        // fetch instruction
-        let instruction_byte = self.bus.read_byte(self.pc);
-        // decode instruction
-        let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte) {
-            // execute instruction
-            self.execute(instruction)
-        } else {
-            panic!("Unknown instruction found for 0x{:x}", instruction_byte);
-        };
+        // run CPU if it's not in HALT or STOP mode
+        if self.mode == CpuMode::RUN {
+            // fetch instruction
+            let instruction_byte = self.bus.read_byte(self.pc);
+            // decode instruction
+            let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte) {
+                // execute instruction
+                self.execute(instruction)
+            } else {
+                panic!("Unknown instruction found for 0x{:x}", instruction_byte);
+            };
 
-        // update PC value
-        self.pc = next_pc;
+            // update PC value
+            self.pc = next_pc;
+        }
     }
 
     fn execute(&mut self, instruction: Instruction) -> u16 {
@@ -564,9 +576,9 @@ impl Cpu {
             Instruction::EI => interrupt_enable!(true, self),
 
             // Control instructions
-            Instruction::NOP => 0,
-            Instruction::STOP => 0,
-            Instruction::HALT => 0,
+            Instruction::NOP => self.pc.wrapping_add(1),
+            Instruction::STOP => self.set_cpu_mode(CpuMode::STOP),
+            Instruction::HALT => self.set_cpu_mode(CpuMode::HALT),
             Instruction::DAA => 0,
             Instruction::SCF => 0,
             Instruction::CPL => 0,
@@ -575,6 +587,11 @@ impl Cpu {
             // Rotate instructions
             Instruction::RCA(direction) => 0,
             Instruction::RA(direction) => 0,
+            Instruction::RC(direction, target) => 0,
+            Instruction::R(direction, target) => 0,
+            Instruction::SA(direction, target) => 0,
+            Instruction::SRL(target) => 0,
+            Instruction::SWAP(target) => 0,
         }
     }
 
@@ -916,6 +933,11 @@ impl Cpu {
         } else {
             self.pc.wrapping_add(3)
         }
+    }
+
+    fn set_cpu_mode(&mut self, mode: CpuMode) -> u16 {
+        self.mode = mode;
+        self.pc.wrapping_add(1)
     }
 }
 
@@ -1686,5 +1708,44 @@ mod cpu_tests {
         cpu.sp = ram_address;
         cpu.run();
         assert_eq!(cpu.pc, 0x0500);
+    }
+
+    #[test]
+    fn test_nop_stop_halt() {
+        let mut cpu = Cpu::new();
+
+        // first, fill memory with program
+        let nop_inst: u8 = 0x00;
+        let stop_inst: u8 = 0x10;
+        let halt_inst: u8 = 0x76;
+        let program: [u8; 8] = [
+            nop_inst, stop_inst, nop_inst, halt_inst, nop_inst, nop_inst, nop_inst, nop_inst,
+        ];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index, data);
+            index += 1;
+        }
+
+        // run CPU to do the NOP
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0001);
+        // run CPU to do the STOP
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0002);
+        // then CPU is blocked
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0002);
+
+        // Unlock CPU and run NOP inst
+        cpu.mode = CpuMode::RUN;
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0003);
+        // run HALT inst
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0004);
+        // cpu is blocked
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0004);
     }
 }
