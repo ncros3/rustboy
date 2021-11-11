@@ -490,6 +490,11 @@ pub enum CpuMode {
     HALT,
 }
 
+pub enum CarryOp {
+    SET,
+    FLIP,
+}
+
 pub struct Cpu {
     registers: Registers,
     pc: u16,
@@ -579,10 +584,10 @@ impl Cpu {
             Instruction::NOP => self.pc.wrapping_add(1),
             Instruction::STOP => self.set_cpu_mode(CpuMode::STOP),
             Instruction::HALT => self.set_cpu_mode(CpuMode::HALT),
-            Instruction::DAA => 0,
-            Instruction::SCF => 0,
-            Instruction::CPL => 0,
-            Instruction::CCF => 0,
+            Instruction::DAA => self.decimal_adjust(),
+            Instruction::SCF => self.set_carry(CarryOp::SET),
+            Instruction::CPL => self.flip_register_a(),
+            Instruction::CCF => self.set_carry(CarryOp::FLIP),
 
             // Rotate instructions
             Instruction::RCA(direction) => 0,
@@ -939,6 +944,72 @@ impl Cpu {
         self.mode = mode;
         self.pc.wrapping_add(1)
     }
+
+    fn flip_register_a(&mut self) -> u16 {
+        // flip register a
+        self.registers.a = !self.registers.a;
+
+        // update flag register
+        self.registers.f.substraction = true;
+        self.registers.f.half_carry = true;
+
+        // return next pc value
+        self.pc.wrapping_add(1)
+    }
+
+    fn set_carry(&mut self, operation: CarryOp) -> u16 {
+        // set carry depending on operation value
+        match operation {
+            CarryOp::SET => self.registers.f.carry = true,
+            CarryOp::FLIP => self.registers.f.carry = !self.registers.f.carry,
+            _ => {}
+        }
+
+        // update flags
+        self.registers.f.zero = false;
+        self.registers.f.half_carry = false;
+
+        // return next pc value
+        self.pc.wrapping_add(1)
+    }
+
+    fn decimal_adjust(&mut self) -> u16 {
+        // huge help from https://github.com/rylev/DMG-01/blob/master/lib-dmg-01/src/cpu/mod.rs
+
+        let flags = self.registers.f;
+        let mut carry = false;
+
+        // adjust
+        let result = if !flags.substraction {
+            let mut result = self.registers.a;
+            if flags.carry || self.registers.a > 0x99 {
+                carry = true;
+                result = result.wrapping_add(0x60);
+            }
+            if flags.half_carry || self.registers.a & 0x0F > 0x09 {
+                result = result.wrapping_add(0x06);
+            }
+            result
+        } else if flags.carry {
+            carry = true;
+            let add = if flags.half_carry { 0x9A } else { 0xA0 };
+            self.registers.a.wrapping_add(add)
+        } else if flags.half_carry {
+            self.registers.a.wrapping_add(0xFA)
+        } else {
+            self.registers.a
+        };
+        // update a register with the new value
+        self.registers.a = result;
+
+        // update flags
+        self.registers.f.zero = result == 0;
+        self.registers.f.carry = carry;
+        self.registers.f.half_carry = false;
+
+        // return next pc value
+        self.pc.wrapping_add(1)
+    }
 }
 
 #[cfg(test)]
@@ -946,8 +1017,9 @@ mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
-        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, DI, EI, INC, INC16, LOAD, LOAD_IMMEDIATE,
-        LOAD_INDIRECT, LOAD_SP, OR, POP, PUSH, RESET, RETI, RETURN, SBC, STORE_INDIRECT, SUB, XOR,
+        ADD, ADD16, ADDC, AND, CCF, CP, CPL, DAA, DEC, DEC16, DI, EI, INC, INC16, LOAD,
+        LOAD_IMMEDIATE, LOAD_INDIRECT, LOAD_SP, OR, POP, PUSH, RESET, RETI, RETURN, SBC, SCF,
+        STORE_INDIRECT, SUB, XOR,
     };
     use crate::cpu::instruction::{
         IncDecTarget, JumpTarget, Load16Target, PopPushTarget, ResetTarget, SPTarget, U16Target,
@@ -1690,6 +1762,7 @@ mod cpu_tests {
         assert_eq!(next_pc, push_data);
         assert_eq!(cpu.nvic.interrupt_master_enable, true);
     }
+
     #[test]
     fn test_call() {
         let mut cpu = Cpu::new();
@@ -1747,5 +1820,38 @@ mod cpu_tests {
         // cpu is blocked
         cpu.run();
         assert_eq!(cpu.pc, 0x0004);
+    }
+
+    #[test]
+    fn test_complement() {
+        let mut cpu = Cpu::new();
+
+        // run CPU to do the jump
+        cpu.registers.a = 0x55;
+        cpu.execute(Instruction::CPL);
+        assert_eq!(cpu.registers.a, 0xAA);
+    }
+
+    #[test]
+    fn test_set_carry() {
+        let mut cpu = Cpu::new();
+
+        // run CPU to do the jump
+        cpu.execute(Instruction::SCF);
+        assert_eq!(cpu.registers.f.carry, true);
+        cpu.execute(Instruction::CCF);
+        assert_eq!(cpu.registers.f.carry, false);
+        cpu.execute(Instruction::CCF);
+        assert_eq!(cpu.registers.f.carry, true);
+    }
+
+    #[test]
+    fn test_decimal_adjust() {
+        let mut cpu = Cpu::new();
+
+        // run CPU to do the jump
+        cpu.registers.a = 0x0B;
+        cpu.execute(Instruction::DAA);
+        assert_eq!(cpu.registers.a, 0x11);
     }
 }
