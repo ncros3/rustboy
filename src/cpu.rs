@@ -5,8 +5,8 @@ mod register;
 
 use bus::Bus;
 use instruction::{
-    ArithmeticTarget, IncDecTarget, Instruction, JumpTarget, Load16Target, PopPushTarget,
-    RamTarget, ResetTarget, SPTarget, U16Target,
+    ArithmeticTarget, Direction, IncDecTarget, Instruction, JumpTarget, Load16Target,
+    PopPushTarget, RamTarget, ResetTarget, SPTarget, U16Target,
 };
 use nvic::Nvic;
 use register::Registers;
@@ -483,6 +483,20 @@ macro_rules! interrupt_enable {
     }};
 }
 
+macro_rules! rotate_register {
+    ($register: ident, $self:ident.$instruction:ident, $direction: ident) => {{
+        // update flag register
+        $self.registers.f.zero = false;
+        $self.registers.f.substraction = false;
+        $self.registers.f.half_carry = false;
+        // rotate register
+        let new_value = $self.$instruction($self.registers.$register, $direction);
+        $self.registers.$register = new_value;
+        // return next pc
+        $self.pc.wrapping_add(1)
+    }};
+}
+
 #[derive(PartialEq)]
 pub enum CpuMode {
     RUN,
@@ -590,8 +604,8 @@ impl Cpu {
             Instruction::CCF => self.set_carry(CarryOp::FLIP),
 
             // Rotate instructions
-            Instruction::RCA(direction) => 0,
-            Instruction::RA(direction) => 0,
+            Instruction::RCA(direction) => rotate_register!(a, self.rotate, direction),
+            Instruction::RA(direction) => rotate_register!(a, self.rotate_through_carry, direction),
             Instruction::RC(direction, target) => 0,
             Instruction::R(direction, target) => 0,
             Instruction::SA(direction, target) => 0,
@@ -1010,6 +1024,56 @@ impl Cpu {
         // return next pc value
         self.pc.wrapping_add(1)
     }
+
+    fn rotate(&mut self, value: u8, direction: Direction) -> u8 {
+        match direction {
+            Direction::LEFT => {
+                // save bit 7
+                let last_bit = (value & 0b1000_0000) >> 7;
+                // shift register
+                let output_value = (value << 1) | last_bit;
+                // update carry
+                self.registers.f.carry = last_bit == 0;
+                // return computed value
+                output_value
+            }
+            Direction::RIGHT => {
+                // save bit 0
+                let first_bit = (value & 0b0000_0001) << 7;
+                // shift register
+                let output_value = (value >> 1) | first_bit;
+                // update carry
+                self.registers.f.carry = first_bit == 0;
+                // return computed value
+                output_value
+            }
+        }
+    }
+
+    fn rotate_through_carry(&mut self, value: u8, direction: Direction) -> u8 {
+        match direction {
+            Direction::LEFT => {
+                // save bit 7
+                let last_bit = (value & 0b1000_0000) >> 7;
+                // shift register
+                let output_value = (value << 1) | (self.registers.f.carry as u8);
+                // update carry
+                self.registers.f.carry = last_bit == 0;
+                // return computed value
+                output_value
+            }
+            Direction::RIGHT => {
+                // save bit 0
+                let first_bit = (value & 0b0000_0001) << 7;
+                // shift register
+                let output_value = (value >> 1) | ((self.registers.f.carry as u8) << 7);
+                // update carry
+                self.registers.f.carry = first_bit == 0;
+                // return computed value
+                output_value
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1017,9 +1081,8 @@ mod cpu_tests {
     use super::*;
     use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
     use crate::cpu::instruction::Instruction::{
-        ADD, ADD16, ADDC, AND, CCF, CP, CPL, DAA, DEC, DEC16, DI, EI, INC, INC16, LOAD,
-        LOAD_IMMEDIATE, LOAD_INDIRECT, LOAD_SP, OR, POP, PUSH, RESET, RETI, RETURN, SBC, SCF,
-        STORE_INDIRECT, SUB, XOR,
+        ADD, ADD16, ADDC, AND, CP, DEC, DEC16, DI, EI, INC, INC16, LOAD, LOAD_IMMEDIATE,
+        LOAD_INDIRECT, LOAD_SP, OR, POP, PUSH, RESET, RETI, RETURN, SBC, STORE_INDIRECT, SUB, XOR,
     };
     use crate::cpu::instruction::{
         IncDecTarget, JumpTarget, Load16Target, PopPushTarget, ResetTarget, SPTarget, U16Target,
@@ -1853,5 +1916,28 @@ mod cpu_tests {
         cpu.registers.a = 0x0B;
         cpu.execute(Instruction::DAA);
         assert_eq!(cpu.registers.a, 0x11);
+    }
+
+    #[test]
+    fn test_rotate_left() {
+        let mut cpu = Cpu::new();
+
+        // run CPU to do the jump
+        cpu.registers.a = 0xB5;
+        cpu.execute(Instruction::RCA(Direction::LEFT));
+        //assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.a, 0x6B);
+    }
+
+    #[test]
+    fn test_rotate_through_carry_right() {
+        let mut cpu = Cpu::new();
+
+        // run CPU to do the jump
+        cpu.registers.a = 0xB5;
+        cpu.registers.f.carry = true;
+        cpu.execute(Instruction::RA(Direction::RIGHT));
+        //assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.a, 0xDA);
     }
 }
