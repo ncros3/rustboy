@@ -1,3 +1,6 @@
+use std::fs::OpenOptions;
+
+const LONG_PREFIX: u8 = 0xCB;
 pub enum ArithmeticTarget {
     A,
     B,
@@ -435,6 +438,96 @@ impl Instruction {
             0x17 => Some(Instruction::RA(Direction::LEFT)),
             0x0F => Some(Instruction::RCA(Direction::RIGHT)),
             0x1F => Some(Instruction::RA(Direction::RIGHT)),
+
+            _ => None,
+        }
+    }
+
+    pub fn is_long_instruction(prefix: u8) -> bool {
+        prefix == LONG_PREFIX
+    }
+
+    pub fn from_long_byte(long_byte: u16) -> Option<Instruction> {
+        match long_byte {
+            // rotate left instructions
+            0xCB00 => Some(Instruction::RC(Direction::LEFT, IncDecTarget::B)),
+            0xCB01 => Some(Instruction::RC(Direction::LEFT, IncDecTarget::C)),
+            0xCB02 => Some(Instruction::RC(Direction::LEFT, IncDecTarget::D)),
+            0xCB03 => Some(Instruction::RC(Direction::LEFT, IncDecTarget::E)),
+            0xCB04 => Some(Instruction::RC(Direction::LEFT, IncDecTarget::H)),
+            0xCB05 => Some(Instruction::RC(Direction::LEFT, IncDecTarget::L)),
+            0xCB06 => Some(Instruction::RC(Direction::LEFT, IncDecTarget::HL)),
+            0xCB07 => Some(Instruction::RC(Direction::LEFT, IncDecTarget::A)),
+
+            // rotate right instructions
+            0xCB08 => Some(Instruction::RC(Direction::RIGHT, IncDecTarget::B)),
+            0xCB09 => Some(Instruction::RC(Direction::RIGHT, IncDecTarget::C)),
+            0xCB0A => Some(Instruction::RC(Direction::RIGHT, IncDecTarget::D)),
+            0xCB0B => Some(Instruction::RC(Direction::RIGHT, IncDecTarget::E)),
+            0xCB0C => Some(Instruction::RC(Direction::RIGHT, IncDecTarget::H)),
+            0xCB0D => Some(Instruction::RC(Direction::RIGHT, IncDecTarget::L)),
+            0xCB0E => Some(Instruction::RC(Direction::RIGHT, IncDecTarget::HL)),
+            0xCB0F => Some(Instruction::RC(Direction::RIGHT, IncDecTarget::A)),
+
+            // rotate left through carry instructions
+            0xCB10 => Some(Instruction::R(Direction::LEFT, IncDecTarget::B)),
+            0xCB11 => Some(Instruction::R(Direction::LEFT, IncDecTarget::C)),
+            0xCB12 => Some(Instruction::R(Direction::LEFT, IncDecTarget::D)),
+            0xCB13 => Some(Instruction::R(Direction::LEFT, IncDecTarget::E)),
+            0xCB14 => Some(Instruction::R(Direction::LEFT, IncDecTarget::H)),
+            0xCB15 => Some(Instruction::R(Direction::LEFT, IncDecTarget::L)),
+            0xCB16 => Some(Instruction::R(Direction::LEFT, IncDecTarget::HL)),
+            0xCB17 => Some(Instruction::R(Direction::LEFT, IncDecTarget::A)),
+
+            // rotate left through carry instructions
+            0xCB18 => Some(Instruction::R(Direction::RIGHT, IncDecTarget::B)),
+            0xCB19 => Some(Instruction::R(Direction::RIGHT, IncDecTarget::C)),
+            0xCB1A => Some(Instruction::R(Direction::RIGHT, IncDecTarget::D)),
+            0xCB1B => Some(Instruction::R(Direction::RIGHT, IncDecTarget::E)),
+            0xCB1C => Some(Instruction::R(Direction::RIGHT, IncDecTarget::H)),
+            0xCB1D => Some(Instruction::R(Direction::RIGHT, IncDecTarget::L)),
+            0xCB1E => Some(Instruction::R(Direction::RIGHT, IncDecTarget::HL)),
+            0xCB1F => Some(Instruction::R(Direction::RIGHT, IncDecTarget::A)),
+
+            // shift left instructions
+            0xCB20 => Some(Instruction::SA(Direction::LEFT, IncDecTarget::B)),
+            0xCB21 => Some(Instruction::SA(Direction::LEFT, IncDecTarget::C)),
+            0xCB22 => Some(Instruction::SA(Direction::LEFT, IncDecTarget::D)),
+            0xCB23 => Some(Instruction::SA(Direction::LEFT, IncDecTarget::E)),
+            0xCB24 => Some(Instruction::SA(Direction::LEFT, IncDecTarget::H)),
+            0xCB25 => Some(Instruction::SA(Direction::LEFT, IncDecTarget::L)),
+            0xCB26 => Some(Instruction::SA(Direction::LEFT, IncDecTarget::HL)),
+            0xCB27 => Some(Instruction::SA(Direction::LEFT, IncDecTarget::A)),
+
+            // shift right instructions
+            0xCB28 => Some(Instruction::SA(Direction::RIGHT, IncDecTarget::B)),
+            0xCB29 => Some(Instruction::SA(Direction::RIGHT, IncDecTarget::C)),
+            0xCB2A => Some(Instruction::SA(Direction::RIGHT, IncDecTarget::D)),
+            0xCB2B => Some(Instruction::SA(Direction::RIGHT, IncDecTarget::E)),
+            0xCB2C => Some(Instruction::SA(Direction::RIGHT, IncDecTarget::H)),
+            0xCB2D => Some(Instruction::SA(Direction::RIGHT, IncDecTarget::L)),
+            0xCB2E => Some(Instruction::SA(Direction::RIGHT, IncDecTarget::HL)),
+            0xCB2F => Some(Instruction::SA(Direction::RIGHT, IncDecTarget::A)),
+
+            // swap instructions
+            0xCB30 => Some(Instruction::SWAP(IncDecTarget::B)),
+            0xCB31 => Some(Instruction::SWAP(IncDecTarget::C)),
+            0xCB32 => Some(Instruction::SWAP(IncDecTarget::D)),
+            0xCB33 => Some(Instruction::SWAP(IncDecTarget::E)),
+            0xCB34 => Some(Instruction::SWAP(IncDecTarget::H)),
+            0xCB35 => Some(Instruction::SWAP(IncDecTarget::L)),
+            0xCB36 => Some(Instruction::SWAP(IncDecTarget::HL)),
+            0xCB37 => Some(Instruction::SWAP(IncDecTarget::A)),
+
+            // swap instructions
+            0xCB38 => Some(Instruction::SRL(IncDecTarget::B)),
+            0xCB39 => Some(Instruction::SRL(IncDecTarget::C)),
+            0xCB3A => Some(Instruction::SRL(IncDecTarget::D)),
+            0xCB3B => Some(Instruction::SRL(IncDecTarget::E)),
+            0xCB3C => Some(Instruction::SRL(IncDecTarget::H)),
+            0xCB3D => Some(Instruction::SRL(IncDecTarget::L)),
+            0xCB3E => Some(Instruction::SRL(IncDecTarget::HL)),
+            0xCB3F => Some(Instruction::SRL(IncDecTarget::A)),
 
             _ => None,
         }
