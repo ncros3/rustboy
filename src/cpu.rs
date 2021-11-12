@@ -530,13 +530,22 @@ impl Cpu {
         }
     }
 
+    fn decode(&mut self, instruction_byte: u8) -> Option<Instruction> {
+        if Instruction::is_long_instruction(instruction_byte) {
+            let long_instruction_byte = self.bus.read_byte(self.pc.wrapping_add(1));
+            Instruction::from_long_byte(long_instruction_byte)
+        } else {
+            Instruction::from_byte(instruction_byte)
+        }
+    }
+
     fn run(&mut self) {
         // run CPU if it's not in HALT or STOP mode
         if self.mode == CpuMode::RUN {
             // fetch instruction
             let instruction_byte = self.bus.read_byte(self.pc);
             // decode instruction
-            let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte) {
+            let next_pc = if let Some(instruction) = self.decode(instruction_byte) {
                 // execute instruction
                 self.execute(instruction)
             } else {
@@ -1033,7 +1042,7 @@ impl Cpu {
                 // shift register
                 let output_value = (value << 1) | last_bit;
                 // update carry
-                self.registers.f.carry = last_bit == 0;
+                self.registers.f.carry = last_bit != 0;
                 // return computed value
                 output_value
             }
@@ -1043,7 +1052,7 @@ impl Cpu {
                 // shift register
                 let output_value = (value >> 1) | first_bit;
                 // update carry
-                self.registers.f.carry = first_bit == 0;
+                self.registers.f.carry = first_bit != 0;
                 // return computed value
                 output_value
             }
@@ -1058,7 +1067,7 @@ impl Cpu {
                 // shift register
                 let output_value = (value << 1) | (self.registers.f.carry as u8);
                 // update carry
-                self.registers.f.carry = last_bit == 0;
+                self.registers.f.carry = last_bit != 0;
                 // return computed value
                 output_value
             }
@@ -1068,7 +1077,7 @@ impl Cpu {
                 // shift register
                 let output_value = (value >> 1) | ((self.registers.f.carry as u8) << 7);
                 // update carry
-                self.registers.f.carry = first_bit == 0;
+                self.registers.f.carry = first_bit != 0;
                 // return computed value
                 output_value
             }
@@ -1925,7 +1934,7 @@ mod cpu_tests {
         // run CPU to do the jump
         cpu.registers.a = 0xB5;
         cpu.execute(Instruction::RCA(Direction::LEFT));
-        //assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.f.carry, true);
         assert_eq!(cpu.registers.a, 0x6B);
     }
 
@@ -1937,7 +1946,28 @@ mod cpu_tests {
         cpu.registers.a = 0xB5;
         cpu.registers.f.carry = true;
         cpu.execute(Instruction::RA(Direction::RIGHT));
-        //assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.f.carry, true);
         assert_eq!(cpu.registers.a, 0xDA);
+    }
+
+    #[test]
+    fn test_decode_long_instruction() {
+        let mut cpu = Cpu::new();
+
+        let program: [u8; 2] = [0xCB, 0x19];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index, data);
+            index += 1;
+        }
+
+        if let Some(instruction) = cpu.decode(0xCB) {
+            assert_eq!(
+                instruction,
+                Instruction::R(Direction::RIGHT, IncDecTarget::C)
+            );
+        } else {
+            panic!("Unkown long instruction");
+        }
     }
 }
