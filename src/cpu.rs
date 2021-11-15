@@ -718,8 +718,8 @@ impl Cpu {
                 rotate_from_register!(target, self.rotate_through_carry, direction)
             }
             Instruction::SLA(target) => shift!(target, self.shift_left_and_reset),
-            Instruction::SRA(target) => shift!(target, self.shift_right_and_reset),
-            Instruction::SRL(target) => 0,
+            Instruction::SRA(target) => shift!(target, self.shift_right),
+            Instruction::SRL(target) => shift!(target, self.shift_right_and_reset),
             Instruction::SWAP(target) => 0,
         }
     }
@@ -1229,6 +1229,21 @@ impl Cpu {
         let first_bit = (value & 0b0000_0001) << 7;
         // shift register
         let output_value = value >> 1;
+        // update flag register
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.zero = output_value == 0;
+        // update carry
+        self.registers.f.carry = first_bit != 0;
+        // return computed value
+        output_value
+    }
+
+    fn shift_right(&mut self, value: u8) -> u8 {
+        // save bit 0
+        let first_bit = (value & 0b0000_0001) << 7;
+        // shift register
+        let output_value = (value >> 1) | (value & 0b1000_0000);
         // update flag register
         self.registers.f.substraction = false;
         self.registers.f.half_carry = false;
@@ -2176,7 +2191,7 @@ mod cpu_tests {
 
         // run CPU to do the jump
         cpu.registers.h = 0xB5;
-        cpu.execute(Instruction::SRA(IncDecTarget::H));
+        cpu.execute(Instruction::SRL(IncDecTarget::H));
         assert_eq!(cpu.registers.f.carry, true);
         assert_eq!(cpu.registers.h, 0x5A);
     }
@@ -2189,7 +2204,18 @@ mod cpu_tests {
         let data = 0xB5;
         cpu.bus.write_byte(address, data);
         cpu.registers.write_hl(address);
-        cpu.execute(Instruction::SRA(IncDecTarget::HL));
+        cpu.execute(Instruction::SRL(IncDecTarget::HL));
         assert_eq!(cpu.bus.read_byte(address), 0x5A);
+    }
+
+    #[test]
+    fn test_shift_right() {
+        let mut cpu = Cpu::new();
+
+        // run CPU to do the jump
+        cpu.registers.c = 0xB5;
+        cpu.execute(Instruction::SRA(IncDecTarget::C));
+        assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.c, 0xDA);
     }
 }
