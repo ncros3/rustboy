@@ -545,6 +545,52 @@ macro_rules! rotate_from_register {
     }};
 }
 
+macro_rules! shift {
+    ($target: ident, $self:ident.$instruction:ident) => {{
+        match $target {
+            IncDecTarget::A => {
+                let next_pc = run_instruction_in_register!(a => a, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::B => {
+                let next_pc = run_instruction_in_register!(b => b, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::C => {
+                let next_pc = run_instruction_in_register!(c => c, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::D => {
+                let next_pc = run_instruction_in_register!(d => d, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::E => {
+                let next_pc = run_instruction_in_register!(e => e, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::H => {
+                let next_pc = run_instruction_in_register!(h => h, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::L => {
+                let next_pc = run_instruction_in_register!(l => l, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::HL => {
+                // get data from memory
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                // rotate value
+                let new_value = $self.$instruction(value);
+                // save value in memory
+                $self.bus.write_byte(address, new_value);
+                // return next pc
+                $self.pc.wrapping_add(2)
+            }
+        }
+    }};
+}
+
 #[derive(PartialEq)]
 pub enum CpuMode {
     RUN,
@@ -671,7 +717,8 @@ impl Cpu {
             Instruction::R(direction, target) => {
                 rotate_from_register!(target, self.rotate_through_carry, direction)
             }
-            Instruction::SA(direction, target) => 0,
+            Instruction::SLA(target) => shift!(target, self.shift_left_and_reset),
+            Instruction::SRA(target) => shift!(target, self.shift_right_and_reset),
             Instruction::SRL(target) => 0,
             Instruction::SWAP(target) => 0,
         }
@@ -1160,6 +1207,36 @@ impl Cpu {
                 output_value
             }
         }
+    }
+
+    fn shift_left_and_reset(&mut self, value: u8) -> u8 {
+        // save bit 7
+        let last_bit = (value & 0b1000_0000) >> 7;
+        // shift register
+        let output_value = value << 1;
+        // update flag register
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.zero = output_value == 0;
+        // update carry
+        self.registers.f.carry = last_bit != 0;
+        // return computed value
+        output_value
+    }
+
+    fn shift_right_and_reset(&mut self, value: u8) -> u8 {
+        // save bit 0
+        let first_bit = (value & 0b0000_0001) << 7;
+        // shift register
+        let output_value = value >> 1;
+        // update flag register
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.zero = output_value == 0;
+        // update carry
+        self.registers.f.carry = first_bit != 0;
+        // return computed value
+        output_value
     }
 }
 
@@ -2080,5 +2157,39 @@ mod cpu_tests {
         cpu.execute(Instruction::R(Direction::RIGHT, IncDecTarget::E));
         assert_eq!(cpu.registers.f.carry, true);
         assert_eq!(cpu.registers.e, 0xDA);
+    }
+
+    #[test]
+    fn test_shift_left_and_reset() {
+        let mut cpu = Cpu::new();
+
+        // run CPU to do the jump
+        cpu.registers.d = 0xB5;
+        cpu.execute(Instruction::SLA(IncDecTarget::D));
+        assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.d, 0x6A);
+    }
+
+    #[test]
+    fn test_shift_right_and_reset() {
+        let mut cpu = Cpu::new();
+
+        // run CPU to do the jump
+        cpu.registers.h = 0xB5;
+        cpu.execute(Instruction::SRA(IncDecTarget::H));
+        assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.h, 0x5A);
+    }
+
+    #[test]
+    fn test_shift_right_and_reset_hl() {
+        let mut cpu = Cpu::new();
+
+        let address = 0x1234;
+        let data = 0xB5;
+        cpu.bus.write_byte(address, data);
+        cpu.registers.write_hl(address);
+        cpu.execute(Instruction::SRA(IncDecTarget::HL));
+        assert_eq!(cpu.bus.read_byte(address), 0x5A);
     }
 }
