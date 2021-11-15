@@ -706,7 +706,7 @@ impl Cpu {
             Instruction::CPL => self.flip_register_a(),
             Instruction::CCF => self.set_carry(CarryOp::FLIP),
 
-            // Rotate instructions
+            // Rotate, Shift & Swap instructions
             Instruction::RCA(direction) => rotate_register!(a, self.rotate, direction, false),
             Instruction::RA(direction) => {
                 rotate_register!(a, self.rotate_through_carry, direction, false)
@@ -720,7 +720,7 @@ impl Cpu {
             Instruction::SLA(target) => shift!(target, self.shift_left_and_reset),
             Instruction::SRA(target) => shift!(target, self.shift_right),
             Instruction::SRL(target) => shift!(target, self.shift_right_and_reset),
-            Instruction::SWAP(target) => 0,
+            Instruction::SWAP(target) => shift!(target, self.swap),
         }
     }
 
@@ -1250,6 +1250,21 @@ impl Cpu {
         self.registers.f.zero = output_value == 0;
         // update carry
         self.registers.f.carry = first_bit != 0;
+        // return computed value
+        output_value
+    }
+
+    fn swap(&mut self, value: u8) -> u8 {
+        // save bit 0
+        let low_bits = value & 0x0F;
+        let high_bits = value & 0xF0;
+        // shift register
+        let output_value = (low_bits << 4) | (high_bits >> 4);
+        // update flag register
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.zero = output_value == 0;
+        self.registers.f.carry = false;
         // return computed value
         output_value
     }
@@ -2217,5 +2232,15 @@ mod cpu_tests {
         cpu.execute(Instruction::SRA(IncDecTarget::C));
         assert_eq!(cpu.registers.f.carry, true);
         assert_eq!(cpu.registers.c, 0xDA);
+    }
+
+    #[test]
+    fn test_swap() {
+        let mut cpu = Cpu::new();
+
+        // run CPU to do the jump
+        cpu.registers.l = 0xB5;
+        cpu.execute(Instruction::SWAP(IncDecTarget::L));
+        assert_eq!(cpu.registers.l, 0x5B);
     }
 }
