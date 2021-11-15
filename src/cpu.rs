@@ -484,16 +484,110 @@ macro_rules! interrupt_enable {
 }
 
 macro_rules! rotate_register {
-    ($register: ident, $self:ident.$instruction:ident, $direction: ident) => {{
+    ($register: ident, $self:ident.$instruction:ident, $direction: ident, $zero:ident) => {{
         // update flag register
-        $self.registers.f.zero = false;
         $self.registers.f.substraction = false;
         $self.registers.f.half_carry = false;
         // rotate register
-        let new_value = $self.$instruction($self.registers.$register, $direction);
+        let new_value = $self.$instruction($self.registers.$register, $direction, false);
         $self.registers.$register = new_value;
         // return next pc
         $self.pc.wrapping_add(1)
+    }};
+}
+
+macro_rules! rotate_from_register {
+    ($target: ident, $self:ident.$instruction:ident, $direction: ident) => {{
+        match $target {
+            IncDecTarget::A => {
+                let next_pc = rotate_register!(a, $self.$instruction, $direction, true);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::B => {
+                let next_pc = rotate_register!(b, $self.$instruction, $direction, true);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::C => {
+                let next_pc = rotate_register!(c, $self.$instruction, $direction, true);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::D => {
+                let next_pc = rotate_register!(d, $self.$instruction, $direction, true);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::E => {
+                let next_pc = rotate_register!(e, $self.$instruction, $direction, true);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::H => {
+                let next_pc = rotate_register!(h, $self.$instruction, $direction, true);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::L => {
+                let next_pc = rotate_register!(l, $self.$instruction, $direction, true);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::HL => {
+                // update flag register
+                $self.registers.f.substraction = false;
+                $self.registers.f.half_carry = false;
+                // get data from memory
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                // rotate value
+                let new_value = $self.$instruction(value, $direction, true);
+                // save value in memory
+                $self.bus.write_byte(address, new_value);
+                // return next pc
+                $self.pc.wrapping_add(2)
+            }
+        }
+    }};
+}
+
+macro_rules! shift {
+    ($target: ident, $self:ident.$instruction:ident) => {{
+        match $target {
+            IncDecTarget::A => {
+                let next_pc = run_instruction_in_register!(a => a, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::B => {
+                let next_pc = run_instruction_in_register!(b => b, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::C => {
+                let next_pc = run_instruction_in_register!(c => c, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::D => {
+                let next_pc = run_instruction_in_register!(d => d, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::E => {
+                let next_pc = run_instruction_in_register!(e => e, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::H => {
+                let next_pc = run_instruction_in_register!(h => h, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::L => {
+                let next_pc = run_instruction_in_register!(l => l, $self.$instruction);
+                next_pc.wrapping_add(1)
+            }
+            IncDecTarget::HL => {
+                // get data from memory
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                // rotate value
+                let new_value = $self.$instruction(value);
+                // save value in memory
+                $self.bus.write_byte(address, new_value);
+                // return next pc
+                $self.pc.wrapping_add(2)
+            }
+        }
     }};
 }
 
@@ -530,13 +624,22 @@ impl Cpu {
         }
     }
 
+    fn decode(&mut self, instruction_byte: u8) -> Option<Instruction> {
+        if Instruction::is_long_instruction(instruction_byte) {
+            let long_instruction_byte = self.bus.read_byte(self.pc.wrapping_add(1));
+            Instruction::from_long_byte(long_instruction_byte)
+        } else {
+            Instruction::from_byte(instruction_byte)
+        }
+    }
+
     fn run(&mut self) {
         // run CPU if it's not in HALT or STOP mode
         if self.mode == CpuMode::RUN {
             // fetch instruction
             let instruction_byte = self.bus.read_byte(self.pc);
             // decode instruction
-            let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte) {
+            let next_pc = if let Some(instruction) = self.decode(instruction_byte) {
                 // execute instruction
                 self.execute(instruction)
             } else {
@@ -603,14 +706,21 @@ impl Cpu {
             Instruction::CPL => self.flip_register_a(),
             Instruction::CCF => self.set_carry(CarryOp::FLIP),
 
-            // Rotate instructions
-            Instruction::RCA(direction) => rotate_register!(a, self.rotate, direction),
-            Instruction::RA(direction) => rotate_register!(a, self.rotate_through_carry, direction),
-            Instruction::RC(direction, target) => 0,
-            Instruction::R(direction, target) => 0,
-            Instruction::SA(direction, target) => 0,
-            Instruction::SRL(target) => 0,
-            Instruction::SWAP(target) => 0,
+            // Rotate, Shift & Swap instructions
+            Instruction::RCA(direction) => rotate_register!(a, self.rotate, direction, false),
+            Instruction::RA(direction) => {
+                rotate_register!(a, self.rotate_through_carry, direction, false)
+            }
+            Instruction::RC(direction, target) => {
+                rotate_from_register!(target, self.rotate, direction)
+            }
+            Instruction::R(direction, target) => {
+                rotate_from_register!(target, self.rotate_through_carry, direction)
+            }
+            Instruction::SLA(target) => shift!(target, self.shift_left_and_reset),
+            Instruction::SRA(target) => shift!(target, self.shift_right),
+            Instruction::SRL(target) => shift!(target, self.shift_right_and_reset),
+            Instruction::SWAP(target) => shift!(target, self.swap),
         }
     }
 
@@ -1025,15 +1135,21 @@ impl Cpu {
         self.pc.wrapping_add(1)
     }
 
-    fn rotate(&mut self, value: u8, direction: Direction) -> u8 {
+    fn rotate(&mut self, value: u8, direction: Direction, zero: bool) -> u8 {
         match direction {
             Direction::LEFT => {
                 // save bit 7
                 let last_bit = (value & 0b1000_0000) >> 7;
                 // shift register
                 let output_value = (value << 1) | last_bit;
+                // update zero flag
+                if zero {
+                    self.registers.f.zero = output_value == 0;
+                } else {
+                    self.registers.f.zero = false;
+                }
                 // update carry
-                self.registers.f.carry = last_bit == 0;
+                self.registers.f.carry = last_bit != 0;
                 // return computed value
                 output_value
             }
@@ -1042,23 +1158,35 @@ impl Cpu {
                 let first_bit = (value & 0b0000_0001) << 7;
                 // shift register
                 let output_value = (value >> 1) | first_bit;
+                // update zero flag
+                if zero {
+                    self.registers.f.zero = output_value == 0;
+                } else {
+                    self.registers.f.zero = false;
+                }
                 // update carry
-                self.registers.f.carry = first_bit == 0;
+                self.registers.f.carry = first_bit != 0;
                 // return computed value
                 output_value
             }
         }
     }
 
-    fn rotate_through_carry(&mut self, value: u8, direction: Direction) -> u8 {
+    fn rotate_through_carry(&mut self, value: u8, direction: Direction, zero: bool) -> u8 {
         match direction {
             Direction::LEFT => {
                 // save bit 7
                 let last_bit = (value & 0b1000_0000) >> 7;
                 // shift register
                 let output_value = (value << 1) | (self.registers.f.carry as u8);
+                // update zero flag
+                if zero {
+                    self.registers.f.zero = output_value == 0;
+                } else {
+                    self.registers.f.zero = false;
+                }
                 // update carry
-                self.registers.f.carry = last_bit == 0;
+                self.registers.f.carry = last_bit != 0;
                 // return computed value
                 output_value
             }
@@ -1067,12 +1195,78 @@ impl Cpu {
                 let first_bit = (value & 0b0000_0001) << 7;
                 // shift register
                 let output_value = (value >> 1) | ((self.registers.f.carry as u8) << 7);
+                // update zero flag
+                if zero {
+                    self.registers.f.zero = output_value == 0;
+                } else {
+                    self.registers.f.zero = false;
+                }
                 // update carry
-                self.registers.f.carry = first_bit == 0;
+                self.registers.f.carry = first_bit != 0;
                 // return computed value
                 output_value
             }
         }
+    }
+
+    fn shift_left_and_reset(&mut self, value: u8) -> u8 {
+        // save bit 7
+        let last_bit = (value & 0b1000_0000) >> 7;
+        // shift register
+        let output_value = value << 1;
+        // update flag register
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.zero = output_value == 0;
+        // update carry
+        self.registers.f.carry = last_bit != 0;
+        // return computed value
+        output_value
+    }
+
+    fn shift_right_and_reset(&mut self, value: u8) -> u8 {
+        // save bit 0
+        let first_bit = (value & 0b0000_0001) << 7;
+        // shift register
+        let output_value = value >> 1;
+        // update flag register
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.zero = output_value == 0;
+        // update carry
+        self.registers.f.carry = first_bit != 0;
+        // return computed value
+        output_value
+    }
+
+    fn shift_right(&mut self, value: u8) -> u8 {
+        // save bit 0
+        let first_bit = (value & 0b0000_0001) << 7;
+        // shift register
+        let output_value = (value >> 1) | (value & 0b1000_0000);
+        // update flag register
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.zero = output_value == 0;
+        // update carry
+        self.registers.f.carry = first_bit != 0;
+        // return computed value
+        output_value
+    }
+
+    fn swap(&mut self, value: u8) -> u8 {
+        // save bit 0
+        let low_bits = value & 0x0F;
+        let high_bits = value & 0xF0;
+        // shift register
+        let output_value = (low_bits << 4) | (high_bits >> 4);
+        // update flag register
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = false;
+        self.registers.f.zero = output_value == 0;
+        self.registers.f.carry = false;
+        // return computed value
+        output_value
     }
 }
 
@@ -1889,7 +2083,6 @@ mod cpu_tests {
     fn test_complement() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.a = 0x55;
         cpu.execute(Instruction::CPL);
         assert_eq!(cpu.registers.a, 0xAA);
@@ -1899,7 +2092,6 @@ mod cpu_tests {
     fn test_set_carry() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.execute(Instruction::SCF);
         assert_eq!(cpu.registers.f.carry, true);
         cpu.execute(Instruction::CCF);
@@ -1912,7 +2104,6 @@ mod cpu_tests {
     fn test_decimal_adjust() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.a = 0x0B;
         cpu.execute(Instruction::DAA);
         assert_eq!(cpu.registers.a, 0x11);
@@ -1922,10 +2113,9 @@ mod cpu_tests {
     fn test_rotate_left() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.a = 0xB5;
         cpu.execute(Instruction::RCA(Direction::LEFT));
-        //assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.f.carry, true);
         assert_eq!(cpu.registers.a, 0x6B);
     }
 
@@ -1933,11 +2123,115 @@ mod cpu_tests {
     fn test_rotate_through_carry_right() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.a = 0xB5;
         cpu.registers.f.carry = true;
         cpu.execute(Instruction::RA(Direction::RIGHT));
-        //assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.f.carry, true);
         assert_eq!(cpu.registers.a, 0xDA);
+    }
+
+    #[test]
+    fn test_decode_long_instruction() {
+        let mut cpu = Cpu::new();
+
+        let program: [u8; 2] = [0xCB, 0x19];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_byte(index, data);
+            index += 1;
+        }
+
+        if let Some(instruction) = cpu.decode(0xCB) {
+            assert_eq!(
+                instruction,
+                Instruction::R(Direction::RIGHT, IncDecTarget::C)
+            );
+        } else {
+            panic!("Unkown long instruction");
+        }
+    }
+
+    #[test]
+    fn test_long_rotate() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.b = 0xB5;
+        cpu.execute(Instruction::RC(Direction::LEFT, IncDecTarget::B));
+        assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.b, 0x6B);
+    }
+
+    #[test]
+    fn test_long_rotate_hl() {
+        let mut cpu = Cpu::new();
+
+        let address = 0x1234;
+        let data = 0xB5;
+        cpu.bus.write_byte(address, data);
+        cpu.registers.write_hl(address);
+        cpu.execute(Instruction::RC(Direction::LEFT, IncDecTarget::HL));
+        assert_eq!(cpu.bus.read_byte(address), 0x6B);
+    }
+
+    #[test]
+    fn test_long_rotate_through_carry_right() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.e = 0xB5;
+        cpu.registers.f.carry = true;
+        cpu.execute(Instruction::R(Direction::RIGHT, IncDecTarget::E));
+        assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.e, 0xDA);
+    }
+
+    #[test]
+    fn test_shift_left_and_reset() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.d = 0xB5;
+        cpu.execute(Instruction::SLA(IncDecTarget::D));
+        assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.d, 0x6A);
+    }
+
+    #[test]
+    fn test_shift_right_and_reset() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.h = 0xB5;
+        cpu.execute(Instruction::SRL(IncDecTarget::H));
+        assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.h, 0x5A);
+    }
+
+    #[test]
+    fn test_shift_right_and_reset_hl() {
+        let mut cpu = Cpu::new();
+
+        let address = 0x1234;
+        let data = 0xB5;
+        cpu.bus.write_byte(address, data);
+        cpu.registers.write_hl(address);
+        cpu.execute(Instruction::SRL(IncDecTarget::HL));
+        assert_eq!(cpu.bus.read_byte(address), 0x5A);
+    }
+
+    #[test]
+    fn test_shift_right() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.c = 0xB5;
+        cpu.execute(Instruction::SRA(IncDecTarget::C));
+        assert_eq!(cpu.registers.f.carry, true);
+        assert_eq!(cpu.registers.c, 0xDA);
+    }
+
+    #[test]
+    fn test_swap() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.l = 0xB5;
+        cpu.execute(Instruction::SWAP(IncDecTarget::L));
+        assert_eq!(cpu.registers.l, 0x5B);
     }
 }
