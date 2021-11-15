@@ -2083,7 +2083,6 @@ mod cpu_tests {
     fn test_complement() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.a = 0x55;
         cpu.execute(Instruction::CPL);
         assert_eq!(cpu.registers.a, 0xAA);
@@ -2093,7 +2092,6 @@ mod cpu_tests {
     fn test_set_carry() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.execute(Instruction::SCF);
         assert_eq!(cpu.registers.f.carry, true);
         cpu.execute(Instruction::CCF);
@@ -2106,7 +2104,6 @@ mod cpu_tests {
     fn test_decimal_adjust() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.a = 0x0B;
         cpu.execute(Instruction::DAA);
         assert_eq!(cpu.registers.a, 0x11);
@@ -2116,7 +2113,6 @@ mod cpu_tests {
     fn test_rotate_left() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.a = 0xB5;
         cpu.execute(Instruction::RCA(Direction::LEFT));
         assert_eq!(cpu.registers.f.carry, true);
@@ -2127,7 +2123,6 @@ mod cpu_tests {
     fn test_rotate_through_carry_right() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.a = 0xB5;
         cpu.registers.f.carry = true;
         cpu.execute(Instruction::RA(Direction::RIGHT));
@@ -2193,7 +2188,6 @@ mod cpu_tests {
     fn test_shift_left_and_reset() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.d = 0xB5;
         cpu.execute(Instruction::SLA(IncDecTarget::D));
         assert_eq!(cpu.registers.f.carry, true);
@@ -2204,7 +2198,6 @@ mod cpu_tests {
     fn test_shift_right_and_reset() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.h = 0xB5;
         cpu.execute(Instruction::SRL(IncDecTarget::H));
         assert_eq!(cpu.registers.f.carry, true);
@@ -2227,7 +2220,6 @@ mod cpu_tests {
     fn test_shift_right() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.c = 0xB5;
         cpu.execute(Instruction::SRA(IncDecTarget::C));
         assert_eq!(cpu.registers.f.carry, true);
@@ -2238,7 +2230,6 @@ mod cpu_tests {
     fn test_swap() {
         let mut cpu = Cpu::new();
 
-        // run CPU to do the jump
         cpu.registers.l = 0xB5;
         cpu.execute(Instruction::SWAP(IncDecTarget::L));
         assert_eq!(cpu.registers.l, 0x5B);
