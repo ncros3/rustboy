@@ -5,7 +5,7 @@ mod register;
 
 use bus::Bus;
 use instruction::{
-    ArithmeticTarget, Direction, IncDecTarget, Instruction, JumpTarget, Load16Target,
+    ArithmeticTarget, BitTarget, Direction, IncDecTarget, Instruction, JumpTarget, Load16Target,
     PopPushTarget, RamTarget, ResetTarget, SPTarget, U16Target,
 };
 use nvic::Nvic;
@@ -591,6 +591,44 @@ macro_rules! shift {
     }};
 }
 
+macro_rules! complement_from_register {
+    ($bit: expr, $target: ident, $self: ident) => {{
+        match $target {
+            IncDecTarget::A => $self.complement_bit($bit, $self.registers.a),
+            IncDecTarget::B => $self.complement_bit($bit, $self.registers.b),
+            IncDecTarget::C => $self.complement_bit($bit, $self.registers.c),
+            IncDecTarget::D => $self.complement_bit($bit, $self.registers.d),
+            IncDecTarget::E => $self.complement_bit($bit, $self.registers.e),
+            IncDecTarget::H => $self.complement_bit($bit, $self.registers.h),
+            IncDecTarget::L => $self.complement_bit($bit, $self.registers.l),
+            IncDecTarget::HL => {
+                // get data from memory
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                // complement value
+                $self.complement_bit($bit, value);
+                // return next pc
+                $self.pc.wrapping_add(2)
+            }
+        }
+    }};
+}
+
+macro_rules! complement_from_bit {
+    ($bit: expr, $target: ident, $self: ident) => {{
+        match $bit {
+            BitTarget::BIT_0 => complement_from_register!(0, $target, $self),
+            BitTarget::BIT_1 => complement_from_register!(1, $target, $self),
+            BitTarget::BIT_2 => complement_from_register!(2, $target, $self),
+            BitTarget::BIT_3 => complement_from_register!(3, $target, $self),
+            BitTarget::BIT_4 => complement_from_register!(4, $target, $self),
+            BitTarget::BIT_5 => complement_from_register!(5, $target, $self),
+            BitTarget::BIT_6 => complement_from_register!(6, $target, $self),
+            BitTarget::BIT_7 => complement_from_register!(7, $target, $self),
+        }
+    }};
+}
+
 #[derive(PartialEq)]
 pub enum CpuMode {
     RUN,
@@ -721,6 +759,9 @@ impl Cpu {
             Instruction::SRA(target) => shift!(target, self.shift_right),
             Instruction::SRL(target) => shift!(target, self.shift_right_and_reset),
             Instruction::SWAP(target) => shift!(target, self.swap),
+
+            // Bit control instruction
+            Instruction::BIT(bit, target) => complement_from_bit!(bit, target, self),
         }
     }
 
@@ -1267,6 +1308,17 @@ impl Cpu {
         self.registers.f.carry = false;
         // return computed value
         output_value
+    }
+
+    fn complement_bit(&mut self, bit: u8, value: u8) -> u16 {
+        // get bit value
+        let bit_value = (value >> bit) & 0x01;
+        // update flag register
+        self.registers.f.substraction = false;
+        self.registers.f.half_carry = true;
+        self.registers.f.zero = bit_value == 0;
+        // return next pc
+        self.pc.wrapping_add(2)
     }
 }
 
@@ -2233,5 +2285,26 @@ mod cpu_tests {
         cpu.registers.l = 0xB5;
         cpu.execute(Instruction::SWAP(IncDecTarget::L));
         assert_eq!(cpu.registers.l, 0x5B);
+    }
+
+    #[test]
+    fn test_complement_bit() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.h = 0xB5;
+        cpu.execute(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::H));
+        assert_eq!(cpu.registers.f.zero, true);
+        cpu.execute(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::H));
+        assert_eq!(cpu.registers.f.zero, false);
+        cpu.execute(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::H));
+        assert_eq!(cpu.registers.f.zero, true);
+
+        cpu.registers.d = 0x5B;
+        cpu.execute(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::D));
+        assert_eq!(cpu.registers.f.zero, false);
+        cpu.execute(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::D));
+        assert_eq!(cpu.registers.f.zero, false);
+        cpu.execute(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::D));
+        assert_eq!(cpu.registers.f.zero, true);
     }
 }

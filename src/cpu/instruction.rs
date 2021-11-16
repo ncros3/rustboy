@@ -93,6 +93,18 @@ pub enum Direction {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum BitTarget {
+    BIT_0,
+    BIT_1,
+    BIT_2,
+    BIT_3,
+    BIT_4,
+    BIT_5,
+    BIT_6,
+    BIT_7,
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Instruction {
     ADD(ArithmeticTarget),
     ADDC(ArithmeticTarget),
@@ -141,6 +153,7 @@ pub enum Instruction {
     SRA(IncDecTarget),
     SRL(IncDecTarget),
     SWAP(IncDecTarget),
+    BIT(BitTarget, IncDecTarget),
 }
 
 impl Instruction {
@@ -541,6 +554,86 @@ impl Instruction {
             0x3D => Some(Instruction::SRL(IncDecTarget::L)),
             0x3E => Some(Instruction::SRL(IncDecTarget::HL)),
             0x3F => Some(Instruction::SRL(IncDecTarget::A)),
+
+            // Bit 0
+            0x40 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::B)),
+            0x41 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::C)),
+            0x42 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::D)),
+            0x43 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::E)),
+            0x44 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::H)),
+            0x45 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::L)),
+            0x46 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::HL)),
+            0x47 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::A)),
+
+            // Bit 1
+            0x48 => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::B)),
+            0x49 => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::C)),
+            0x4A => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::D)),
+            0x4B => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::E)),
+            0x4C => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::H)),
+            0x4D => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::L)),
+            0x4E => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::HL)),
+            0x4F => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::A)),
+
+            // Bit 2
+            0x50 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::B)),
+            0x51 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::C)),
+            0x52 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::D)),
+            0x53 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::E)),
+            0x54 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::H)),
+            0x55 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::L)),
+            0x56 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::HL)),
+            0x57 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::A)),
+
+            // Bit 3
+            0x58 => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::B)),
+            0x59 => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::C)),
+            0x5A => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::D)),
+            0x5B => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::E)),
+            0x5C => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::H)),
+            0x5D => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::L)),
+            0x5E => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::HL)),
+            0x5F => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::A)),
+
+            // Bit 4
+            0x60 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::B)),
+            0x61 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::C)),
+            0x62 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::D)),
+            0x63 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::E)),
+            0x64 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::H)),
+            0x65 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::L)),
+            0x66 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::HL)),
+            0x67 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::A)),
+
+            // Bit 5
+            0x68 => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::B)),
+            0x69 => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::C)),
+            0x6A => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::D)),
+            0x6B => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::E)),
+            0x6C => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::H)),
+            0x6D => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::L)),
+            0x6E => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::HL)),
+            0x6F => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::A)),
+
+            // Bit 6
+            0x70 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::B)),
+            0x71 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::C)),
+            0x72 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::D)),
+            0x73 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::E)),
+            0x74 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::H)),
+            0x75 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::L)),
+            0x76 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::HL)),
+            0x77 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::A)),
+
+            // Bit 7
+            0x78 => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::B)),
+            0x79 => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::C)),
+            0x7A => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::D)),
+            0x7B => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::E)),
+            0x7C => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::H)),
+            0x7D => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::L)),
+            0x7E => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::HL)),
+            0x7F => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::A)),
 
             _ => None,
         }
