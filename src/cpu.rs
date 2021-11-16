@@ -615,7 +615,7 @@ macro_rules! complement_from_register {
 }
 
 macro_rules! complement_from_bit {
-    ($bit: expr, $target: ident, $self: ident) => {{
+    ($bit: ident, $target: ident, $self: ident) => {{
         match $bit {
             BitTarget::BIT_0 => complement_from_register!(0, $target, $self),
             BitTarget::BIT_1 => complement_from_register!(1, $target, $self),
