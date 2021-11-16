@@ -154,6 +154,8 @@ pub enum Instruction {
     SRL(IncDecTarget),
     SWAP(IncDecTarget),
     BIT(BitTarget, IncDecTarget),
+    SET_BIT(BitTarget, IncDecTarget),
+    RESET_BIT(BitTarget, IncDecTarget),
 }
 
 impl Instruction {
@@ -565,6 +567,24 @@ impl Instruction {
             0x46 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::HL)),
             0x47 => Some(Instruction::BIT(BitTarget::BIT_0, IncDecTarget::A)),
 
+            0x80 => Some(Instruction::RESET_BIT(BitTarget::BIT_0, IncDecTarget::B)),
+            0x81 => Some(Instruction::RESET_BIT(BitTarget::BIT_0, IncDecTarget::C)),
+            0x82 => Some(Instruction::RESET_BIT(BitTarget::BIT_0, IncDecTarget::D)),
+            0x83 => Some(Instruction::RESET_BIT(BitTarget::BIT_0, IncDecTarget::E)),
+            0x84 => Some(Instruction::RESET_BIT(BitTarget::BIT_0, IncDecTarget::H)),
+            0x85 => Some(Instruction::RESET_BIT(BitTarget::BIT_0, IncDecTarget::L)),
+            0x86 => Some(Instruction::RESET_BIT(BitTarget::BIT_0, IncDecTarget::HL)),
+            0x87 => Some(Instruction::RESET_BIT(BitTarget::BIT_0, IncDecTarget::A)),
+
+            0xC0 => Some(Instruction::SET_BIT(BitTarget::BIT_0, IncDecTarget::B)),
+            0xC1 => Some(Instruction::SET_BIT(BitTarget::BIT_0, IncDecTarget::C)),
+            0xC2 => Some(Instruction::SET_BIT(BitTarget::BIT_0, IncDecTarget::D)),
+            0xC3 => Some(Instruction::SET_BIT(BitTarget::BIT_0, IncDecTarget::E)),
+            0xC4 => Some(Instruction::SET_BIT(BitTarget::BIT_0, IncDecTarget::H)),
+            0xC5 => Some(Instruction::SET_BIT(BitTarget::BIT_0, IncDecTarget::L)),
+            0xC6 => Some(Instruction::SET_BIT(BitTarget::BIT_0, IncDecTarget::HL)),
+            0xC7 => Some(Instruction::SET_BIT(BitTarget::BIT_0, IncDecTarget::A)),
+
             // Bit 1
             0x48 => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::B)),
             0x49 => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::C)),
@@ -574,6 +594,24 @@ impl Instruction {
             0x4D => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::L)),
             0x4E => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::HL)),
             0x4F => Some(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::A)),
+
+            0x88 => Some(Instruction::RESET_BIT(BitTarget::BIT_1, IncDecTarget::B)),
+            0x89 => Some(Instruction::RESET_BIT(BitTarget::BIT_1, IncDecTarget::C)),
+            0x8A => Some(Instruction::RESET_BIT(BitTarget::BIT_1, IncDecTarget::D)),
+            0x8B => Some(Instruction::RESET_BIT(BitTarget::BIT_1, IncDecTarget::E)),
+            0x8C => Some(Instruction::RESET_BIT(BitTarget::BIT_1, IncDecTarget::H)),
+            0x8D => Some(Instruction::RESET_BIT(BitTarget::BIT_1, IncDecTarget::L)),
+            0x8E => Some(Instruction::RESET_BIT(BitTarget::BIT_1, IncDecTarget::HL)),
+            0x8F => Some(Instruction::RESET_BIT(BitTarget::BIT_1, IncDecTarget::A)),
+
+            0xC8 => Some(Instruction::SET_BIT(BitTarget::BIT_1, IncDecTarget::B)),
+            0xC9 => Some(Instruction::SET_BIT(BitTarget::BIT_1, IncDecTarget::C)),
+            0xCA => Some(Instruction::SET_BIT(BitTarget::BIT_1, IncDecTarget::D)),
+            0xCB => Some(Instruction::SET_BIT(BitTarget::BIT_1, IncDecTarget::E)),
+            0xCC => Some(Instruction::SET_BIT(BitTarget::BIT_1, IncDecTarget::H)),
+            0xCD => Some(Instruction::SET_BIT(BitTarget::BIT_1, IncDecTarget::L)),
+            0xCE => Some(Instruction::SET_BIT(BitTarget::BIT_1, IncDecTarget::HL)),
+            0xCF => Some(Instruction::SET_BIT(BitTarget::BIT_1, IncDecTarget::A)),
 
             // Bit 2
             0x50 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::B)),
@@ -585,6 +623,24 @@ impl Instruction {
             0x56 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::HL)),
             0x57 => Some(Instruction::BIT(BitTarget::BIT_2, IncDecTarget::A)),
 
+            0x90 => Some(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::B)),
+            0x91 => Some(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::C)),
+            0x92 => Some(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::D)),
+            0x93 => Some(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::E)),
+            0x94 => Some(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::H)),
+            0x95 => Some(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::L)),
+            0x96 => Some(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::HL)),
+            0x97 => Some(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::A)),
+
+            0xD0 => Some(Instruction::SET_BIT(BitTarget::BIT_2, IncDecTarget::B)),
+            0xD1 => Some(Instruction::SET_BIT(BitTarget::BIT_2, IncDecTarget::C)),
+            0xD2 => Some(Instruction::SET_BIT(BitTarget::BIT_2, IncDecTarget::D)),
+            0xD3 => Some(Instruction::SET_BIT(BitTarget::BIT_2, IncDecTarget::E)),
+            0xD4 => Some(Instruction::SET_BIT(BitTarget::BIT_2, IncDecTarget::H)),
+            0xD5 => Some(Instruction::SET_BIT(BitTarget::BIT_2, IncDecTarget::L)),
+            0xD6 => Some(Instruction::SET_BIT(BitTarget::BIT_2, IncDecTarget::HL)),
+            0xD7 => Some(Instruction::SET_BIT(BitTarget::BIT_2, IncDecTarget::A)),
+
             // Bit 3
             0x58 => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::B)),
             0x59 => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::C)),
@@ -594,6 +650,24 @@ impl Instruction {
             0x5D => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::L)),
             0x5E => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::HL)),
             0x5F => Some(Instruction::BIT(BitTarget::BIT_3, IncDecTarget::A)),
+
+            0x98 => Some(Instruction::RESET_BIT(BitTarget::BIT_3, IncDecTarget::B)),
+            0x99 => Some(Instruction::RESET_BIT(BitTarget::BIT_3, IncDecTarget::C)),
+            0x9A => Some(Instruction::RESET_BIT(BitTarget::BIT_3, IncDecTarget::D)),
+            0x9B => Some(Instruction::RESET_BIT(BitTarget::BIT_3, IncDecTarget::E)),
+            0x9C => Some(Instruction::RESET_BIT(BitTarget::BIT_3, IncDecTarget::H)),
+            0x9D => Some(Instruction::RESET_BIT(BitTarget::BIT_3, IncDecTarget::L)),
+            0x9E => Some(Instruction::RESET_BIT(BitTarget::BIT_3, IncDecTarget::HL)),
+            0x9F => Some(Instruction::RESET_BIT(BitTarget::BIT_3, IncDecTarget::A)),
+
+            0xD8 => Some(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::B)),
+            0xD9 => Some(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::C)),
+            0xDA => Some(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::D)),
+            0xDB => Some(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::E)),
+            0xDC => Some(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::H)),
+            0xDD => Some(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::L)),
+            0xDE => Some(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::HL)),
+            0xDF => Some(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::A)),
 
             // Bit 4
             0x60 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::B)),
@@ -605,6 +679,24 @@ impl Instruction {
             0x66 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::HL)),
             0x67 => Some(Instruction::BIT(BitTarget::BIT_4, IncDecTarget::A)),
 
+            0xA0 => Some(Instruction::RESET_BIT(BitTarget::BIT_4, IncDecTarget::B)),
+            0xA1 => Some(Instruction::RESET_BIT(BitTarget::BIT_4, IncDecTarget::C)),
+            0xA2 => Some(Instruction::RESET_BIT(BitTarget::BIT_4, IncDecTarget::D)),
+            0xA3 => Some(Instruction::RESET_BIT(BitTarget::BIT_4, IncDecTarget::E)),
+            0xA4 => Some(Instruction::RESET_BIT(BitTarget::BIT_4, IncDecTarget::H)),
+            0xA5 => Some(Instruction::RESET_BIT(BitTarget::BIT_4, IncDecTarget::L)),
+            0xA6 => Some(Instruction::RESET_BIT(BitTarget::BIT_4, IncDecTarget::HL)),
+            0xA7 => Some(Instruction::RESET_BIT(BitTarget::BIT_4, IncDecTarget::A)),
+
+            0xE0 => Some(Instruction::SET_BIT(BitTarget::BIT_4, IncDecTarget::B)),
+            0xE1 => Some(Instruction::SET_BIT(BitTarget::BIT_4, IncDecTarget::C)),
+            0xE2 => Some(Instruction::SET_BIT(BitTarget::BIT_4, IncDecTarget::D)),
+            0xE3 => Some(Instruction::SET_BIT(BitTarget::BIT_4, IncDecTarget::E)),
+            0xE4 => Some(Instruction::SET_BIT(BitTarget::BIT_4, IncDecTarget::H)),
+            0xE5 => Some(Instruction::SET_BIT(BitTarget::BIT_4, IncDecTarget::L)),
+            0xE6 => Some(Instruction::SET_BIT(BitTarget::BIT_4, IncDecTarget::HL)),
+            0xE7 => Some(Instruction::SET_BIT(BitTarget::BIT_4, IncDecTarget::A)),
+
             // Bit 5
             0x68 => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::B)),
             0x69 => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::C)),
@@ -614,6 +706,24 @@ impl Instruction {
             0x6D => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::L)),
             0x6E => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::HL)),
             0x6F => Some(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::A)),
+
+            0xA8 => Some(Instruction::RESET_BIT(BitTarget::BIT_5, IncDecTarget::B)),
+            0xA9 => Some(Instruction::RESET_BIT(BitTarget::BIT_5, IncDecTarget::C)),
+            0xAA => Some(Instruction::RESET_BIT(BitTarget::BIT_5, IncDecTarget::D)),
+            0xAB => Some(Instruction::RESET_BIT(BitTarget::BIT_5, IncDecTarget::E)),
+            0xAC => Some(Instruction::RESET_BIT(BitTarget::BIT_5, IncDecTarget::H)),
+            0xAD => Some(Instruction::RESET_BIT(BitTarget::BIT_5, IncDecTarget::L)),
+            0xAE => Some(Instruction::RESET_BIT(BitTarget::BIT_5, IncDecTarget::HL)),
+            0xAF => Some(Instruction::RESET_BIT(BitTarget::BIT_5, IncDecTarget::A)),
+
+            0xE8 => Some(Instruction::SET_BIT(BitTarget::BIT_5, IncDecTarget::B)),
+            0xE9 => Some(Instruction::SET_BIT(BitTarget::BIT_5, IncDecTarget::C)),
+            0xEA => Some(Instruction::SET_BIT(BitTarget::BIT_5, IncDecTarget::D)),
+            0xEB => Some(Instruction::SET_BIT(BitTarget::BIT_5, IncDecTarget::E)),
+            0xEC => Some(Instruction::SET_BIT(BitTarget::BIT_5, IncDecTarget::H)),
+            0xED => Some(Instruction::SET_BIT(BitTarget::BIT_5, IncDecTarget::L)),
+            0xEE => Some(Instruction::SET_BIT(BitTarget::BIT_5, IncDecTarget::HL)),
+            0xEF => Some(Instruction::SET_BIT(BitTarget::BIT_5, IncDecTarget::A)),
 
             // Bit 6
             0x70 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::B)),
@@ -625,6 +735,24 @@ impl Instruction {
             0x76 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::HL)),
             0x77 => Some(Instruction::BIT(BitTarget::BIT_6, IncDecTarget::A)),
 
+            0xB0 => Some(Instruction::RESET_BIT(BitTarget::BIT_6, IncDecTarget::B)),
+            0xB1 => Some(Instruction::RESET_BIT(BitTarget::BIT_6, IncDecTarget::C)),
+            0xB2 => Some(Instruction::RESET_BIT(BitTarget::BIT_6, IncDecTarget::D)),
+            0xB3 => Some(Instruction::RESET_BIT(BitTarget::BIT_6, IncDecTarget::E)),
+            0xB4 => Some(Instruction::RESET_BIT(BitTarget::BIT_6, IncDecTarget::H)),
+            0xB5 => Some(Instruction::RESET_BIT(BitTarget::BIT_6, IncDecTarget::L)),
+            0xB6 => Some(Instruction::RESET_BIT(BitTarget::BIT_6, IncDecTarget::HL)),
+            0xB7 => Some(Instruction::RESET_BIT(BitTarget::BIT_6, IncDecTarget::A)),
+
+            0xF0 => Some(Instruction::SET_BIT(BitTarget::BIT_6, IncDecTarget::B)),
+            0xF1 => Some(Instruction::SET_BIT(BitTarget::BIT_6, IncDecTarget::C)),
+            0xF2 => Some(Instruction::SET_BIT(BitTarget::BIT_6, IncDecTarget::D)),
+            0xF3 => Some(Instruction::SET_BIT(BitTarget::BIT_6, IncDecTarget::E)),
+            0xF4 => Some(Instruction::SET_BIT(BitTarget::BIT_6, IncDecTarget::H)),
+            0xF5 => Some(Instruction::SET_BIT(BitTarget::BIT_6, IncDecTarget::L)),
+            0xF6 => Some(Instruction::SET_BIT(BitTarget::BIT_6, IncDecTarget::HL)),
+            0xF7 => Some(Instruction::SET_BIT(BitTarget::BIT_6, IncDecTarget::A)),
+
             // Bit 7
             0x78 => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::B)),
             0x79 => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::C)),
@@ -634,6 +762,24 @@ impl Instruction {
             0x7D => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::L)),
             0x7E => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::HL)),
             0x7F => Some(Instruction::BIT(BitTarget::BIT_7, IncDecTarget::A)),
+
+            0xB8 => Some(Instruction::RESET_BIT(BitTarget::BIT_7, IncDecTarget::B)),
+            0xB9 => Some(Instruction::RESET_BIT(BitTarget::BIT_7, IncDecTarget::C)),
+            0xBA => Some(Instruction::RESET_BIT(BitTarget::BIT_7, IncDecTarget::D)),
+            0xBB => Some(Instruction::RESET_BIT(BitTarget::BIT_7, IncDecTarget::E)),
+            0xBC => Some(Instruction::RESET_BIT(BitTarget::BIT_7, IncDecTarget::H)),
+            0xBD => Some(Instruction::RESET_BIT(BitTarget::BIT_7, IncDecTarget::L)),
+            0xBE => Some(Instruction::RESET_BIT(BitTarget::BIT_7, IncDecTarget::HL)),
+            0xBF => Some(Instruction::RESET_BIT(BitTarget::BIT_7, IncDecTarget::A)),
+
+            0xF8 => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::B)),
+            0xF9 => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::C)),
+            0xFA => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::D)),
+            0xFB => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::E)),
+            0xFC => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::H)),
+            0xFD => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::L)),
+            0xFE => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::HL)),
+            0xFF => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::A)),
 
             _ => None,
         }

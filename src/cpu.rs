@@ -613,7 +613,7 @@ macro_rules! long_inst_from_reg {
         }
     }};
 
-    ($enable: ident, $bit: ident => $target: ident, $self:ident.$instruction:ident) => {{
+    ($enable: ident, $bit: expr => $target: ident, $self:ident.$instruction:ident) => {{
         match $target {
             IncDecTarget::A => {
                 let new_value = $self.$instruction($enable, $bit, $self.registers.a);
@@ -672,7 +672,7 @@ macro_rules! long_inst_from_reg {
     }};
 }
 
-macro_rules! long_instruction {
+macro_rules! long_inst {
     ($bit: ident, $target: ident, $self:ident.$instruction:ident) => {{
         match $bit {
             BitTarget::BIT_0 => long_inst_from_reg!(0, $target, $self.$instruction),
@@ -832,7 +832,9 @@ impl Cpu {
             Instruction::SWAP(target) => shift!(target, self.swap),
 
             // Bit instructions
-            Instruction::BIT(bit, target) => long_instruction!(bit, target, self.complement_bit),
+            Instruction::BIT(bit, target) => long_inst!(bit, target, self.complement_bit),
+            Instruction::RESET_BIT(bit, target) => long_inst!(false, bit => target, self.set_bit),
+            Instruction::SET_BIT(bit, target) => long_inst!(true, bit => target, self.set_bit),
         }
     }
 
@@ -1394,7 +1396,11 @@ impl Cpu {
 
     fn set_bit(&mut self, enable: bool, bit: u8, value: u8) -> u8 {
         // set / reset bit
-        value & ((enable as u8) << bit)
+        if enable {
+            value | ((0x01 as u8) << bit)
+        } else {
+            value & !((0x01 as u8) << bit)
+        }
     }
 }
 
@@ -2382,5 +2388,34 @@ mod cpu_tests {
         assert_eq!(cpu.registers.f.zero, false);
         cpu.execute(Instruction::BIT(BitTarget::BIT_5, IncDecTarget::D));
         assert_eq!(cpu.registers.f.zero, true);
+    }
+
+    #[test]
+    fn test_set_reset_bit() {
+        let mut cpu = Cpu::new();
+
+        cpu.registers.b = 0xB5;
+        cpu.execute(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::B));
+        assert_eq!(cpu.registers.b, 0xB1);
+        cpu.execute(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::B));
+        assert_eq!(cpu.registers.b, 0xB9);
+        cpu.execute(Instruction::RESET_BIT(BitTarget::BIT_5, IncDecTarget::B));
+        assert_eq!(cpu.registers.b, 0x99);
+    }
+
+    #[test]
+    fn test_set_reset_bit_hl() {
+        let mut cpu = Cpu::new();
+
+        let address = 0x1234;
+        let data = 0xB5;
+        cpu.bus.write_byte(address, data);
+        cpu.registers.write_hl(address);
+
+        cpu.execute(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::HL));
+        assert_eq!(cpu.bus.read_byte(address), 0xB1);
+
+        cpu.execute(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::HL));
+        assert_eq!(cpu.bus.read_byte(address), 0xB9);
     }
 }
