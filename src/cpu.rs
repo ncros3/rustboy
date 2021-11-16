@@ -760,7 +760,7 @@ impl Cpu {
             Instruction::SRL(target) => shift!(target, self.shift_right_and_reset),
             Instruction::SWAP(target) => shift!(target, self.swap),
 
-            // Bit control instruction
+            // Bit instructions
             Instruction::BIT(bit, target) => complement_from_bit!(bit, target, self),
         }
     }
