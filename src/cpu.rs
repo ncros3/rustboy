@@ -591,22 +591,80 @@ macro_rules! shift {
     }};
 }
 
-macro_rules! complement_from_register {
-    ($bit: expr, $target: ident, $self: ident) => {{
+macro_rules! long_inst_from_reg {
+    ($bit: expr, $target: ident, $self:ident.$instruction:ident) => {{
         match $target {
-            IncDecTarget::A => $self.complement_bit($bit, $self.registers.a),
-            IncDecTarget::B => $self.complement_bit($bit, $self.registers.b),
-            IncDecTarget::C => $self.complement_bit($bit, $self.registers.c),
-            IncDecTarget::D => $self.complement_bit($bit, $self.registers.d),
-            IncDecTarget::E => $self.complement_bit($bit, $self.registers.e),
-            IncDecTarget::H => $self.complement_bit($bit, $self.registers.h),
-            IncDecTarget::L => $self.complement_bit($bit, $self.registers.l),
+            IncDecTarget::A => $self.$instruction($bit, $self.registers.a),
+            IncDecTarget::B => $self.$instruction($bit, $self.registers.b),
+            IncDecTarget::C => $self.$instruction($bit, $self.registers.c),
+            IncDecTarget::D => $self.$instruction($bit, $self.registers.d),
+            IncDecTarget::E => $self.$instruction($bit, $self.registers.e),
+            IncDecTarget::H => $self.$instruction($bit, $self.registers.h),
+            IncDecTarget::L => $self.$instruction($bit, $self.registers.l),
             IncDecTarget::HL => {
                 // get data from memory
                 let address = $self.registers.read_hl();
                 let value = $self.bus.read_byte(address);
                 // complement value
-                $self.complement_bit($bit, value);
+                $self.$instruction($bit, value);
+                // return next pc
+                $self.pc.wrapping_add(2)
+            }
+        }
+    }};
+
+    ($enable: ident, $bit: ident => $target: ident, $self:ident.$instruction:ident) => {{
+        match $target {
+            IncDecTarget::A => {
+                let new_value = $self.$instruction($enable, $bit, $self.registers.a);
+                $self.registers.a = new_value;
+                // return next_pc
+                $self.pc.wrapping_add(2)
+            }
+            IncDecTarget::B => {
+                let new_value = $self.$instruction($enable, $bit, $self.registers.b);
+                $self.registers.b = new_value;
+                // return next_pc
+                $self.pc.wrapping_add(2)
+            }
+            IncDecTarget::C => {
+                let new_value = $self.$instruction($enable, $bit, $self.registers.c);
+                $self.registers.c = new_value;
+                // return next_pc
+                $self.pc.wrapping_add(2)
+            }
+            IncDecTarget::D => {
+                let new_value = $self.$instruction($enable, $bit, $self.registers.d);
+                $self.registers.d = new_value;
+                // return next_pc
+                $self.pc.wrapping_add(2)
+            }
+            IncDecTarget::E => {
+                let new_value = $self.$instruction($enable, $bit, $self.registers.e);
+                $self.registers.e = new_value;
+                // return next_pc
+                $self.pc.wrapping_add(2)
+            }
+            IncDecTarget::H => {
+                let new_value = $self.$instruction($enable, $bit, $self.registers.h);
+                $self.registers.h = new_value;
+                // return next_pc
+                $self.pc.wrapping_add(2)
+            }
+            IncDecTarget::L => {
+                let new_value = $self.$instruction($enable, $bit, $self.registers.l);
+                $self.registers.l = new_value;
+                // return next_pc
+                $self.pc.wrapping_add(2)
+            }
+            IncDecTarget::HL => {
+                // get data from memory
+                let address = $self.registers.read_hl();
+                let value = $self.bus.read_byte(address);
+                // run instruction on value
+                let new_value = $self.$instruction($enable, $bit, value);
+                // save new value in memory
+                $self.bus.write_byte(address, new_value);
                 // return next pc
                 $self.pc.wrapping_add(2)
             }
@@ -614,17 +672,30 @@ macro_rules! complement_from_register {
     }};
 }
 
-macro_rules! complement_from_bit {
-    ($bit: ident, $target: ident, $self: ident) => {{
+macro_rules! long_instruction {
+    ($bit: ident, $target: ident, $self:ident.$instruction:ident) => {{
         match $bit {
-            BitTarget::BIT_0 => complement_from_register!(0, $target, $self),
-            BitTarget::BIT_1 => complement_from_register!(1, $target, $self),
-            BitTarget::BIT_2 => complement_from_register!(2, $target, $self),
-            BitTarget::BIT_3 => complement_from_register!(3, $target, $self),
-            BitTarget::BIT_4 => complement_from_register!(4, $target, $self),
-            BitTarget::BIT_5 => complement_from_register!(5, $target, $self),
-            BitTarget::BIT_6 => complement_from_register!(6, $target, $self),
-            BitTarget::BIT_7 => complement_from_register!(7, $target, $self),
+            BitTarget::BIT_0 => long_inst_from_reg!(0, $target, $self.$instruction),
+            BitTarget::BIT_1 => long_inst_from_reg!(1, $target, $self.$instruction),
+            BitTarget::BIT_2 => long_inst_from_reg!(2, $target, $self.$instruction),
+            BitTarget::BIT_3 => long_inst_from_reg!(3, $target, $self.$instruction),
+            BitTarget::BIT_4 => long_inst_from_reg!(4, $target, $self.$instruction),
+            BitTarget::BIT_5 => long_inst_from_reg!(5, $target, $self.$instruction),
+            BitTarget::BIT_6 => long_inst_from_reg!(6, $target, $self.$instruction),
+            BitTarget::BIT_7 => long_inst_from_reg!(7, $target, $self.$instruction),
+        }
+    }};
+
+    ($enable: ident, $bit: ident => $target: ident, $self:ident.$instruction:ident) => {{
+        match $bit {
+            BitTarget::BIT_0 => long_inst_from_reg!($enable, 0 => $target, $self.$instruction),
+            BitTarget::BIT_1 => long_inst_from_reg!($enable, 1 => $target, $self.$instruction),
+            BitTarget::BIT_2 => long_inst_from_reg!($enable, 2 => $target, $self.$instruction),
+            BitTarget::BIT_3 => long_inst_from_reg!($enable, 3 => $target, $self.$instruction),
+            BitTarget::BIT_4 => long_inst_from_reg!($enable, 4 => $target, $self.$instruction),
+            BitTarget::BIT_5 => long_inst_from_reg!($enable, 5 => $target, $self.$instruction),
+            BitTarget::BIT_6 => long_inst_from_reg!($enable, 6 => $target, $self.$instruction),
+            BitTarget::BIT_7 => long_inst_from_reg!($enable, 7 => $target, $self.$instruction),
         }
     }};
 }
@@ -761,7 +832,7 @@ impl Cpu {
             Instruction::SWAP(target) => shift!(target, self.swap),
 
             // Bit instructions
-            Instruction::BIT(bit, target) => complement_from_bit!(bit, target, self),
+            Instruction::BIT(bit, target) => long_instruction!(bit, target, self.complement_bit),
         }
     }
 
@@ -1319,6 +1390,11 @@ impl Cpu {
         self.registers.f.zero = bit_value == 0;
         // return next pc
         self.pc.wrapping_add(2)
+    }
+
+    fn set_bit(&mut self, enable: bool, bit: u8, value: u8) -> u8 {
+        // set / reset bit
+        value & ((enable as u8) << bit)
     }
 }
 
