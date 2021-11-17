@@ -1,5 +1,5 @@
-const VRAM_BEGIN: u16 = 0x8000;
-const VRAM_END: u16 = 0x9FFF;
+pub const VRAM_BEGIN: u16 = 0x8000;
+pub const VRAM_END: u16 = 0x9FFF;
 const VRAM_SIZE: u16 = VRAM_END - VRAM_BEGIN + 1;
 
 const TILE_LENGHT: u8 = 8;
@@ -29,7 +29,7 @@ impl Gpu {
         }
     }
 
-    pub fn read_vram(&mut self, address: u16) -> u8 {
+    pub fn read_vram(&self, address: u16) -> u8 {
         self.vram[address as usize]
     }
 
