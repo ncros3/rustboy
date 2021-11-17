@@ -1,4 +1,6 @@
+mod bus;
 mod cpu;
+mod gpu;
 
 use cpu::Cpu;
 

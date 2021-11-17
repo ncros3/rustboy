@@ -1,15 +1,15 @@
-mod bus;
 mod instruction;
 mod nvic;
 mod register;
 
-use bus::Bus;
 use instruction::{
     ArithmeticTarget, BitTarget, Direction, IncDecTarget, Instruction, JumpTarget, Load16Target,
     PopPushTarget, RamTarget, ResetTarget, SPTarget, U16Target,
 };
 use nvic::Nvic;
 use register::Registers;
+
+use crate::bus::Bus;
 
 macro_rules! run_instruction_in_register {
     ($register_in: ident => $register_out: ident, $self:ident.$instruction:ident) => {{
@@ -43,7 +43,7 @@ macro_rules! arithmetic_instruction {
             ArithmeticTarget::L => run_instruction_in_register!(l => a, $self.$instruction),
             ArithmeticTarget::HL => {
                 let address = $self.registers.read_hl();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 let new_value = $self.$instruction(value);
                 $self.registers.a = new_value;
                 // compute next PC value
@@ -52,7 +52,7 @@ macro_rules! arithmetic_instruction {
             }
             ArithmeticTarget::D8 => {
                 let address = $self.pc.wrapping_add(1);
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 let new_value = $self.$instruction(value);
                 $self.registers.a = new_value;
                 // compute next PC value
@@ -91,9 +91,9 @@ macro_rules! inc_dec_instruction {
             IncDecTarget::L => run_instruction_in_register!(l => l, $self.$instruction),
             IncDecTarget::HL => {
                 let address = $self.registers.read_hl();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 let new_value = $self.$instruction(value);
-                $self.bus.write_byte(address, new_value);
+                $self.bus.write_bus(address, new_value);
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(1)
@@ -140,7 +140,7 @@ macro_rules! load_input_register {
             ArithmeticTarget::L => load_in_register!(l => $main_register, $self),
             ArithmeticTarget::HL => {
                 let address = $self.registers.read_hl();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 $self.registers.$main_register = value;
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
@@ -148,7 +148,7 @@ macro_rules! load_input_register {
             }
             ArithmeticTarget::D8 => {
                 let address = $self.pc.wrapping_add(1);
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 $self.registers.$main_register = value;
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
@@ -162,7 +162,7 @@ macro_rules! load_in_memory {
     ($input_register: ident, $self:ident) => {{
         let address = $self.registers.read_hl();
         let value = $self.registers.$input_register;
-        $self.bus.write_byte(address, value);
+        $self.bus.write_bus(address, value);
         // compute next PC value
         // modulo operation to avoid overflowing effects
         $self.pc.wrapping_add(1)
@@ -182,9 +182,9 @@ macro_rules! load_reg_in_memory {
             ArithmeticTarget::HL => 0,
             ArithmeticTarget::D8 => {
                 let value_address = $self.pc.wrapping_add(1);
-                let value = $self.bus.read_byte(value_address);
+                let value = $self.bus.read_bus(value_address);
                 let mem_address = $self.registers.read_hl();
-                $self.bus.write_byte(mem_address, value);
+                $self.bus.write_bus(mem_address, value);
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(2)
@@ -198,7 +198,7 @@ macro_rules! load_indirect {
         match $register {
             Load16Target::BC => {
                 let address = $self.registers.read_bc();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 $self.registers.a = value;
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
@@ -206,7 +206,7 @@ macro_rules! load_indirect {
             }
             Load16Target::DE => {
                 let address = $self.registers.read_de();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 $self.registers.a = value;
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
@@ -214,7 +214,7 @@ macro_rules! load_indirect {
             }
             Load16Target::HL_plus => {
                 let address = $self.registers.read_hl();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 $self.registers.a = value;
                 let new_address = address.wrapping_add(1);
                 $self.registers.write_hl(new_address);
@@ -224,7 +224,7 @@ macro_rules! load_indirect {
             }
             Load16Target::HL_minus => {
                 let address = $self.registers.read_hl();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 $self.registers.a = value;
                 let new_address = address.wrapping_sub(1);
                 $self.registers.write_hl(new_address);
@@ -242,7 +242,7 @@ macro_rules! store_indirect {
             Load16Target::BC => {
                 let value = $self.registers.a;
                 let address = $self.registers.read_bc();
-                $self.bus.write_byte(address, value);
+                $self.bus.write_bus(address, value);
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(1)
@@ -250,7 +250,7 @@ macro_rules! store_indirect {
             Load16Target::DE => {
                 let value = $self.registers.a;
                 let address = $self.registers.read_de();
-                $self.bus.write_byte(address, value);
+                $self.bus.write_bus(address, value);
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(1)
@@ -258,7 +258,7 @@ macro_rules! store_indirect {
             Load16Target::HL_plus => {
                 let value = $self.registers.a;
                 let address = $self.registers.read_hl();
-                $self.bus.write_byte(address, value);
+                $self.bus.write_bus(address, value);
                 let new_address = address.wrapping_add(1);
                 $self.registers.write_hl(new_address);
                 // compute next PC value
@@ -268,7 +268,7 @@ macro_rules! store_indirect {
             Load16Target::HL_minus => {
                 let value = $self.registers.a;
                 let address = $self.registers.read_hl();
-                $self.bus.write_byte(address, value);
+                $self.bus.write_bus(address, value);
                 let new_address = address.wrapping_sub(1);
                 $self.registers.write_hl(new_address);
                 // compute next PC value
@@ -285,8 +285,8 @@ macro_rules! load_immediate {
             U16Target::BC => {
                 let low_address = $self.pc.wrapping_add(1);
                 let high_address = $self.pc.wrapping_add(2);
-                let low_byte = $self.bus.read_byte(low_address);
-                let high_byte = $self.bus.read_byte(high_address);
+                let low_byte = $self.bus.read_bus(low_address);
+                let high_byte = $self.bus.read_bus(high_address);
                 let value = (low_byte as u16) + ((high_byte as u16) << 8);
                 $self.registers.write_bc(value);
                 // compute next PC value
@@ -296,8 +296,8 @@ macro_rules! load_immediate {
             U16Target::DE => {
                 let low_address = $self.pc.wrapping_add(1);
                 let high_address = $self.pc.wrapping_add(2);
-                let low_byte = $self.bus.read_byte(low_address);
-                let high_byte = $self.bus.read_byte(high_address);
+                let low_byte = $self.bus.read_bus(low_address);
+                let high_byte = $self.bus.read_bus(high_address);
                 let value = (low_byte as u16) + ((high_byte as u16) << 8);
                 $self.registers.write_de(value);
                 // compute next PC value
@@ -307,8 +307,8 @@ macro_rules! load_immediate {
             U16Target::HL => {
                 let low_address = $self.pc.wrapping_add(1);
                 let high_address = $self.pc.wrapping_add(2);
-                let low_byte = $self.bus.read_byte(low_address);
-                let high_byte = $self.bus.read_byte(high_address);
+                let low_byte = $self.bus.read_bus(low_address);
+                let high_byte = $self.bus.read_bus(high_address);
                 let value = (low_byte as u16) + ((high_byte as u16) << 8);
                 $self.registers.write_hl(value);
                 // compute next PC value
@@ -318,8 +318,8 @@ macro_rules! load_immediate {
             U16Target::SP => {
                 let low_address = $self.pc.wrapping_add(1);
                 let high_address = $self.pc.wrapping_add(2);
-                let low_byte = $self.bus.read_byte(low_address);
-                let high_byte = $self.bus.read_byte(high_address);
+                let low_byte = $self.bus.read_bus(low_address);
+                let high_byte = $self.bus.read_bus(high_address);
                 let value = (low_byte as u16) + ((high_byte as u16) << 8);
                 $self.sp = value;
                 // compute next PC value
@@ -533,11 +533,11 @@ macro_rules! rotate_from_register {
                 $self.registers.f.half_carry = false;
                 // get data from memory
                 let address = $self.registers.read_hl();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 // rotate value
                 let new_value = $self.$instruction(value, $direction, true);
                 // save value in memory
-                $self.bus.write_byte(address, new_value);
+                $self.bus.write_bus(address, new_value);
                 // return next pc
                 $self.pc.wrapping_add(2)
             }
@@ -579,11 +579,11 @@ macro_rules! shift {
             IncDecTarget::HL => {
                 // get data from memory
                 let address = $self.registers.read_hl();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 // rotate value
                 let new_value = $self.$instruction(value);
                 // save value in memory
-                $self.bus.write_byte(address, new_value);
+                $self.bus.write_bus(address, new_value);
                 // return next pc
                 $self.pc.wrapping_add(2)
             }
@@ -604,7 +604,7 @@ macro_rules! long_inst_from_reg {
             IncDecTarget::HL => {
                 // get data from memory
                 let address = $self.registers.read_hl();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 // complement value
                 $self.$instruction($bit, value);
                 // return next pc
@@ -660,11 +660,11 @@ macro_rules! long_inst_from_reg {
             IncDecTarget::HL => {
                 // get data from memory
                 let address = $self.registers.read_hl();
-                let value = $self.bus.read_byte(address);
+                let value = $self.bus.read_bus(address);
                 // run instruction on value
                 let new_value = $self.$instruction($enable, $bit, value);
                 // save new value in memory
-                $self.bus.write_byte(address, new_value);
+                $self.bus.write_bus(address, new_value);
                 // return next pc
                 $self.pc.wrapping_add(2)
             }
@@ -735,7 +735,7 @@ impl Cpu {
 
     fn decode(&mut self, instruction_byte: u8) -> Option<Instruction> {
         if Instruction::is_long_instruction(instruction_byte) {
-            let long_instruction_byte = self.bus.read_byte(self.pc.wrapping_add(1));
+            let long_instruction_byte = self.bus.read_bus(self.pc.wrapping_add(1));
             Instruction::from_long_byte(long_instruction_byte)
         } else {
             Instruction::from_byte(instruction_byte)
@@ -746,7 +746,7 @@ impl Cpu {
         // run CPU if it's not in HALT or STOP mode
         if self.mode == CpuMode::RUN {
             // fetch instruction
-            let instruction_byte = self.bus.read_byte(self.pc);
+            let instruction_byte = self.bus.read_bus(self.pc);
             // decode instruction
             let next_pc = if let Some(instruction) = self.decode(instruction_byte) {
                 // execute instruction
@@ -980,23 +980,23 @@ impl Cpu {
     fn load_sp(&mut self, target: SPTarget) -> u16 {
         match target {
             SPTarget::FROM_SP => {
-                let low_byte_address = self.bus.read_byte(self.pc.wrapping_add(1)) as u16;
-                let high_byte_address = self.bus.read_byte(self.pc.wrapping_add(2)) as u16;
+                let low_byte_address = self.bus.read_bus(self.pc.wrapping_add(1)) as u16;
+                let high_byte_address = self.bus.read_bus(self.pc.wrapping_add(2)) as u16;
                 let address = low_byte_address + (high_byte_address << 8);
 
                 // save Stack Pointer lower byte
                 let mut data = (self.sp & 0x00FF) as u8;
-                self.bus.write_byte(address, data);
+                self.bus.write_bus(address, data);
                 // save Stack Pointer higher byte
                 data = ((self.sp & 0xFF00) >> 8) as u8;
-                self.bus.write_byte(address + 1, data);
+                self.bus.write_bus(address + 1, data);
 
                 // return next program counter value
                 self.pc.wrapping_add(3)
             }
             SPTarget::TO_HL => {
                 let address = self.pc.wrapping_add(1);
-                let value = self.bus.read_byte(address) as i8 as i16 as u16;
+                let value = self.bus.read_bus(address) as i8 as i16 as u16;
                 let data_to_store = self.pc.wrapping_add(value);
                 self.registers.write_hl(data_to_store as u16);
 
@@ -1025,15 +1025,15 @@ impl Cpu {
                 // get address from instruction
                 let base_ram_address = 0xFF00;
                 let immediate_address = self.pc.wrapping_add(1);
-                let ram_offset = self.bus.read_byte(immediate_address) as u16;
+                let ram_offset = self.bus.read_bus(immediate_address) as u16;
 
                 if load {
                     // read data from ram memory & load it in register a
-                    self.registers.a = self.bus.read_byte(base_ram_address + ram_offset);
+                    self.registers.a = self.bus.read_bus(base_ram_address + ram_offset);
                 } else {
                     // read data from register A & store it in RAM
                     self.bus
-                        .write_byte(base_ram_address + ram_offset, self.registers.a);
+                        .write_bus(base_ram_address + ram_offset, self.registers.a);
                 }
 
                 // return next program counter value
@@ -1046,11 +1046,11 @@ impl Cpu {
 
                 if load {
                     // read data from ram memory & load it in register a
-                    self.registers.a = self.bus.read_byte(base_ram_address + ram_offset);
+                    self.registers.a = self.bus.read_bus(base_ram_address + ram_offset);
                 } else {
                     // read data from register A & store it in RAM
                     self.bus
-                        .write_byte(base_ram_address + ram_offset, self.registers.a);
+                        .write_bus(base_ram_address + ram_offset, self.registers.a);
                 }
 
                 // return next program counter value
@@ -1058,16 +1058,16 @@ impl Cpu {
             }
             RamTarget::TwoBytesAddress => {
                 // get address from instruction
-                let low_byte_address = self.bus.read_byte(self.pc.wrapping_add(1)) as u16;
-                let high_byte_address = self.bus.read_byte(self.pc.wrapping_add(2)) as u16;
+                let low_byte_address = self.bus.read_bus(self.pc.wrapping_add(1)) as u16;
+                let high_byte_address = self.bus.read_bus(self.pc.wrapping_add(2)) as u16;
                 let address = low_byte_address + (high_byte_address << 8);
 
                 if load {
                     // read data from ram memory & load it in register a
-                    self.registers.a = self.bus.read_byte(address);
+                    self.registers.a = self.bus.read_bus(address);
                 } else {
                     // read data from register A & store it in RAM
-                    self.bus.write_byte(address, self.registers.a);
+                    self.bus.write_bus(address, self.registers.a);
                 }
 
                 // return next program counter value
@@ -1079,7 +1079,7 @@ impl Cpu {
     fn jump_relative(&mut self, flag: bool) -> u16 {
         // get the immediate from memory
         let immediate_address = self.pc.wrapping_add(1);
-        let immediate = self.bus.read_byte(immediate_address);
+        let immediate = self.bus.read_bus(immediate_address);
 
         // do the jump following the flag value
         if flag {
@@ -1092,9 +1092,9 @@ impl Cpu {
     fn jump_immediate(&mut self, flag: bool) -> u16 {
         // get the immediate from memory
         let first_immediate_address = self.pc.wrapping_add(1);
-        let low_immediate = self.bus.read_byte(first_immediate_address);
+        let low_immediate = self.bus.read_bus(first_immediate_address);
         let second_immediate_address = self.pc.wrapping_add(2);
-        let high_immediate = self.bus.read_byte(second_immediate_address);
+        let high_immediate = self.bus.read_bus(second_immediate_address);
         let immediate = ((high_immediate as u16) << 8) | (low_immediate as u16);
 
         // do the jump following the flag value
@@ -1117,8 +1117,8 @@ impl Cpu {
         // update stack pointer
         self.sp = self.sp.wrapping_add(2);
         // read data from RAM memory
-        let low_byte = self.bus.read_byte(low_stack_address) as u16;
-        let high_byte = self.bus.read_byte(high_stack_address) as u16;
+        let low_byte = self.bus.read_bus(low_stack_address) as u16;
+        let high_byte = self.bus.read_bus(high_stack_address) as u16;
         low_byte + (high_byte << 8)
     }
 
@@ -1130,15 +1130,15 @@ impl Cpu {
         let high_stack_address = self.sp.wrapping_sub(1);
         let low_stack_address = self.sp.wrapping_sub(2);
         // save data in memory
-        self.bus.write_byte(high_stack_address, high_byte);
-        self.bus.write_byte(low_stack_address, low_byte);
+        self.bus.write_bus(high_stack_address, high_byte);
+        self.bus.write_bus(low_stack_address, low_byte);
         // update stack pointer
         self.sp = self.sp.wrapping_sub(2);
     }
 
     fn add_sp(&mut self) -> u16 {
         let address = self.pc.wrapping_add(1);
-        let value = self.bus.read_byte(address) as i8 as i16 as u16;
+        let value = self.bus.read_bus(address) as i8 as i16 as u16;
         self.sp = self.sp.wrapping_add(value);
 
         // update flags
@@ -1167,8 +1167,8 @@ impl Cpu {
         // save the return address on the stack
         self.push(self.pc.wrapping_add(3));
         // get the call address
-        let low_byte_address = self.bus.read_byte(self.pc.wrapping_add(1));
-        let high_byte_address = self.bus.read_byte(self.pc.wrapping_add(2));
+        let low_byte_address = self.bus.read_bus(self.pc.wrapping_add(1));
+        let high_byte_address = self.bus.read_bus(self.pc.wrapping_add(2));
         let call_address = (low_byte_address as u16) + ((high_byte_address as u16) << 8);
         // do the call following the flag value
         if flag {
@@ -1430,7 +1430,7 @@ mod cpu_tests {
         let address = 0x1234;
         let data = 0xAA;
 
-        cpu.bus.write_byte(address, data);
+        cpu.bus.write_bus(address, data);
         cpu.registers.write_hl(address);
         cpu.execute(ADD(HL));
         assert_eq!(cpu.registers.read_af(), 0xAA00);
@@ -1442,7 +1442,7 @@ mod cpu_tests {
         let address = 0x0001;
         let data = 0x23;
 
-        cpu.bus.write_byte(address, data);
+        cpu.bus.write_bus(address, data);
         cpu.execute(ADD(D8));
         assert_eq!(cpu.registers.read_af(), 0x2300);
     }
@@ -1491,7 +1491,7 @@ mod cpu_tests {
         let address = 0x1234;
         let data = 0xAA;
 
-        cpu.bus.write_byte(address, data);
+        cpu.bus.write_bus(address, data);
         cpu.registers.write_hl(address);
         cpu.execute(ADDC(HL));
         assert_eq!(cpu.registers.read_af(), 0xAA00);
@@ -1503,7 +1503,7 @@ mod cpu_tests {
         let address = 0x0001;
         let data = 0x23;
 
-        cpu.bus.write_byte(address, data);
+        cpu.bus.write_bus(address, data);
         cpu.registers.write_af(0x0110);
         cpu.execute(ADDC(D8));
         assert_eq!(cpu.registers.read_af(), 0x2500);
@@ -1582,10 +1582,10 @@ mod cpu_tests {
 
         let address = 0x1234;
         let data = 0xAA;
-        cpu.bus.write_byte(address, data);
+        cpu.bus.write_bus(address, data);
         cpu.registers.write_hl(address);
         cpu.execute(INC(IncDecTarget::HL));
-        assert_eq!(cpu.bus.read_byte(address), 0xAB);
+        assert_eq!(cpu.bus.read_bus(address), 0xAB);
     }
 
     #[test]
@@ -1621,10 +1621,10 @@ mod cpu_tests {
 
         let address = 0x1234;
         let data = 0xAA;
-        cpu.bus.write_byte(address, data);
+        cpu.bus.write_bus(address, data);
         cpu.registers.write_hl(address);
         cpu.execute(DEC(IncDecTarget::HL));
-        assert_eq!(cpu.bus.read_byte(address), 0xA9);
+        assert_eq!(cpu.bus.read_bus(address), 0xA9);
     }
 
     #[test]
@@ -1661,24 +1661,24 @@ mod cpu_tests {
 
         let mut mem_address = 0x0001;
         let mut data = 0x23;
-        cpu.bus.write_byte(mem_address, data);
+        cpu.bus.write_bus(mem_address, data);
         cpu.execute(LOAD(IncDecTarget::A, D8));
         assert_eq!(cpu.registers.read_af(), 0x2300);
 
         mem_address = 0x0010;
         cpu.registers.write_hl(mem_address);
         cpu.execute(LOAD(IncDecTarget::HL, D8));
-        assert_eq!(cpu.bus.read_byte(mem_address), 0x23);
+        assert_eq!(cpu.bus.read_bus(mem_address), 0x23);
 
         mem_address = 0x002A;
         cpu.registers.write_hl(mem_address);
         cpu.registers.write_de(0xD500);
         cpu.execute(LOAD(IncDecTarget::HL, D));
-        assert_eq!(cpu.bus.read_byte(mem_address), 0xD5);
+        assert_eq!(cpu.bus.read_bus(mem_address), 0xD5);
 
         mem_address = 0x00C8;
         data = 0x5F;
-        cpu.bus.write_byte(mem_address, data);
+        cpu.bus.write_bus(mem_address, data);
         cpu.registers.write_hl(mem_address);
         cpu.execute(LOAD(IncDecTarget::A, HL));
         assert_eq!(cpu.registers.read_af(), 0x5F00);
@@ -1694,13 +1694,13 @@ mod cpu_tests {
 
         let mem_address = 0x00D8;
         let mut data = 0x56;
-        cpu.bus.write_byte(mem_address, data);
+        cpu.bus.write_bus(mem_address, data);
         cpu.registers.write_bc(mem_address);
         cpu.execute(LOAD_INDIRECT(Load16Target::BC));
         assert_eq!(cpu.registers.read_af(), 0x5600);
 
         data = 0xC6;
-        cpu.bus.write_byte(mem_address, data);
+        cpu.bus.write_bus(mem_address, data);
         cpu.registers.write_hl(mem_address);
         cpu.execute(LOAD_INDIRECT(Load16Target::HL_plus));
         assert_eq!(cpu.registers.read_af(), 0xC600);
@@ -1714,8 +1714,8 @@ mod cpu_tests {
         let low_data = 0x4C;
         let high_data = 0xB7;
         let value = ((high_data as u16) << 8) + low_data as u16;
-        cpu.bus.write_byte(0x0001, low_data);
-        cpu.bus.write_byte(0x0002, high_data);
+        cpu.bus.write_bus(0x0001, low_data);
+        cpu.bus.write_bus(0x0002, high_data);
         cpu.execute(LOAD_IMMEDIATE(U16Target::DE));
         assert_eq!(cpu.registers.read_de(), value);
 
@@ -1732,13 +1732,13 @@ mod cpu_tests {
         cpu.registers.write_af(data);
         cpu.registers.write_de(mem_address);
         cpu.execute(STORE_INDIRECT(Load16Target::DE));
-        assert_eq!(cpu.bus.read_byte(mem_address), 0x56);
+        assert_eq!(cpu.bus.read_bus(mem_address), 0x56);
 
         data = 0xC600;
         cpu.registers.write_af(data);
         cpu.registers.write_hl(mem_address);
         cpu.execute(STORE_INDIRECT(Load16Target::HL_minus));
-        assert_eq!(cpu.bus.read_byte(mem_address), 0xC6);
+        assert_eq!(cpu.bus.read_bus(mem_address), 0xC6);
         assert_eq!(cpu.registers.read_hl(), 0x00D7);
     }
 
@@ -1755,25 +1755,22 @@ mod cpu_tests {
         ];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(base_address + index, data);
+            cpu.bus.write_bus(base_address + index, data);
             index += 1;
         }
 
         // run CPU to do the jump
         cpu.run();
         assert_eq!(
-            cpu.bus.read_byte(cpu.pc),
-            cpu.bus.read_byte(base_address + (jump as u16))
+            cpu.bus.read_bus(cpu.pc),
+            cpu.bus.read_bus(base_address + (jump as u16))
         );
 
         // reset CPU and run it with the flag, we don't do the jump
         cpu.registers.f.zero = true;
         cpu.pc = base_address;
         cpu.run();
-        assert_eq!(
-            cpu.bus.read_byte(cpu.pc),
-            cpu.bus.read_byte(base_address + 2)
-        );
+        assert_eq!(cpu.bus.read_bus(cpu.pc), cpu.bus.read_bus(base_address + 2));
     }
 
     #[test]
@@ -1789,7 +1786,7 @@ mod cpu_tests {
         ];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(base_address + index, data);
+            cpu.bus.write_bus(base_address + index, data);
             index += 1;
         }
 
@@ -1797,18 +1794,15 @@ mod cpu_tests {
         cpu.registers.f.carry = true;
         cpu.run();
         assert_eq!(
-            cpu.bus.read_byte(cpu.pc),
-            cpu.bus.read_byte(base_address + (jump as u16))
+            cpu.bus.read_bus(cpu.pc),
+            cpu.bus.read_bus(base_address + (jump as u16))
         );
 
         // reset CPU and run it with the flag, we don't do the jump
         cpu.registers.f.carry = false;
         cpu.pc = base_address;
         cpu.run();
-        assert_eq!(
-            cpu.bus.read_byte(cpu.pc),
-            cpu.bus.read_byte(base_address + 2)
-        );
+        assert_eq!(cpu.bus.read_bus(cpu.pc), cpu.bus.read_bus(base_address + 2));
     }
 
     #[test]
@@ -1824,15 +1818,15 @@ mod cpu_tests {
         ];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(base_address + index, data);
+            cpu.bus.write_bus(base_address + index, data);
             index += 1;
         }
 
         // run CPU to do the jump
         cpu.run();
         assert_eq!(
-            cpu.bus.read_byte(cpu.pc),
-            cpu.bus.read_byte(base_address + (jump as u16))
+            cpu.bus.read_bus(cpu.pc),
+            cpu.bus.read_bus(base_address + (jump as u16))
         );
     }
 
@@ -1849,7 +1843,7 @@ mod cpu_tests {
         ];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(base_address + index, data);
+            cpu.bus.write_bus(base_address + index, data);
             index += 1;
         }
 
@@ -1857,18 +1851,15 @@ mod cpu_tests {
         cpu.registers.f.zero = true;
         cpu.run();
         assert_eq!(
-            cpu.bus.read_byte(cpu.pc),
-            cpu.bus.read_byte(base_address + (jump as u16))
+            cpu.bus.read_bus(cpu.pc),
+            cpu.bus.read_bus(base_address + (jump as u16))
         );
 
         // reset CPU and run it with the flag, we don't do the jump
         cpu.registers.f.zero = false;
         cpu.pc = base_address;
         cpu.run();
-        assert_eq!(
-            cpu.bus.read_byte(cpu.pc),
-            cpu.bus.read_byte(base_address + 3)
-        );
+        assert_eq!(cpu.bus.read_bus(cpu.pc), cpu.bus.read_bus(base_address + 3));
     }
 
     #[test]
@@ -1880,7 +1871,7 @@ mod cpu_tests {
         let program: [u8; 8] = [jump_inst, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index, data);
+            cpu.bus.write_bus(index, data);
             index += 1;
         }
 
@@ -1888,7 +1879,7 @@ mod cpu_tests {
         cpu.registers.write_hl(jump);
         // run CPU to do the jump
         cpu.run();
-        assert_eq!(cpu.bus.read_byte(cpu.pc), cpu.bus.read_byte(jump));
+        assert_eq!(cpu.bus.read_bus(cpu.pc), cpu.bus.read_bus(jump));
     }
 
     #[test]
@@ -1910,7 +1901,7 @@ mod cpu_tests {
         let program: [u8; 2] = [jump_inst, 0x05];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index, data);
+            cpu.bus.write_bus(index, data);
             index += 1;
         }
 
@@ -1931,7 +1922,7 @@ mod cpu_tests {
         let program: [u8; 3] = [jump_inst, low_address, high_address];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index + base_address, data);
+            cpu.bus.write_bus(index + base_address, data);
             index += 1;
         }
 
@@ -1939,10 +1930,10 @@ mod cpu_tests {
         cpu.pc = base_address;
         cpu.sp = 0x57A8;
         cpu.run();
-        assert_eq!((cpu.sp & 0x00FF) as u8, cpu.bus.read_byte(address));
+        assert_eq!((cpu.sp & 0x00FF) as u8, cpu.bus.read_bus(address));
         assert_eq!(
             ((cpu.sp & 0xFF00) >> 8) as u8,
-            cpu.bus.read_byte(address + 1)
+            cpu.bus.read_bus(address + 1)
         );
     }
 
@@ -1953,7 +1944,7 @@ mod cpu_tests {
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
         let data = 0xF8;
-        cpu.bus.write_byte(ram_data_address, data);
+        cpu.bus.write_bus(ram_data_address, data);
 
         // initialize ROM memory
         let base_program_address = 0x0000;
@@ -1961,14 +1952,14 @@ mod cpu_tests {
         let program: [u8; 2] = [jump_inst, (ram_data_address & 0x00FF) as u8];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index + base_program_address, data);
+            cpu.bus.write_bus(index + base_program_address, data);
             index += 1;
         }
 
         // set cpu and run it
         cpu.pc = base_program_address;
         cpu.run();
-        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
+        assert_eq!(cpu.registers.a, cpu.bus.read_bus(ram_data_address));
     }
 
     #[test]
@@ -1978,7 +1969,7 @@ mod cpu_tests {
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
         let data = 0xF8;
-        cpu.bus.write_byte(ram_data_address, data);
+        cpu.bus.write_bus(ram_data_address, data);
 
         // initialize ROM memory
         let base_program_address = 0x0000;
@@ -1990,14 +1981,14 @@ mod cpu_tests {
         ];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index + base_program_address, data);
+            cpu.bus.write_bus(index + base_program_address, data);
             index += 1;
         }
 
         // set cpu and run it
         cpu.pc = base_program_address;
         cpu.run();
-        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
+        assert_eq!(cpu.registers.a, cpu.bus.read_bus(ram_data_address));
     }
 
     #[test]
@@ -2007,7 +1998,7 @@ mod cpu_tests {
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
         let data = 0xF8;
-        cpu.bus.write_byte(ram_data_address, data);
+        cpu.bus.write_bus(ram_data_address, data);
 
         // initialize ROM memory
         let base_program_address = 0x0000;
@@ -2015,7 +2006,7 @@ mod cpu_tests {
         let program: [u8; 1] = [jump_inst];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index + base_program_address, data);
+            cpu.bus.write_bus(index + base_program_address, data);
             index += 1;
         }
 
@@ -2023,7 +2014,7 @@ mod cpu_tests {
         cpu.pc = base_program_address;
         cpu.registers.c = (ram_data_address & 0x00FF) as u8;
         cpu.run();
-        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
+        assert_eq!(cpu.registers.a, cpu.bus.read_bus(ram_data_address));
     }
 
     #[test]
@@ -2040,7 +2031,7 @@ mod cpu_tests {
         let program: [u8; 2] = [jump_inst, (ram_data_address & 0x00FF) as u8];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index + base_program_address, data);
+            cpu.bus.write_bus(index + base_program_address, data);
             index += 1;
         }
 
@@ -2048,7 +2039,7 @@ mod cpu_tests {
         cpu.pc = base_program_address;
         cpu.registers.a = data;
         cpu.run();
-        assert_eq!(cpu.registers.a, cpu.bus.read_byte(ram_data_address));
+        assert_eq!(cpu.registers.a, cpu.bus.read_bus(ram_data_address));
     }
 
     #[test]
@@ -2064,11 +2055,11 @@ mod cpu_tests {
         cpu.registers.write_de(push_data);
         cpu.execute(PUSH(PopPushTarget::DE));
         assert_eq!(
-            cpu.bus.read_byte(ram_address.wrapping_sub(1)),
+            cpu.bus.read_bus(ram_address.wrapping_sub(1)),
             ((push_data & 0xFF00) >> 8) as u8
         );
         assert_eq!(
-            cpu.bus.read_byte(ram_address.wrapping_sub(2)),
+            cpu.bus.read_bus(ram_address.wrapping_sub(2)),
             (push_data & 0x00FF) as u8
         );
 
@@ -2091,7 +2082,7 @@ mod cpu_tests {
         let program: [u8; 2] = [inst, data_to_add as u8];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index + base_program_address, data);
+            cpu.bus.write_bus(index + base_program_address, data);
             index += 1;
         }
 
@@ -2163,7 +2154,7 @@ mod cpu_tests {
         let program: [u8; 8] = [inst, 0x00, 0x05, 0x44, 0x55, 0x66, 0x77, 0x88];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index, data);
+            cpu.bus.write_bus(index, data);
             index += 1;
         }
 
@@ -2187,7 +2178,7 @@ mod cpu_tests {
         ];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index, data);
+            cpu.bus.write_bus(index, data);
             index += 1;
         }
 
@@ -2271,7 +2262,7 @@ mod cpu_tests {
         let program: [u8; 2] = [0xCB, 0x19];
         let mut index = 0;
         for data in program {
-            cpu.bus.write_byte(index, data);
+            cpu.bus.write_bus(index, data);
             index += 1;
         }
 
@@ -2301,10 +2292,10 @@ mod cpu_tests {
 
         let address = 0x1234;
         let data = 0xB5;
-        cpu.bus.write_byte(address, data);
+        cpu.bus.write_bus(address, data);
         cpu.registers.write_hl(address);
         cpu.execute(Instruction::RC(Direction::LEFT, IncDecTarget::HL));
-        assert_eq!(cpu.bus.read_byte(address), 0x6B);
+        assert_eq!(cpu.bus.read_bus(address), 0x6B);
     }
 
     #[test]
@@ -2344,10 +2335,10 @@ mod cpu_tests {
 
         let address = 0x1234;
         let data = 0xB5;
-        cpu.bus.write_byte(address, data);
+        cpu.bus.write_bus(address, data);
         cpu.registers.write_hl(address);
         cpu.execute(Instruction::SRL(IncDecTarget::HL));
-        assert_eq!(cpu.bus.read_byte(address), 0x5A);
+        assert_eq!(cpu.bus.read_bus(address), 0x5A);
     }
 
     #[test]
@@ -2409,13 +2400,13 @@ mod cpu_tests {
 
         let address = 0x1234;
         let data = 0xB5;
-        cpu.bus.write_byte(address, data);
+        cpu.bus.write_bus(address, data);
         cpu.registers.write_hl(address);
 
         cpu.execute(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::HL));
-        assert_eq!(cpu.bus.read_byte(address), 0xB1);
+        assert_eq!(cpu.bus.read_bus(address), 0xB1);
 
         cpu.execute(Instruction::SET_BIT(BitTarget::BIT_3, IncDecTarget::HL));
-        assert_eq!(cpu.bus.read_byte(address), 0xB9);
+        assert_eq!(cpu.bus.read_bus(address), 0xB9);
     }
 }
