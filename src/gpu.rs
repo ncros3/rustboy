@@ -18,6 +18,26 @@ fn create_tile() -> Tile {
     [[PixelColor::WHITE; 8]; 8]
 }
 
+pub struct Gpu {
+    vram: [u8; VRAM_SIZE as usize],
+}
+
+impl Gpu {
+    pub fn new() -> Gpu {
+        Gpu {
+            vram: [0x00; VRAM_SIZE as usize],
+        }
+    }
+
+    pub fn read_vram(&mut self, address: u16) -> u8 {
+        self.vram[address as usize]
+    }
+
+    pub fn write_vram(&mut self, address: u16, data: u8) {
+        self.vram[address as usize] = data;
+    }
+}
+
 #[cfg(test)]
 mod gpu_tests {
     use super::*;
@@ -29,5 +49,16 @@ mod gpu_tests {
 
         new_tile[1][2] = PixelColor::DARK_GRAY;
         assert_eq!(new_tile[1][2], PixelColor::DARK_GRAY);
+    }
+
+    #[test]
+    fn test_read_write_vram() {
+        let mut gpu = Gpu::new();
+        gpu.write_vram(0x0001, 0xAA);
+        gpu.write_vram(0x0002, 0x55);
+        gpu.write_vram(0x0010, 0xAA);
+        assert_eq!(gpu.read_vram(0x0001), 0xAA);
+        assert_eq!(gpu.read_vram(0x0002), 0x55);
+        assert_eq!(gpu.read_vram(0x0010), 0xAA);
     }
 }
