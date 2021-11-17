@@ -1,15 +1,15 @@
-mod bus;
 mod instruction;
 mod nvic;
 mod register;
 
-use bus::Bus;
 use instruction::{
     ArithmeticTarget, BitTarget, Direction, IncDecTarget, Instruction, JumpTarget, Load16Target,
     PopPushTarget, RamTarget, ResetTarget, SPTarget, U16Target,
 };
 use nvic::Nvic;
 use register::Registers;
+
+use crate::bus::Bus;
 
 macro_rules! run_instruction_in_register {
     ($register_in: ident => $register_out: ident, $self:ident.$instruction:ident) => {{

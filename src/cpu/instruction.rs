@@ -1,5 +1,3 @@
-use std::fs::OpenOptions;
-
 const LONG_PREFIX: u8 = 0xCB;
 
 #[derive(Debug, PartialEq)]
