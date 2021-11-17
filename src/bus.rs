@@ -9,11 +9,11 @@ impl Bus {
         }
     }
 
-    pub fn read_byte(&self, address: u16) -> u8 {
+    pub fn read_bus(&self, address: u16) -> u8 {
         self.memory[address as usize]
     }
 
-    pub fn write_byte(&mut self, address: u16, data: u8) {
+    pub fn write_bus(&mut self, address: u16, data: u8) {
         self.memory[address as usize] = data;
     }
 }
@@ -25,11 +25,11 @@ mod bus_tests {
     #[test]
     fn test_read_write_bus() {
         let mut bus = Bus::new();
-        bus.write_byte(0x0001, 0xAA);
-        bus.write_byte(0x0002, 0x55);
-        bus.write_byte(0x0010, 0xAA);
-        assert_eq!(bus.read_byte(0x0001), 0xAA);
-        assert_eq!(bus.read_byte(0x0002), 0x55);
-        assert_eq!(bus.read_byte(0x0010), 0xAA);
+        bus.write_bus(0x0001, 0xAA);
+        bus.write_bus(0x0002, 0x55);
+        bus.write_bus(0x0010, 0xAA);
+        assert_eq!(bus.read_bus(0x0001), 0xAA);
+        assert_eq!(bus.read_bus(0x0002), 0x55);
+        assert_eq!(bus.read_bus(0x0010), 0xAA);
     }
 }
