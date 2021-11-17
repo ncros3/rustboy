@@ -1,4 +1,5 @@
 mod cpu;
+mod gpu;
 
 use cpu::Cpu;
 
