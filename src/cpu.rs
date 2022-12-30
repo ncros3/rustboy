@@ -11,6 +11,13 @@ use register::Registers;
 
 use crate::bus::Bus;
 
+const RUN_0_CYCLE: u8 = 0;
+const RUN_1_CYCLE: u8 = 1;
+const RUN_2_CYCLES: u8 = 2;
+const RUN_3_CYCLES: u8 = 3;
+const RUN_4_CYCLES: u8 = 4;
+const RUN_6_CYCLES: u8 = 6;
+
 macro_rules! run_instruction_in_register {
     ($register_in: ident => $register_out: ident, $self:ident.$instruction:ident) => {{
         let value = $self.registers.$register_in;
@@ -34,13 +41,13 @@ macro_rules! run_instruction_in_register {
 macro_rules! arithmetic_instruction {
     ($target: ident, $self:ident.$instruction:ident) => {{
         match $target {
-            ArithmeticTarget::A => (run_instruction_in_register!(a => a, $self.$instruction), 1),
-            ArithmeticTarget::B => (run_instruction_in_register!(b => a, $self.$instruction), 1),
-            ArithmeticTarget::C => (run_instruction_in_register!(c => a, $self.$instruction), 1),
-            ArithmeticTarget::D => (run_instruction_in_register!(d => a, $self.$instruction), 1),
-            ArithmeticTarget::E => (run_instruction_in_register!(e => a, $self.$instruction), 1),
-            ArithmeticTarget::H => (run_instruction_in_register!(h => a, $self.$instruction), 1),
-            ArithmeticTarget::L => (run_instruction_in_register!(l => a, $self.$instruction), 1),
+            ArithmeticTarget::A => (run_instruction_in_register!(a => a, $self.$instruction), RUN_1_CYCLE),
+            ArithmeticTarget::B => (run_instruction_in_register!(b => a, $self.$instruction), RUN_1_CYCLE),
+            ArithmeticTarget::C => (run_instruction_in_register!(c => a, $self.$instruction), RUN_1_CYCLE),
+            ArithmeticTarget::D => (run_instruction_in_register!(d => a, $self.$instruction), RUN_1_CYCLE),
+            ArithmeticTarget::E => (run_instruction_in_register!(e => a, $self.$instruction), RUN_1_CYCLE),
+            ArithmeticTarget::H => (run_instruction_in_register!(h => a, $self.$instruction), RUN_1_CYCLE),
+            ArithmeticTarget::L => (run_instruction_in_register!(l => a, $self.$instruction), RUN_1_CYCLE),
             ArithmeticTarget::HL => ({
                 let address = $self.registers.read_hl();
                 let value = $self.bus.read_bus(address);
@@ -49,7 +56,7 @@ macro_rules! arithmetic_instruction {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(1)
-            }, 2),
+            }, RUN_2_CYCLES),
             ArithmeticTarget::D8 => ({
                 let address = $self.pc.wrapping_add(1);
                 let value = $self.bus.read_bus(address);
@@ -58,15 +65,15 @@ macro_rules! arithmetic_instruction {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(2)
-            }, 2),
+            }, RUN_2_CYCLES),
         }
     }};
 
     ($target: ident => $flag:ident => $self:ident.$instruction:ident) => {{
         match $target {
-            U16Target::BC => (run_instruction_in_register!(read_bc => u16 => write_hl, $self.$instruction), 2),
-            U16Target::DE => (run_instruction_in_register!(read_de => u16 => write_hl, $self.$instruction), 2),
-            U16Target::HL => (run_instruction_in_register!(read_hl => u16 => write_hl, $self.$instruction), 2),
+            U16Target::BC => (run_instruction_in_register!(read_bc => u16 => write_hl, $self.$instruction), RUN_2_CYCLES),
+            U16Target::DE => (run_instruction_in_register!(read_de => u16 => write_hl, $self.$instruction), RUN_2_CYCLES),
+            U16Target::HL => (run_instruction_in_register!(read_hl => u16 => write_hl, $self.$instruction), RUN_2_CYCLES),
             U16Target::SP => ({
                 let value_in_register = $self.sp;
                 let new_value = $self.$instruction(value_in_register);
@@ -74,7 +81,7 @@ macro_rules! arithmetic_instruction {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(1)
-            }, 2),
+            }, RUN_2_CYCLES),
         }
     }};
 }
@@ -82,13 +89,13 @@ macro_rules! arithmetic_instruction {
 macro_rules! inc_dec_instruction {
     ($target: ident, $self:ident.$instruction:ident) => {{
         match $target {
-            IncDecTarget::A => (run_instruction_in_register!(a => a, $self.$instruction), 1),
-            IncDecTarget::B => (run_instruction_in_register!(b => b, $self.$instruction), 1),
-            IncDecTarget::C => (run_instruction_in_register!(c => c, $self.$instruction), 1),
-            IncDecTarget::D => (run_instruction_in_register!(d => d, $self.$instruction), 1),
-            IncDecTarget::E => (run_instruction_in_register!(e => e, $self.$instruction), 1),
-            IncDecTarget::H => (run_instruction_in_register!(h => h, $self.$instruction), 1),
-            IncDecTarget::L => (run_instruction_in_register!(l => l, $self.$instruction), 1),
+            IncDecTarget::A => (run_instruction_in_register!(a => a, $self.$instruction), RUN_1_CYCLE),
+            IncDecTarget::B => (run_instruction_in_register!(b => b, $self.$instruction), RUN_1_CYCLE),
+            IncDecTarget::C => (run_instruction_in_register!(c => c, $self.$instruction), RUN_1_CYCLE),
+            IncDecTarget::D => (run_instruction_in_register!(d => d, $self.$instruction), RUN_1_CYCLE),
+            IncDecTarget::E => (run_instruction_in_register!(e => e, $self.$instruction), RUN_1_CYCLE),
+            IncDecTarget::H => (run_instruction_in_register!(h => h, $self.$instruction), RUN_1_CYCLE),
+            IncDecTarget::L => (run_instruction_in_register!(l => l, $self.$instruction), RUN_1_CYCLE),
             IncDecTarget::HL => ({
                 let address = $self.registers.read_hl();
                 let value = $self.bus.read_bus(address);
@@ -97,15 +104,15 @@ macro_rules! inc_dec_instruction {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(1)
-            }, 3),
+            }, RUN_3_CYCLES),
         }
     }};
 
     ($target: ident => $flag:ident => $self:ident.$instruction:ident) => {{
         match $target {
-            U16Target::BC => (run_instruction_in_register!(read_bc => u16 => write_bc, $self.$instruction), 2),
-            U16Target::DE => (run_instruction_in_register!(read_de => u16 => write_de, $self.$instruction), 2),
-            U16Target::HL => (run_instruction_in_register!(read_hl => u16 => write_hl, $self.$instruction), 2),
+            U16Target::BC => (run_instruction_in_register!(read_bc => u16 => write_bc, $self.$instruction), RUN_2_CYCLES),
+            U16Target::DE => (run_instruction_in_register!(read_de => u16 => write_de, $self.$instruction), RUN_2_CYCLES),
+            U16Target::HL => (run_instruction_in_register!(read_hl => u16 => write_hl, $self.$instruction), RUN_2_CYCLES),
             U16Target::SP => ({
                 let value_in_register = $self.sp;
                 let new_value = $self.$instruction(value_in_register);
@@ -113,7 +120,7 @@ macro_rules! inc_dec_instruction {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(1)
-            }, 2),
+            }, RUN_2_CYCLES),
         }
     }};
 }
@@ -131,13 +138,13 @@ macro_rules! load_in_register {
 macro_rules! load_input_register {
     ($input_register: ident => $main_register: ident, $self:ident) => {{
         match $input_register {
-            ArithmeticTarget::A => (load_in_register!(a => $main_register, $self), 1),
-            ArithmeticTarget::B => (load_in_register!(b => $main_register, $self), 1),
-            ArithmeticTarget::C => (load_in_register!(c => $main_register, $self), 1),
-            ArithmeticTarget::D => (load_in_register!(d => $main_register, $self), 1),
-            ArithmeticTarget::E => (load_in_register!(e => $main_register, $self), 1),
-            ArithmeticTarget::H => (load_in_register!(h => $main_register, $self), 1),
-            ArithmeticTarget::L => (load_in_register!(l => $main_register, $self), 1),
+            ArithmeticTarget::A => (load_in_register!(a => $main_register, $self), RUN_1_CYCLE),
+            ArithmeticTarget::B => (load_in_register!(b => $main_register, $self), RUN_1_CYCLE),
+            ArithmeticTarget::C => (load_in_register!(c => $main_register, $self), RUN_1_CYCLE),
+            ArithmeticTarget::D => (load_in_register!(d => $main_register, $self), RUN_1_CYCLE),
+            ArithmeticTarget::E => (load_in_register!(e => $main_register, $self), RUN_1_CYCLE),
+            ArithmeticTarget::H => (load_in_register!(h => $main_register, $self), RUN_1_CYCLE),
+            ArithmeticTarget::L => (load_in_register!(l => $main_register, $self), RUN_1_CYCLE),
             ArithmeticTarget::HL => ({
                 let address = $self.registers.read_hl();
                 let value = $self.bus.read_bus(address);
@@ -145,7 +152,7 @@ macro_rules! load_input_register {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(1)
-            }, 2),
+            }, RUN_2_CYCLES),
             ArithmeticTarget::D8 => ({
                 let address = $self.pc.wrapping_add(1);
                 let value = $self.bus.read_bus(address);
@@ -153,7 +160,7 @@ macro_rules! load_input_register {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(2)
-            }, 2),
+            }, RUN_2_CYCLES),
         }
     }};
 }
@@ -172,14 +179,14 @@ macro_rules! load_in_memory {
 macro_rules! load_reg_in_memory {
     ($input_register: ident, $self:ident) => {{
         match $input_register {
-            ArithmeticTarget::A => (load_in_memory!(a, $self), 2),
-            ArithmeticTarget::B => (load_in_memory!(b, $self), 2),
-            ArithmeticTarget::C => (load_in_memory!(c, $self), 2),
-            ArithmeticTarget::D => (load_in_memory!(d, $self), 2),
-            ArithmeticTarget::E => (load_in_memory!(e, $self), 2),
-            ArithmeticTarget::H => (load_in_memory!(h, $self), 2),
-            ArithmeticTarget::L => (load_in_memory!(l, $self), 2),
-            ArithmeticTarget::HL => (0, 0),
+            ArithmeticTarget::A => (load_in_memory!(a, $self), RUN_2_CYCLES),
+            ArithmeticTarget::B => (load_in_memory!(b, $self), RUN_2_CYCLES),
+            ArithmeticTarget::C => (load_in_memory!(c, $self), RUN_2_CYCLES),
+            ArithmeticTarget::D => (load_in_memory!(d, $self), RUN_2_CYCLES),
+            ArithmeticTarget::E => (load_in_memory!(e, $self), RUN_2_CYCLES),
+            ArithmeticTarget::H => (load_in_memory!(h, $self), RUN_2_CYCLES),
+            ArithmeticTarget::L => (load_in_memory!(l, $self), RUN_2_CYCLES),
+            ArithmeticTarget::HL => (0, RUN_0_CYCLE),
             ArithmeticTarget::D8 => ({
                 let value_address = $self.pc.wrapping_add(1);
                 let value = $self.bus.read_bus(value_address);
@@ -188,7 +195,7 @@ macro_rules! load_reg_in_memory {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(2)
-            }, 3),
+            }, RUN_3_CYCLES),
         }
     }};
 }
@@ -993,7 +1000,7 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(3)
-            }, 4),
+            }, RUN_4_CYCLES),
             SPTarget::TO_HL => ({
                 let address = self.pc.wrapping_add(1);
                 let value = self.bus.read_bus(address) as i8 as i16 as u16;
@@ -1008,14 +1015,14 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(2)
-            }, 3),
+            }, RUN_3_CYCLES),
             SPTarget::TO_SP => ({
                 let value = self.registers.read_hl();
                 self.pc = value;
 
                 // return next program counter value
                 self.pc.wrapping_add(1)
-            }, 2),
+            }, RUN_2_CYCLES),
         }
     }
 
@@ -1038,7 +1045,7 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(2)
-            }, 3),
+            }, RUN_3_CYCLES),
             RamTarget::AddressFromRegister => ({
                 // get address from instruction
                 let base_ram_address = 0xFF00;
@@ -1055,7 +1062,7 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(1)
-            }, 2),
+            }, RUN_2_CYCLES),
             RamTarget::TwoBytesAddress => ({
                 // get address from instruction
                 let low_byte_address = self.bus.read_bus(self.pc.wrapping_add(1)) as u16;
@@ -1072,7 +1079,7 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(3)
-            }, 4),
+            }, RUN_4_CYCLES),
         }
     }
 
@@ -1083,9 +1090,9 @@ impl Cpu {
 
         // do the jump following the flag value
         if flag {
-            (self.pc.wrapping_add(immediate as u16), 3)
+            (self.pc.wrapping_add(immediate as u16), RUN_3_CYCLES)
         } else {
-            (self.pc.wrapping_add(2), 2)
+            (self.pc.wrapping_add(2), RUN_2_CYCLES)
         }
     }
 
@@ -1099,9 +1106,9 @@ impl Cpu {
 
         // do the jump following the flag value
         if flag {
-            (immediate, 4)
+            (immediate, RUN_4_CYCLES)
         } else {
-            (self.pc.wrapping_add(3), 3)
+            (self.pc.wrapping_add(3), RUN_3_CYCLES)
         }
     }
 
@@ -1172,9 +1179,9 @@ impl Cpu {
         let call_address = (low_byte_address as u16) + ((high_byte_address as u16) << 8);
         // do the call following the flag value
         if flag {
-            (call_address, 6)
+            (call_address, RUN_6_CYCLES)
         } else {
-            (self.pc.wrapping_add(3), 3)
+            (self.pc.wrapping_add(3), RUN_3_CYCLES)
         }
     }
 
