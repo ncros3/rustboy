@@ -13,6 +13,10 @@ impl Bus {
         }
     }
 
+    pub fn run(&mut self, runned_cycles: u8) {
+        self.gpu.run(runned_cycles);
+    }
+
     pub fn read_bus(&self, address: u16) -> u8 {
         match address {
             VRAM_BEGIN..=VRAM_END => self.gpu.read_vram(address - VRAM_BEGIN),
