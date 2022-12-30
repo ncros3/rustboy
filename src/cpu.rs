@@ -1076,20 +1076,20 @@ impl Cpu {
         }
     }
 
-    fn jump_relative(&mut self, flag: bool) -> u16 {
+    fn jump_relative(&mut self, flag: bool) -> (u16, u8) {
         // get the immediate from memory
         let immediate_address = self.pc.wrapping_add(1);
         let immediate = self.bus.read_bus(immediate_address);
 
         // do the jump following the flag value
         if flag {
-            self.pc.wrapping_add(immediate as u16)
+            (self.pc.wrapping_add(immediate as u16), 3)
         } else {
-            self.pc.wrapping_add(2)
+            (self.pc.wrapping_add(2), 2)
         }
     }
 
-    fn jump_immediate(&mut self, flag: bool) -> u16 {
+    fn jump_immediate(&mut self, flag: bool) -> (u16, u8) {
         // get the immediate from memory
         let first_immediate_address = self.pc.wrapping_add(1);
         let low_immediate = self.bus.read_bus(first_immediate_address);
@@ -1099,9 +1099,9 @@ impl Cpu {
 
         // do the jump following the flag value
         if flag {
-            immediate
+            (immediate, 4)
         } else {
-            self.pc.wrapping_add(3)
+            (self.pc.wrapping_add(3), 3)
         }
     }
 
@@ -1163,7 +1163,7 @@ impl Cpu {
         self.pop()
     }
 
-    fn call(&mut self, flag: bool) -> u16 {
+    fn call(&mut self, flag: bool) -> (u16, u8) {
         // save the return address on the stack
         self.push(self.pc.wrapping_add(3));
         // get the call address
@@ -1172,9 +1172,9 @@ impl Cpu {
         let call_address = (low_byte_address as u16) + ((high_byte_address as u16) << 8);
         // do the call following the flag value
         if flag {
-            call_address
+            (call_address, 6)
         } else {
-            self.pc.wrapping_add(3)
+            (self.pc.wrapping_add(3), 3)
         }
     }
 
