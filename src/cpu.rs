@@ -750,7 +750,7 @@ impl Cpu {
         }
     }
 
-    fn run(&mut self) -> Option<u8> {
+    pub fn run(&mut self) {
         // run CPU if it's not in HALT or STOP mode
         if self.mode == CpuMode::RUN {
             // fetch instruction
@@ -766,11 +766,9 @@ impl Cpu {
             // update PC value
             self.pc = next_pc;
 
-            // return runned cycles
-            Some(runned_cycles)
-        } else {
-            None
-        }
+            // run the bus subsystem
+            self.bus.run(runned_cycles);
+        } 
     }
 
     fn execute(&mut self, instruction: Instruction) -> (u16, u8) {

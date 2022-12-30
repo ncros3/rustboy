@@ -5,7 +5,11 @@ mod gpu;
 use cpu::Cpu;
 
 fn main() {
-    let cpu = Cpu::new();
+    // create the emulated system
+    let mut cpu = Cpu::new();
+
+    // run the emulated system
+    cpu.run();
 
     println!("hello rustboy !");
 }

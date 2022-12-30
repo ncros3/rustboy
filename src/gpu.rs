@@ -32,6 +32,10 @@ impl Gpu {
         }
     }
 
+    pub fn run(&mut self, runned_cycles: u8) {
+        
+    }
+
     pub fn read_vram(&self, address: u16) -> u8 {
         self.vram[address as usize]
     }
