@@ -16,6 +16,7 @@ const RUN_1_CYCLE: u8 = 1;
 const RUN_2_CYCLES: u8 = 2;
 const RUN_3_CYCLES: u8 = 3;
 const RUN_4_CYCLES: u8 = 4;
+const RUN_5_CYCLES: u8 = 5;
 const RUN_6_CYCLES: u8 = 6;
 
 macro_rules! run_instruction_in_register {
@@ -437,33 +438,33 @@ macro_rules! ret {
         match $target {
             JumpTarget::NZ => {
                 if !$self.registers.f.zero {
-                    $self.pop()
+                    ($self.pop(), RUN_5_CYCLES)
                 } else {
-                    $self.pc.wrapping_add(1)
+                    ($self.pc.wrapping_add(1), RUN_2_CYCLES)
                 }
             }
             JumpTarget::NC => {
                 if !$self.registers.f.carry {
-                    $self.pop()
+                    ($self.pop(), RUN_5_CYCLES)
                 } else {
-                    $self.pc.wrapping_add(1)
+                    ($self.pc.wrapping_add(1), RUN_2_CYCLES)
                 }
             }
             JumpTarget::Z => {
                 if $self.registers.f.zero {
-                    $self.pop()
+                    ($self.pop(), RUN_5_CYCLES)
                 } else {
-                    $self.pc.wrapping_add(1)
+                    ($self.pc.wrapping_add(1), RUN_2_CYCLES)
                 }
             }
             JumpTarget::C => {
                 if $self.registers.f.carry {
-                    $self.pop()
+                    ($self.pop(), RUN_5_CYCLES)
                 } else {
-                    $self.pc.wrapping_add(1)
+                    ($self.pc.wrapping_add(1), RUN_2_CYCLES)
                 }
             }
-            JumpTarget::IMMEDIATE => $self.pop(),
+            JumpTarget::IMMEDIATE => ($self.pop(), RUN_4_CYCLES),
         }
     }};
 }
@@ -471,14 +472,14 @@ macro_rules! ret {
 macro_rules! reset {
     ($target: ident, $self:ident) => {{
         match $target {
-            ResetTarget::FLASH_0 => $self.reset(0x00),
-            ResetTarget::FLASH_1 => $self.reset(0x08),
-            ResetTarget::FLASH_2 => $self.reset(0x10),
-            ResetTarget::FLASH_3 => $self.reset(0x18),
-            ResetTarget::FLASH_4 => $self.reset(0x20),
-            ResetTarget::FLASH_5 => $self.reset(0x28),
-            ResetTarget::FLASH_6 => $self.reset(0x30),
-            ResetTarget::FLASH_7 => $self.reset(0x38),
+            ResetTarget::FLASH_0 => ($self.reset(0x00), RUN_4_CYCLES),
+            ResetTarget::FLASH_1 => ($self.reset(0x08), RUN_4_CYCLES),
+            ResetTarget::FLASH_2 => ($self.reset(0x10), RUN_4_CYCLES),
+            ResetTarget::FLASH_3 => ($self.reset(0x18), RUN_4_CYCLES),
+            ResetTarget::FLASH_4 => ($self.reset(0x20), RUN_4_CYCLES),
+            ResetTarget::FLASH_5 => ($self.reset(0x28), RUN_4_CYCLES),
+            ResetTarget::FLASH_6 => ($self.reset(0x30), RUN_4_CYCLES),
+            ResetTarget::FLASH_7 => ($self.reset(0x38), RUN_4_CYCLES),
         }
     }};
 }
@@ -508,31 +509,31 @@ macro_rules! rotate_from_register {
         match $target {
             IncDecTarget::A => {
                 let next_pc = rotate_register!(a, $self.$instruction, $direction, true);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::B => {
                 let next_pc = rotate_register!(b, $self.$instruction, $direction, true);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::C => {
                 let next_pc = rotate_register!(c, $self.$instruction, $direction, true);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::D => {
                 let next_pc = rotate_register!(d, $self.$instruction, $direction, true);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::E => {
                 let next_pc = rotate_register!(e, $self.$instruction, $direction, true);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::H => {
                 let next_pc = rotate_register!(h, $self.$instruction, $direction, true);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::L => {
                 let next_pc = rotate_register!(l, $self.$instruction, $direction, true);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::HL => {
                 // update flag register
@@ -546,7 +547,7 @@ macro_rules! rotate_from_register {
                 // save value in memory
                 $self.bus.write_bus(address, new_value);
                 // return next pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_4_CYCLES)
             }
         }
     }};
@@ -557,31 +558,31 @@ macro_rules! shift {
         match $target {
             IncDecTarget::A => {
                 let next_pc = run_instruction_in_register!(a => a, $self.$instruction);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::B => {
                 let next_pc = run_instruction_in_register!(b => b, $self.$instruction);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::C => {
                 let next_pc = run_instruction_in_register!(c => c, $self.$instruction);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::D => {
                 let next_pc = run_instruction_in_register!(d => d, $self.$instruction);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::E => {
                 let next_pc = run_instruction_in_register!(e => e, $self.$instruction);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::H => {
                 let next_pc = run_instruction_in_register!(h => h, $self.$instruction);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::L => {
                 let next_pc = run_instruction_in_register!(l => l, $self.$instruction);
-                next_pc.wrapping_add(1)
+                (next_pc.wrapping_add(1), RUN_2_CYCLES)
             }
             IncDecTarget::HL => {
                 // get data from memory
@@ -592,7 +593,7 @@ macro_rules! shift {
                 // save value in memory
                 $self.bus.write_bus(address, new_value);
                 // return next pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_4_CYCLES)
             }
         }
     }};
@@ -601,14 +602,14 @@ macro_rules! shift {
 macro_rules! long_inst_from_reg {
     ($bit: expr, $target: ident, $self:ident.$instruction:ident) => {{
         match $target {
-            IncDecTarget::A => $self.$instruction($bit, $self.registers.a),
-            IncDecTarget::B => $self.$instruction($bit, $self.registers.b),
-            IncDecTarget::C => $self.$instruction($bit, $self.registers.c),
-            IncDecTarget::D => $self.$instruction($bit, $self.registers.d),
-            IncDecTarget::E => $self.$instruction($bit, $self.registers.e),
-            IncDecTarget::H => $self.$instruction($bit, $self.registers.h),
-            IncDecTarget::L => $self.$instruction($bit, $self.registers.l),
-            IncDecTarget::HL => {
+            IncDecTarget::A => ($self.$instruction($bit, $self.registers.a), RUN_2_CYCLES),
+            IncDecTarget::B => ($self.$instruction($bit, $self.registers.b), RUN_2_CYCLES),
+            IncDecTarget::C => ($self.$instruction($bit, $self.registers.c), RUN_2_CYCLES),
+            IncDecTarget::D => ($self.$instruction($bit, $self.registers.d), RUN_2_CYCLES),
+            IncDecTarget::E => ($self.$instruction($bit, $self.registers.e), RUN_2_CYCLES),
+            IncDecTarget::H => ($self.$instruction($bit, $self.registers.h), RUN_2_CYCLES),
+            IncDecTarget::L => ($self.$instruction($bit, $self.registers.l), RUN_2_CYCLES),
+            IncDecTarget::HL => ({
                 // get data from memory
                 let address = $self.registers.read_hl();
                 let value = $self.bus.read_bus(address);
@@ -616,7 +617,7 @@ macro_rules! long_inst_from_reg {
                 $self.$instruction($bit, value);
                 // return next pc
                 $self.pc.wrapping_add(2)
-            }
+            },  RUN_4_CYCLES),
         }
     }};
 
@@ -626,43 +627,43 @@ macro_rules! long_inst_from_reg {
                 let new_value = $self.$instruction($enable, $bit, $self.registers.a);
                 $self.registers.a = new_value;
                 // return next_pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_2_CYCLES)
             }
             IncDecTarget::B => {
                 let new_value = $self.$instruction($enable, $bit, $self.registers.b);
                 $self.registers.b = new_value;
                 // return next_pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_2_CYCLES)
             }
             IncDecTarget::C => {
                 let new_value = $self.$instruction($enable, $bit, $self.registers.c);
                 $self.registers.c = new_value;
                 // return next_pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_2_CYCLES)
             }
             IncDecTarget::D => {
                 let new_value = $self.$instruction($enable, $bit, $self.registers.d);
                 $self.registers.d = new_value;
                 // return next_pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_2_CYCLES)
             }
             IncDecTarget::E => {
                 let new_value = $self.$instruction($enable, $bit, $self.registers.e);
                 $self.registers.e = new_value;
                 // return next_pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_2_CYCLES)
             }
             IncDecTarget::H => {
                 let new_value = $self.$instruction($enable, $bit, $self.registers.h);
                 $self.registers.h = new_value;
                 // return next_pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_2_CYCLES)
             }
             IncDecTarget::L => {
                 let new_value = $self.$instruction($enable, $bit, $self.registers.l);
                 $self.registers.l = new_value;
                 // return next_pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_2_CYCLES)
             }
             IncDecTarget::HL => {
                 // get data from memory
@@ -673,7 +674,7 @@ macro_rules! long_inst_from_reg {
                 // save new value in memory
                 $self.bus.write_bus(address, new_value);
                 // return next pc
-                $self.pc.wrapping_add(2)
+                ($self.pc.wrapping_add(2), RUN_4_CYCLES)
             }
         }
     }};
@@ -799,34 +800,34 @@ impl Cpu {
             // JUMP / CALL / RETURN / RESET instructions
             Instruction::JUMP_RELATIVE(target) => control!(target, self.jump_relative),
             Instruction::JUMP_IMMEDIATE(target) => control!(target, self.jump_immediate),
-            Instruction::JUMP_INDIRECT => self.jump_indirect(),
+            Instruction::JUMP_INDIRECT => (self.jump_indirect(), RUN_1_CYCLE),
             Instruction::RETURN(target) => ret!(target, self),
             Instruction::RESET(target) => reset!(target, self),
             Instruction::CALL(target) => control!(target, self.call),
-            Instruction::RETI => self.reti(),
+            Instruction::RETI => (self.reti(), RUN_4_CYCLES),
 
             // Pop & Push instructions
-            Instruction::POP(target) => pop!(target, self),
-            Instruction::PUSH(target) => push!(target, self),
+            Instruction::POP(target) => (pop!(target, self), RUN_3_CYCLES),
+            Instruction::PUSH(target) => (push!(target, self), RUN_4_CYCLES),
 
             // Interrupt instructions
-            Instruction::DI => interrupt_enable!(false, self),
-            Instruction::EI => interrupt_enable!(true, self),
+            Instruction::DI => (interrupt_enable!(false, self), RUN_1_CYCLE),
+            Instruction::EI => (interrupt_enable!(true, self), RUN_1_CYCLE),
 
             // Control instructions
-            Instruction::NOP => self.pc.wrapping_add(1),
-            Instruction::STOP => self.set_cpu_mode(CpuMode::STOP),
-            Instruction::HALT => self.set_cpu_mode(CpuMode::HALT),
-            Instruction::DAA => self.decimal_adjust(),
-            Instruction::SCF => self.set_carry(CarryOp::SET),
-            Instruction::CPL => self.flip_register_a(),
-            Instruction::CCF => self.set_carry(CarryOp::FLIP),
+            Instruction::NOP => (self.pc.wrapping_add(1), RUN_1_CYCLE),
+            Instruction::STOP => (self.set_cpu_mode(CpuMode::STOP), RUN_1_CYCLE),
+            Instruction::HALT => (self.set_cpu_mode(CpuMode::HALT), RUN_1_CYCLE),
+            Instruction::DAA => (self.decimal_adjust(), RUN_1_CYCLE),
+            Instruction::SCF => (self.set_carry(CarryOp::SET), RUN_1_CYCLE),
+            Instruction::CPL => (self.flip_register_a(), RUN_1_CYCLE),
+            Instruction::CCF => (self.set_carry(CarryOp::FLIP), RUN_1_CYCLE),
 
             // Rotate, Shift & Swap instructions
-            Instruction::RCA(direction) => rotate_register!(a, self.rotate, direction, false),
-            Instruction::RA(direction) => {
+            Instruction::RCA(direction) => (rotate_register!(a, self.rotate, direction, false), RUN_1_CYCLE),
+            Instruction::RA(direction) => ({
                 rotate_register!(a, self.rotate_through_carry, direction, false)
-            }
+            }, RUN_1_CYCLE),
             Instruction::RC(direction, target) => {
                 rotate_from_register!(target, self.rotate, direction)
             }
@@ -2115,7 +2116,7 @@ mod cpu_tests {
         cpu.sp = ram_address;
         cpu.registers.write_de(push_data);
         cpu.execute(PUSH(PopPushTarget::DE));
-        let next_pc = cpu.execute(RETURN(JumpTarget::IMMEDIATE));
+        let (next_pc, cycles) = cpu.execute(RETURN(JumpTarget::IMMEDIATE));
         assert_eq!(next_pc, push_data);
     }
 
@@ -2125,7 +2126,7 @@ mod cpu_tests {
 
         // test push instruction
         cpu.sp = 0xFFAF;
-        let next_pc = cpu.execute(RESET(ResetTarget::FLASH_1));
+        let (next_pc, cycles) = cpu.execute(RESET(ResetTarget::FLASH_1));
         assert_eq!(next_pc, 0x08);
     }
 
@@ -2147,7 +2148,7 @@ mod cpu_tests {
         cpu.sp = ram_address;
         cpu.registers.write_de(push_data);
         cpu.execute(PUSH(PopPushTarget::DE));
-        let next_pc = cpu.execute(RETI);
+        let (next_pc, cycles) = cpu.execute(RETI);
         assert_eq!(next_pc, push_data);
         assert_eq!(cpu.nvic.interrupt_master_enable, true);
     }
