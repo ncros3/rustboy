@@ -131,29 +131,29 @@ macro_rules! load_in_register {
 macro_rules! load_input_register {
     ($input_register: ident => $main_register: ident, $self:ident) => {{
         match $input_register {
-            ArithmeticTarget::A => load_in_register!(a => $main_register, $self),
-            ArithmeticTarget::B => load_in_register!(b => $main_register, $self),
-            ArithmeticTarget::C => load_in_register!(c => $main_register, $self),
-            ArithmeticTarget::D => load_in_register!(d => $main_register, $self),
-            ArithmeticTarget::E => load_in_register!(e => $main_register, $self),
-            ArithmeticTarget::H => load_in_register!(h => $main_register, $self),
-            ArithmeticTarget::L => load_in_register!(l => $main_register, $self),
-            ArithmeticTarget::HL => {
+            ArithmeticTarget::A => (load_in_register!(a => $main_register, $self), 1),
+            ArithmeticTarget::B => (load_in_register!(b => $main_register, $self), 1),
+            ArithmeticTarget::C => (load_in_register!(c => $main_register, $self), 1),
+            ArithmeticTarget::D => (load_in_register!(d => $main_register, $self), 1),
+            ArithmeticTarget::E => (load_in_register!(e => $main_register, $self), 1),
+            ArithmeticTarget::H => (load_in_register!(h => $main_register, $self), 1),
+            ArithmeticTarget::L => (load_in_register!(l => $main_register, $self), 1),
+            ArithmeticTarget::HL => ({
                 let address = $self.registers.read_hl();
                 let value = $self.bus.read_bus(address);
                 $self.registers.$main_register = value;
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(1)
-            }
-            ArithmeticTarget::D8 => {
+            }, 2),
+            ArithmeticTarget::D8 => ({
                 let address = $self.pc.wrapping_add(1);
                 let value = $self.bus.read_bus(address);
                 $self.registers.$main_register = value;
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(2)
-            }
+            }, 2),
         }
     }};
 }
@@ -172,15 +172,15 @@ macro_rules! load_in_memory {
 macro_rules! load_reg_in_memory {
     ($input_register: ident, $self:ident) => {{
         match $input_register {
-            ArithmeticTarget::A => load_in_memory!(a, $self),
-            ArithmeticTarget::B => load_in_memory!(b, $self),
-            ArithmeticTarget::C => load_in_memory!(c, $self),
-            ArithmeticTarget::D => load_in_memory!(d, $self),
-            ArithmeticTarget::E => load_in_memory!(e, $self),
-            ArithmeticTarget::H => load_in_memory!(h, $self),
-            ArithmeticTarget::L => load_in_memory!(l, $self),
-            ArithmeticTarget::HL => 0,
-            ArithmeticTarget::D8 => {
+            ArithmeticTarget::A => (load_in_memory!(a, $self), 2),
+            ArithmeticTarget::B => (load_in_memory!(b, $self), 2),
+            ArithmeticTarget::C => (load_in_memory!(c, $self), 2),
+            ArithmeticTarget::D => (load_in_memory!(d, $self), 2),
+            ArithmeticTarget::E => (load_in_memory!(e, $self), 2),
+            ArithmeticTarget::H => (load_in_memory!(h, $self), 2),
+            ArithmeticTarget::L => (load_in_memory!(l, $self), 2),
+            ArithmeticTarget::HL => (0, 0),
+            ArithmeticTarget::D8 => ({
                 let value_address = $self.pc.wrapping_add(1);
                 let value = $self.bus.read_bus(value_address);
                 let mem_address = $self.registers.read_hl();
@@ -188,7 +188,7 @@ macro_rules! load_reg_in_memory {
                 // compute next PC value
                 // modulo operation to avoid overflowing effects
                 $self.pc.wrapping_add(2)
-            }
+            }, 3),
         }
     }};
 }
@@ -782,9 +782,9 @@ impl Cpu {
 
             // Load & Store instructions
             Instruction::LOAD(main_reg, input_reg) => self.load(input_reg, main_reg),
-            Instruction::LOAD_INDIRECT(target) => load_indirect!(target, self),
-            Instruction::LOAD_IMMEDIATE(target) => load_immediate!(target, self),
-            Instruction::STORE_INDIRECT(target) => store_indirect!(target, self),
+            Instruction::LOAD_INDIRECT(target) => (load_indirect!(target, self), 2),
+            Instruction::LOAD_IMMEDIATE(target) => (load_immediate!(target, self), 3),
+            Instruction::STORE_INDIRECT(target) => (store_indirect!(target, self), 2),
             Instruction::LOAD_SP(target) => self.load_sp(target),
             Instruction::LOAD_RAM(target) => self.load_store_ram(target, true),
             Instruction::STORE_RAM(target) => self.load_store_ram(target, false),
@@ -964,7 +964,7 @@ impl Cpu {
         new_value
     }
 
-    fn load(&mut self, input_register: ArithmeticTarget, main_register: IncDecTarget) -> u16 {
+    fn load(&mut self, input_register: ArithmeticTarget, main_register: IncDecTarget) -> (u16, u8) {
         match main_register {
             IncDecTarget::A => load_input_register!(input_register => a, self),
             IncDecTarget::B => load_input_register!(input_register => b, self),
@@ -977,9 +977,9 @@ impl Cpu {
         }
     }
 
-    fn load_sp(&mut self, target: SPTarget) -> u16 {
+    fn load_sp(&mut self, target: SPTarget) -> (u16, u8) {
         match target {
-            SPTarget::FROM_SP => {
+            SPTarget::FROM_SP => ({
                 let low_byte_address = self.bus.read_bus(self.pc.wrapping_add(1)) as u16;
                 let high_byte_address = self.bus.read_bus(self.pc.wrapping_add(2)) as u16;
                 let address = low_byte_address + (high_byte_address << 8);
@@ -993,8 +993,8 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(3)
-            }
-            SPTarget::TO_HL => {
+            }, 4),
+            SPTarget::TO_HL => ({
                 let address = self.pc.wrapping_add(1);
                 let value = self.bus.read_bus(address) as i8 as i16 as u16;
                 let data_to_store = self.pc.wrapping_add(value);
@@ -1008,20 +1008,20 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(2)
-            }
-            SPTarget::TO_SP => {
+            }, 3),
+            SPTarget::TO_SP => ({
                 let value = self.registers.read_hl();
                 self.pc = value;
 
                 // return next program counter value
                 self.pc.wrapping_add(1)
-            }
+            }, 2),
         }
     }
 
-    fn load_store_ram(&mut self, target: RamTarget, load: bool) -> u16 {
+    fn load_store_ram(&mut self, target: RamTarget, load: bool) -> (u16, u8) {
         match target {
-            RamTarget::OneByteAddress => {
+            RamTarget::OneByteAddress => ({
                 // get address from instruction
                 let base_ram_address = 0xFF00;
                 let immediate_address = self.pc.wrapping_add(1);
@@ -1038,8 +1038,8 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(2)
-            }
-            RamTarget::AddressFromRegister => {
+            }, 3),
+            RamTarget::AddressFromRegister => ({
                 // get address from instruction
                 let base_ram_address = 0xFF00;
                 let ram_offset = self.registers.c as u16;
@@ -1055,8 +1055,8 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(1)
-            }
-            RamTarget::TwoBytesAddress => {
+            }, 2),
+            RamTarget::TwoBytesAddress => ({
                 // get address from instruction
                 let low_byte_address = self.bus.read_bus(self.pc.wrapping_add(1)) as u16;
                 let high_byte_address = self.bus.read_bus(self.pc.wrapping_add(2)) as u16;
@@ -1072,7 +1072,7 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(3)
-            }
+            }, 4),
         }
     }
 
