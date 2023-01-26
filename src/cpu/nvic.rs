@@ -33,13 +33,24 @@ impl Nvic {
 #[cfg(test)]
 mod nvic_tests {
     use super::*;
-    use crate::cpu::nvic::InterruptSources::SERIAL;
 
     #[test]
     fn test_enable_interrupt() {
         let mut nvic = Nvic::new();
 
-        nvic.enable_interrupt(SERIAL, true);
+        nvic.enable_interrupt(InterruptSources::VBLANK, true);
+        assert_eq!(nvic.interrupt_enable, 0x01);
+
+        nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
+        assert_eq!(nvic.interrupt_enable, 0x02);
+
+        nvic.enable_interrupt(InterruptSources::TIMER, true);
+        assert_eq!(nvic.interrupt_enable, 0x04);
+
+        nvic.enable_interrupt(InterruptSources::SERIAL, true);
         assert_eq!(nvic.interrupt_enable, 0x08);
+
+        nvic.enable_interrupt(InterruptSources::JOYPAD, true);
+        assert_eq!(nvic.interrupt_enable, 0x10);
     }
 }
