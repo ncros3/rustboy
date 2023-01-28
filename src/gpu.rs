@@ -28,7 +28,7 @@ impl Gpu {
     pub fn new() -> Gpu {
         Gpu {
             vram: [0x00; VRAM_SIZE as usize],
-            tile_set: [[[PixelColor::WHITE; TILE_LENGHT as usize]; TILE_LENGHT as usize]; TILE_SET_SIZE as usize],
+            tile_set: [create_tile(); TILE_SET_SIZE as usize],
         }
     }
 

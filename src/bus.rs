@@ -1,5 +1,9 @@
 use crate::gpu::{Gpu, VRAM_BEGIN, VRAM_END};
 
+pub const VBLANK_VECTOR: u16 = 0x40;
+pub const LCDSTAT_VECTOR: u16 = 0x48;
+pub const TIMER_VECTOR: u16 = 0x50;
+
 pub struct Bus {
     memory: [u8; 0xFFFF],
     gpu: Gpu,

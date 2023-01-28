@@ -9,7 +9,9 @@ use instruction::{
 use nvic::Nvic;
 use register::Registers;
 
-use crate::bus::Bus;
+use crate::bus::{Bus, VBLANK_VECTOR, LCDSTAT_VECTOR, TIMER_VECTOR};
+
+use self::nvic::InterruptSources;
 
 const RUN_0_CYCLE: u8 = 0;
 const RUN_1_CYCLE: u8 = 1;
@@ -18,6 +20,7 @@ const RUN_3_CYCLES: u8 = 3;
 const RUN_4_CYCLES: u8 = 4;
 const RUN_5_CYCLES: u8 = 5;
 const RUN_6_CYCLES: u8 = 6;
+const RUN_12_CYCLES: u8 = 12;
 
 macro_rules! run_instruction_in_register {
     ($register_in: ident => $register_out: ident, $self:ident.$instruction:ident) => {{
@@ -750,25 +753,49 @@ impl Cpu {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> u8 {
+        let mut runned_cycles: u8  = 0;
         // run CPU if it's not in HALT or STOP mode
         if self.mode == CpuMode::RUN {
             // fetch instruction
             let instruction_byte = self.bus.read_bus(self.pc);
             // decode instruction
-            let (next_pc, runned_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
+            let (next_pc, add_runned_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
                 // execute instruction
                 self.execute(instruction)
             } else {
                 panic!("Unknown instruction found for 0x{:x}", instruction_byte);
             };
 
-            // update PC value
+            // update runned_cycles & PC value
+            runned_cycles = add_runned_cycles;
             self.pc = next_pc;
-
-            // run the bus subsystem
-            self.bus.run(runned_cycles);
         } 
+
+        // manage interrupt if any
+        if let Some(interrupt_source) = self.nvic.get_interrupt() {
+            println!("we found an interrupt");
+            self.mode = CpuMode::RUN;
+            self.jump_to_interrupt_routine(interrupt_source);
+            runned_cycles += RUN_12_CYCLES;
+        };
+        println!("run the bus subsystem");
+
+        // run the bus subsystem
+        self.bus.run(runned_cycles);
+
+        // return runned cycles
+        runned_cycles
+    }
+
+    fn jump_to_interrupt_routine(&mut self, interrupt_source: InterruptSources) {
+        self.push(self.pc);
+        match interrupt_source {
+            InterruptSources::VBLANK => self.pc = VBLANK_VECTOR,
+            InterruptSources::LCD_STAT => self.pc = LCDSTAT_VECTOR,
+            InterruptSources::TIMER => self.pc = TIMER_VECTOR,
+            _ => {},
+        }
     }
 
     fn execute(&mut self, instruction: Instruction) -> (u16, u8) {
@@ -1211,7 +1238,6 @@ impl Cpu {
         match operation {
             CarryOp::SET => self.registers.f.carry = true,
             CarryOp::FLIP => self.registers.f.carry = !self.registers.f.carry,
-            _ => {}
         }
 
         // update flags
@@ -2213,6 +2239,54 @@ mod cpu_tests {
         // cpu is blocked
         cpu.run();
         assert_eq!(cpu.pc, 0x0004);
+    }
+
+    #[test]
+    fn test_jump_to_interrupt() {
+        let mut cpu = Cpu::new();
+
+        // init stack pointer
+        cpu.sp = 0xFFA5;
+
+        // first, fill memory with program
+        let nop_inst: u8 = 0x00;
+        let stop_inst: u8 = 0x10;
+        let halt_inst: u8 = 0x76;
+        let program: [u8; 8] = [
+            nop_inst, stop_inst, nop_inst, halt_inst, nop_inst, nop_inst, nop_inst, nop_inst,
+        ];
+        let mut index = 0;
+        for data in program {
+            cpu.bus.write_bus(index, data);
+            index += 1;
+        }
+
+        // run CPU to do the NOP
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0001);
+        // run CPU to do the STOP
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0002);
+        // then CPU is blocked
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0002);
+
+        // Unlock CPU and run NOP inst
+        cpu.mode = CpuMode::RUN;
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0003);
+        // run HALT inst
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0004);
+        // cpu is blocked
+        cpu.run();
+        assert_eq!(cpu.pc, 0x0004);
+
+        cpu.nvic.master_enable(true);
+        cpu.nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
+        cpu.nvic.set_interrupt(InterruptSources::LCD_STAT);
+        cpu.run();
+        assert_eq!(cpu.pc, LCDSTAT_VECTOR);
     }
 
     #[test]
