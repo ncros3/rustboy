@@ -774,12 +774,10 @@ impl Cpu {
 
         // manage interrupt if any
         if let Some(interrupt_source) = self.nvic.get_interrupt() {
-            println!("we found an interrupt");
             self.mode = CpuMode::RUN;
             self.jump_to_interrupt_routine(interrupt_source);
             runned_cycles += RUN_12_CYCLES;
         };
-        println!("run the bus subsystem");
 
         // run the bus subsystem
         self.bus.run(runned_cycles);
