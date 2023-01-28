@@ -39,20 +39,24 @@ impl Nvic {
     }
 
     pub fn get_interrupt(&mut self) -> Option<InterruptSources> {
-        if (self.interrupt_enable & self.interrupt_flag) != 0 {
-            // we detected an interrupt
-            // find the interrupt source and clear the bit flag
-            let interrupt_source = match (self.interrupt_enable & self.interrupt_flag) {
-                1 => InterruptSources::VBLANK,
-                2 => InterruptSources::LCD_STAT,
-                4 => InterruptSources::TIMER,
-                8 => InterruptSources::SERIAL,
-                16 => InterruptSources::JOYPAD,
-                _ => InterruptSources::VBLANK
-            };
-            self.interrupt_flag &= !((1 as u8) << (interrupt_source as u8));
-            
-            Some(interrupt_source)
+        if self.interrupt_master_enable {
+            if (self.interrupt_enable & self.interrupt_flag) != 0 {
+                // we detected an interrupt
+                // find the interrupt source and clear the bit flag
+                let interrupt_source = match (self.interrupt_enable & self.interrupt_flag) {
+                    1 => InterruptSources::VBLANK,
+                    2 => InterruptSources::LCD_STAT,
+                    4 => InterruptSources::TIMER,
+                    8 => InterruptSources::SERIAL,
+                    16 => InterruptSources::JOYPAD,
+                    _ => InterruptSources::VBLANK
+                };
+                self.interrupt_flag &= !((1 as u8) << (interrupt_source as u8));
+                
+                Some(interrupt_source)
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -84,9 +88,9 @@ mod nvic_tests {
     fn test_set_interrupt() {
         let mut nvic = Nvic::new();
 
+        nvic.master_enable(true);
         nvic.enable_interrupt(InterruptSources::VBLANK, true);
         assert_eq!(nvic.interrupt_enable, 0x01);
-
         nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
         assert_eq!(nvic.interrupt_enable, 0x03);
 
