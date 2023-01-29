@@ -43,13 +43,13 @@ impl Nvic {
             if (self.interrupt_enable & self.interrupt_flag) != 0 {
                 // we detected an interrupt
                 // find the interrupt source and clear the bit flag
-                let interrupt_source = match (self.interrupt_enable & self.interrupt_flag) {
+                let interrupt_source = match self.interrupt_enable & self.interrupt_flag {
                     1 => InterruptSources::VBLANK,
                     2 => InterruptSources::LCD_STAT,
                     4 => InterruptSources::TIMER,
                     8 => InterruptSources::SERIAL,
                     16 => InterruptSources::JOYPAD,
-                    _ => InterruptSources::VBLANK
+                    _ => panic!("Interrupt source not defined")
                 };
                 self.interrupt_flag &= !((1 as u8) << (interrupt_source as u8));
                 
