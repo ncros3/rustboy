@@ -125,5 +125,37 @@ mod nvic_tests {
             Some(InterruptSources::JOYPAD) => assert!(false),
             None => assert!(true)
         }
+
+        nvic.set_interrupt(InterruptSources::LCD_STAT);
+        nvic.set_interrupt(InterruptSources::VBLANK);
+        interrupt = nvic.get_interrupt();
+        match interrupt {
+            Some(InterruptSources::VBLANK) => assert!(true),
+            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::TIMER) => assert!(false),
+            Some(InterruptSources::SERIAL) => assert!(false),
+            Some(InterruptSources::JOYPAD) => assert!(false),
+            None => assert!(false)
+        }
+
+        interrupt = nvic.get_interrupt();
+        match interrupt {
+            Some(InterruptSources::VBLANK) => assert!(false),
+            Some(InterruptSources::LCD_STAT) => assert!(true),
+            Some(InterruptSources::TIMER) => assert!(false),
+            Some(InterruptSources::SERIAL) => assert!(false),
+            Some(InterruptSources::JOYPAD) => assert!(false),
+            None => assert!(false)
+        }
+
+        interrupt = nvic.get_interrupt();
+        match interrupt {
+            Some(InterruptSources::VBLANK) => assert!(false),
+            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::TIMER) => assert!(false),
+            Some(InterruptSources::SERIAL) => assert!(false),
+            Some(InterruptSources::JOYPAD) => assert!(false),
+            None => assert!(true)
+        }
     }
 }
