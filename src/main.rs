@@ -1,6 +1,7 @@
 mod bus;
 mod cpu;
 mod gpu;
+mod nvic;
 
 use cpu::Cpu;
 

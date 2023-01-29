@@ -43,13 +43,13 @@ impl Nvic {
             if (self.interrupt_enable & self.interrupt_flag) != 0 {
                 // we detected an interrupt
                 // find the interrupt source and clear the bit flag
-                let interrupt_source = match (self.interrupt_enable & self.interrupt_flag) {
+                let interrupt_source = match self.interrupt_enable & self.interrupt_flag {
                     1 => InterruptSources::VBLANK,
                     2 => InterruptSources::LCD_STAT,
                     4 => InterruptSources::TIMER,
                     8 => InterruptSources::SERIAL,
                     16 => InterruptSources::JOYPAD,
-                    _ => InterruptSources::VBLANK
+                    _ => panic!("Interrupt source not defined")
                 };
                 self.interrupt_flag &= !((1 as u8) << (interrupt_source as u8));
                 
@@ -106,6 +106,38 @@ mod nvic_tests {
         }
 
         nvic.set_interrupt(InterruptSources::LCD_STAT);
+        interrupt = nvic.get_interrupt();
+        match interrupt {
+            Some(InterruptSources::VBLANK) => assert!(false),
+            Some(InterruptSources::LCD_STAT) => assert!(true),
+            Some(InterruptSources::TIMER) => assert!(false),
+            Some(InterruptSources::SERIAL) => assert!(false),
+            Some(InterruptSources::JOYPAD) => assert!(false),
+            None => assert!(false)
+        }
+
+        interrupt = nvic.get_interrupt();
+        match interrupt {
+            Some(InterruptSources::VBLANK) => assert!(false),
+            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::TIMER) => assert!(false),
+            Some(InterruptSources::SERIAL) => assert!(false),
+            Some(InterruptSources::JOYPAD) => assert!(false),
+            None => assert!(true)
+        }
+
+        nvic.set_interrupt(InterruptSources::LCD_STAT);
+        nvic.set_interrupt(InterruptSources::VBLANK);
+        interrupt = nvic.get_interrupt();
+        match interrupt {
+            Some(InterruptSources::VBLANK) => assert!(true),
+            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::TIMER) => assert!(false),
+            Some(InterruptSources::SERIAL) => assert!(false),
+            Some(InterruptSources::JOYPAD) => assert!(false),
+            None => assert!(false)
+        }
+
         interrupt = nvic.get_interrupt();
         match interrupt {
             Some(InterruptSources::VBLANK) => assert!(false),
