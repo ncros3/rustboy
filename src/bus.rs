@@ -92,7 +92,7 @@ impl Bus {
             IO_REGISTERS_BEGIN..=IO_REGISTERS_END => 0, //TODO: IO register
             UNUSED_BEGIN..=UNUSED_END => 0, // unused memory
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => self.zero_page[(address - ZERO_PAGE_BEGIN) as usize],
-            INTERRUPT_ENABLE_REGISTER => 0, //TODO: interrupt register
+            INTERRUPT_ENABLE_REGISTER => self.nvic.to_byte(),
             _ => {
                 panic!(
                     "Reading from an unkown part of memory at address 0x{:x}",
@@ -124,9 +124,7 @@ impl Bus {
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => {
                 self.zero_page[(address - ZERO_PAGE_BEGIN) as usize] = data;
             }
-            INTERRUPT_ENABLE_REGISTER => {
-                //TODO: write to nvic
-            }
+            INTERRUPT_ENABLE_REGISTER => self.nvic.from_byte(data),
             _ => {
                 panic!(
                     "Writing to an unkown part of memory at address 0x{:x}",
