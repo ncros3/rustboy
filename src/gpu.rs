@@ -1,6 +1,4 @@
-pub const VRAM_BEGIN: u16 = 0x8000;
-pub const VRAM_END: u16 = 0x9FFF;
-const VRAM_SIZE: u16 = VRAM_END - VRAM_BEGIN + 1;
+use crate::bus::VRAM_SIZE;
 
 const TILE_LENGHT: u8 = 8;
 const TILE_SET_SIZE: u16 = 384;
