@@ -1,17 +1,14 @@
 mod instruction;
-mod nvic;
 mod register;
 
 use instruction::{
     ArithmeticTarget, BitTarget, Direction, IncDecTarget, Instruction, JumpTarget, Load16Target,
     PopPushTarget, RamTarget, ResetTarget, SPTarget, U16Target,
 };
-use nvic::Nvic;
 use register::Registers;
 
 use crate::bus::{Bus, VBLANK_VECTOR, LCDSTAT_VECTOR, TIMER_VECTOR};
-
-use self::nvic::InterruptSources;
+use crate::nvic::InterruptSources;
 
 const RUN_0_CYCLE: u8 = 0;
 const RUN_1_CYCLE: u8 = 1;
@@ -489,7 +486,7 @@ macro_rules! reset {
 
 macro_rules! interrupt_enable {
     ($enable: ident, $self:ident) => {{
-        $self.nvic.master_enable($enable);
+        $self.bus.nvic.master_enable($enable);
         $self.pc.wrapping_add(1)
     }};
 }
@@ -728,7 +725,6 @@ pub struct Cpu {
     pc: u16,
     sp: u16,
     bus: Bus,
-    nvic: Nvic,
     mode: CpuMode,
 }
 
@@ -739,7 +735,6 @@ impl Cpu {
             pc: 0x0000,
             sp: 0x0000,
             bus: Bus::new(),
-            nvic: Nvic::new(),
             mode: CpuMode::RUN,
         }
     }
@@ -773,7 +768,7 @@ impl Cpu {
         } 
 
         // manage interrupt if any
-        if let Some(interrupt_source) = self.nvic.get_interrupt() {
+        if let Some(interrupt_source) = self.bus.nvic.get_interrupt() {
             self.mode = CpuMode::RUN;
             self.jump_to_interrupt_routine(interrupt_source);
             runned_cycles += RUN_12_CYCLES;
@@ -1195,7 +1190,7 @@ impl Cpu {
     }
 
     fn reti(&mut self) -> u16 {
-        self.nvic.interrupt_master_enable = true;
+        self.bus.nvic.master_enable(true);
         self.pop()
     }
 
@@ -2162,10 +2157,10 @@ mod cpu_tests {
         let mut cpu = Cpu::new();
 
         cpu.execute(EI);
-        assert_eq!(cpu.nvic.interrupt_master_enable, true);
+        assert_eq!(cpu.bus.nvic.interrupt_master_enable, true);
 
         cpu.execute(DI);
-        assert_eq!(cpu.nvic.interrupt_master_enable, false);
+        assert_eq!(cpu.bus.nvic.interrupt_master_enable, false);
 
         // initialize RAM memory parameters
         let ram_address = 0xFFA5;
@@ -2177,7 +2172,7 @@ mod cpu_tests {
         cpu.execute(PUSH(PopPushTarget::DE));
         let (next_pc, cycles) = cpu.execute(RETI);
         assert_eq!(next_pc, push_data);
-        assert_eq!(cpu.nvic.interrupt_master_enable, true);
+        assert_eq!(cpu.bus.nvic.interrupt_master_enable, true);
     }
 
     #[test]
@@ -2280,9 +2275,9 @@ mod cpu_tests {
         cpu.run();
         assert_eq!(cpu.pc, 0x0004);
 
-        cpu.nvic.master_enable(true);
-        cpu.nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
-        cpu.nvic.set_interrupt(InterruptSources::LCD_STAT);
+        cpu.bus.nvic.master_enable(true);
+        cpu.bus.nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
+        cpu.bus.nvic.set_interrupt(InterruptSources::LCD_STAT);
         cpu.run();
         assert_eq!(cpu.pc, LCDSTAT_VECTOR);
     }

@@ -1,4 +1,5 @@
-use crate::gpu::{Gpu};
+use crate::gpu::Gpu;
+use crate::nvic::Nvic;
 
 pub const BOOT_ROM_BEGIN: u16 = 0x00;
 pub const BOOT_ROM_END: u16 = 0xFF;
@@ -55,6 +56,7 @@ pub struct Bus {
     working_ram: [u8; WORKING_RAM_SIZE as usize],
     zero_page: [u8; ZERO_PAGE_SIZE as usize],
     gpu: Gpu,
+    pub nvic: Nvic,
 }
 
 impl Bus {
@@ -67,6 +69,7 @@ impl Bus {
             working_ram: [0x00; WORKING_RAM_SIZE as usize],
             zero_page: [0x00; ZERO_PAGE_SIZE as usize],
             gpu: Gpu::new(),
+            nvic: Nvic::new(),
         }
     }
 
