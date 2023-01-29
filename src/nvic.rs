@@ -7,6 +7,9 @@ pub enum InterruptSources {
     JOYPAD,
 }
 
+const FIRST_INTERRUPT_SOURCE: u8 = InterruptSources::VBLANK as u8;
+const LAST_INTERRUPT_SOURCE: u8 = InterruptSources::JOYPAD as u8;
+
 pub struct Nvic {
     pub interrupt_master_enable: bool,
     pub interrupt_enable: u8,
@@ -43,17 +46,25 @@ impl Nvic {
             if (self.interrupt_enable & self.interrupt_flag) != 0 {
                 // we detected an interrupt
                 // find the interrupt source and clear the bit flag
-                let interrupt_source = match self.interrupt_enable & self.interrupt_flag {
-                    1 => InterruptSources::VBLANK,
-                    2 => InterruptSources::LCD_STAT,
-                    4 => InterruptSources::TIMER,
-                    8 => InterruptSources::SERIAL,
-                    16 => InterruptSources::JOYPAD,
-                    _ => panic!("Interrupt source not defined")
-                };
-                self.interrupt_flag &= !((1 as u8) << (interrupt_source as u8));
-                
-                Some(interrupt_source)
+                for interrupt_index in FIRST_INTERRUPT_SOURCE..=LAST_INTERRUPT_SOURCE {
+                    if (self.interrupt_enable & self.interrupt_flag & (1 << interrupt_index)) != 0 {
+                        // clear the interrupt flag
+                        self.interrupt_flag &= !(1 << interrupt_index);
+
+                        // high priority interrupt found
+                        let interrupt_source = match 1 << interrupt_index {
+                            1 => InterruptSources::VBLANK,
+                            2 => InterruptSources::LCD_STAT,
+                            4 => InterruptSources::TIMER,
+                            8 => InterruptSources::SERIAL,
+                            16 => InterruptSources::JOYPAD,
+                            _ => panic!("Interrupt index exceeded interrupt max number")
+                        };
+
+                        return Some(interrupt_source);
+                    }
+                }
+                panic!("Interrupt source not defined")
             } else {
                 None
             }
@@ -145,6 +156,38 @@ mod nvic_tests {
             Some(InterruptSources::TIMER) => assert!(false),
             Some(InterruptSources::SERIAL) => assert!(false),
             Some(InterruptSources::JOYPAD) => assert!(false),
+            None => assert!(false)
+        }
+
+        interrupt = nvic.get_interrupt();
+        match interrupt {
+            Some(InterruptSources::VBLANK) => assert!(false),
+            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::TIMER) => assert!(false),
+            Some(InterruptSources::SERIAL) => assert!(false),
+            Some(InterruptSources::JOYPAD) => assert!(false),
+            None => assert!(true)
+        }
+    }
+
+    #[test]
+    fn test_last_interrupt() {
+        let mut nvic = Nvic::new();
+
+        nvic.master_enable(true);
+        nvic.enable_interrupt(InterruptSources::VBLANK, true);
+        assert_eq!(nvic.interrupt_enable, 0x01);
+        nvic.enable_interrupt(InterruptSources::JOYPAD, true);
+        assert_eq!(nvic.interrupt_enable, 0x11);
+
+        nvic.set_interrupt(InterruptSources::JOYPAD);
+        let mut interrupt = nvic.get_interrupt();
+        match interrupt {
+            Some(InterruptSources::VBLANK) => assert!(false),
+            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::TIMER) => assert!(false),
+            Some(InterruptSources::SERIAL) => assert!(false),
+            Some(InterruptSources::JOYPAD) => assert!(true),
             None => assert!(false)
         }
 
