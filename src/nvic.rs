@@ -72,6 +72,14 @@ impl Nvic {
             None
         }
     }
+
+    pub fn from_byte(&mut self, data: u8) {
+        self.interrupt_enable = data;
+    }
+
+    pub fn to_byte(&self) -> u8 {
+        0b11100000 | self.interrupt_enable
+    }
 }
 
 #[cfg(test)]
@@ -200,5 +208,14 @@ mod nvic_tests {
             Some(InterruptSources::JOYPAD) => assert!(false),
             None => assert!(true)
         }
+    }
+
+
+    #[test]
+    fn test_enable_it_from_byte() {
+        let mut nvic = Nvic::new();
+
+        nvic.from_byte(0b00001100);
+        assert_eq!(nvic.to_byte(), 0b11101100);
     }
 }
