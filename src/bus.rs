@@ -88,7 +88,7 @@ impl Bus {
             }
             WORKING_RAM_BEGIN..=WORKING_RAM_END => self.working_ram[(address - WORKING_RAM_BEGIN) as usize],
             ECHO_RAM_BEGIN..=ECHO_RAM_END => self.working_ram[(address - ECHO_RAM_BEGIN) as usize],
-            OAM_BEGIN..=OAM_END => 0, //TODO: OAM memory
+            OAM_BEGIN..=OAM_END => self.gpu.read_oam((address - OAM_BEGIN) as usize),
             IO_REGISTERS_BEGIN..=IO_REGISTERS_END => 0, //TODO: IO register
             UNUSED_BEGIN..=UNUSED_END => 0, // unused memory
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => self.zero_page[(address - ZERO_PAGE_BEGIN) as usize],
@@ -115,7 +115,7 @@ impl Bus {
                 self.working_ram[(address - WORKING_RAM_BEGIN) as usize] = data;
             }
             OAM_BEGIN..=OAM_END => {
-                //TODO: write to OAM
+                self.gpu.write_oam((address - OAM_BEGIN) as usize, data);
             }
             IO_REGISTERS_BEGIN..=IO_REGISTERS_END => {
                 //TODO: write to IO registers

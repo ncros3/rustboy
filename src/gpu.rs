@@ -1,7 +1,10 @@
-use crate::bus::VRAM_SIZE;
+use crate::bus::{VRAM_SIZE, OAM_SIZE};
 
 const TILE_LENGHT: u8 = 8;
 const TILE_SET_SIZE: u16 = 384;
+
+const NUMBER_OF_SPRITES: usize = 40;
+const SPRITE_LENGTH_IN_BYTE: usize = 4;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum PixelColor {
@@ -11,6 +14,43 @@ enum PixelColor {
     BLACK,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum ObjectPalette {
+    Zero,
+    One,
+}
+
+impl Default for ObjectPalette {
+    fn default() -> Self {
+        ObjectPalette::Zero
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ObjectData {
+    x: i16,
+    y: i16,
+    tile: u8,
+    palette: ObjectPalette,
+    xflip: bool,
+    yflip: bool,
+    priority: bool,
+}
+
+impl Default for ObjectData {
+    fn default() -> Self {
+        ObjectData {
+            x: -16,
+            y: -8,
+            tile: Default::default(),
+            palette: Default::default(),
+            xflip: Default::default(),
+            yflip: Default::default(),
+            priority: Default::default(),
+        }
+    }
+}
+
 type Tile = [[PixelColor; TILE_LENGHT as usize]; TILE_LENGHT as usize];
 
 fn create_tile() -> Tile {
@@ -18,8 +58,15 @@ fn create_tile() -> Tile {
 }
 
 pub struct Gpu {
+    // VRAM is a memory area used to store graphics such as backgrounds and sprites
     vram: [u8; VRAM_SIZE as usize],
+    // tile set is a buffer computed by the GPU from VRAM at each write operation
     tile_set: [Tile; TILE_SET_SIZE as usize],
+    // OAM is a memory area used to store sprites attributes
+    // Sprites data are stored in VRAM memory $8000-8FFF
+    oam: [u8; OAM_SIZE as usize],
+    // object data is a buffer computed by the GPU from OAM at each write operation
+    object_data: [ObjectData; NUMBER_OF_SPRITES]
 }
 
 impl Gpu {
@@ -27,6 +74,8 @@ impl Gpu {
         Gpu {
             vram: [0x00; VRAM_SIZE as usize],
             tile_set: [create_tile(); TILE_SET_SIZE as usize],
+            oam: [0; OAM_SIZE as usize],
+            object_data: [Default::default(); NUMBER_OF_SPRITES],
         }
     }
 
@@ -68,6 +117,41 @@ impl Gpu {
 
             self.tile_set[tile_index][row_index][pixel_index] = value;
         }
+    }
+
+    pub fn write_oam(&mut self, index: usize, data: u8) {
+        // save data in OAM memory
+        self.oam[index] = data;
+
+        // convert OAM raw data in structure OAM attributes
+        let object_index = index / SPRITE_LENGTH_IN_BYTE;
+        if object_index > NUMBER_OF_SPRITES {
+            return;
+        }
+
+        let byte = index % SPRITE_LENGTH_IN_BYTE;
+
+        // get a reference to the object
+        let mut object_data = self.object_data.get_mut(object_index).unwrap();
+        match byte {
+            0 => object_data.y = (data as i16) - 0x10,
+            1 => object_data.x = (data as i16) - 0x8,
+            2 => object_data.tile = data,
+            _ => {
+                object_data.palette = if (data & 0x10) != 0 {
+                    ObjectPalette::One
+                } else {
+                    ObjectPalette::Zero
+                };
+                object_data.xflip = (data & 0x20) != 0;
+                object_data.yflip = (data & 0x40) != 0;
+                object_data.priority = (data & 0x80) == 0;
+            }
+        }
+    }
+
+    pub fn read_oam(&self, address: usize) -> u8 {
+        self.oam[address]
     }
 }
 
