@@ -152,22 +152,22 @@ impl std::convert::From<Mode> for u8 {
 }
 
 #[derive(Eq, PartialEq)]
-pub enum InterruptRequest {
+pub enum GpuInterruptRequest {
     None,
     VBlank,
     LCDStat,
     Both,
 }
 
-impl InterruptRequest {
-    fn add(&mut self, other: InterruptRequest) {
+impl GpuInterruptRequest {
+    fn add(&mut self, other: GpuInterruptRequest) {
         match self {
-            InterruptRequest::None => *self = other,
-            InterruptRequest::VBlank if other == InterruptRequest::LCDStat => {
-                *self = InterruptRequest::Both
+            GpuInterruptRequest::None => *self = other,
+            GpuInterruptRequest::VBlank if other == GpuInterruptRequest::LCDStat => {
+                *self = GpuInterruptRequest::Both
             }
-            InterruptRequest::LCDStat if other == InterruptRequest::VBlank => {
-                *self = InterruptRequest::Both
+            GpuInterruptRequest::LCDStat if other == GpuInterruptRequest::VBlank => {
+                *self = GpuInterruptRequest::Both
             }
             _ => {}
         };
@@ -263,10 +263,6 @@ impl Gpu {
         }
     }
 
-    pub fn run(&mut self, runned_cycles: u8) {
-        
-    }
-
     pub fn read_vram(&self, address: u16) -> u8 {
         self.vram[address as usize]
     }
@@ -338,8 +334,8 @@ impl Gpu {
         self.oam[address]
     }
 
-    pub fn step(&mut self, cycles: u8) -> InterruptRequest {
-        let mut request = InterruptRequest::None;
+    pub fn run(&mut self, cycles: u8) -> GpuInterruptRequest {
+        let mut request = GpuInterruptRequest::None;
         if !self.lcd_display_enabled {
             return request;
         }
@@ -354,14 +350,14 @@ impl Gpu {
 
                     if self.line >= 144 {
                         self.mode = Mode::VerticalBlank;
-                        request.add(InterruptRequest::VBlank);
+                        request.add(GpuInterruptRequest::VBlank);
                         if self.vblank_interrupt_enabled {
-                            request.add(InterruptRequest::LCDStat)
+                            request.add(GpuInterruptRequest::LCDStat)
                         }
                     } else {
                         self.mode = Mode::OAMAccess;
                         if self.oam_interrupt_enabled {
-                            request.add(InterruptRequest::LCDStat)
+                            request.add(GpuInterruptRequest::LCDStat)
                         }
                     }
                     self.set_equal_lines_check(&mut request);
@@ -375,7 +371,7 @@ impl Gpu {
                         self.mode = Mode::OAMAccess;
                         self.line = 0;
                         if self.oam_interrupt_enabled {
-                            request.add(InterruptRequest::LCDStat)
+                            request.add(GpuInterruptRequest::LCDStat)
                         }
                     }
                     self.set_equal_lines_check(&mut request);
@@ -391,7 +387,7 @@ impl Gpu {
                 if self.cycles >= 172 {
                     self.cycles = self.cycles % 172;
                     if self.hblank_interrupt_enabled {
-                        request.add(InterruptRequest::LCDStat)
+                        request.add(GpuInterruptRequest::LCDStat)
                     }
                     self.mode = Mode::HorizontalBlank;
                     self.render_scan_line()
@@ -401,10 +397,10 @@ impl Gpu {
         request
     }
 
-    fn set_equal_lines_check(&mut self, request: &mut InterruptRequest) {
+    fn set_equal_lines_check(&mut self, request: &mut GpuInterruptRequest) {
         let line_equals_line_check = self.line == self.line_check;
         if line_equals_line_check && self.line_equals_line_check_interrupt_enabled {
-            request.add(InterruptRequest::LCDStat);
+            request.add(GpuInterruptRequest::LCDStat);
         }
         self.line_equals_line_check = line_equals_line_check;
     }

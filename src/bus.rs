@@ -1,5 +1,5 @@
-use crate::gpu::Gpu;
-use crate::nvic::Nvic;
+use crate::gpu::{Gpu, GpuInterruptRequest};
+use crate::nvic::{Nvic, InterruptSources};
 
 pub const BOOT_ROM_BEGIN: u16 = 0x00;
 pub const BOOT_ROM_END: u16 = 0xFF;
@@ -74,7 +74,16 @@ impl Bus {
     }
 
     pub fn run(&mut self, runned_cycles: u8) {
-        self.gpu.run(runned_cycles);
+        // run the GPU and catch interrupt requests if any
+        match self.gpu.run(runned_cycles) {
+            GpuInterruptRequest::Both => {
+                self.nvic.set_interrupt(InterruptSources::VBLANK);
+                self.nvic.set_interrupt(InterruptSources::LCD_STAT);  
+                },
+            GpuInterruptRequest::VBlank => self.nvic.set_interrupt(InterruptSources::VBLANK),
+            GpuInterruptRequest::LCDStat => self.nvic.set_interrupt(InterruptSources::LCD_STAT),
+            GpuInterruptRequest::None => {},
+        }
     }
 
     pub fn read_bus(&self, address: u16) -> u8 {
