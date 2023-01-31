@@ -1,5 +1,6 @@
 use crate::gpu::{Gpu, GpuInterruptRequest};
 use crate::nvic::{Nvic, InterruptSources};
+use crate::timer::{Timer, Frequency};
 
 pub const BOOT_ROM_BEGIN: u16 = 0x00;
 pub const BOOT_ROM_END: u16 = 0xFF;
@@ -57,10 +58,15 @@ pub struct Bus {
     zero_page: [u8; ZERO_PAGE_SIZE as usize],
     gpu: Gpu,
     pub nvic: Nvic,
+    timer: Timer,
+    divider: Timer,
 }
 
 impl Bus {
     pub fn new() -> Bus {
+        let mut divider = Timer::new(Frequency::F16384);
+        divider.on = true;
+
         Bus {
             boot_rom: [0x00; BOOT_ROM_SIZE as usize],
             rom_bank_0: [0x00; ROM_BANK_0_SIZE as usize],
@@ -70,10 +76,18 @@ impl Bus {
             zero_page: [0x00; ZERO_PAGE_SIZE as usize],
             gpu: Gpu::new(),
             nvic: Nvic::new(),
+            timer: Timer::new(Frequency::F4096),
+            divider: divider,
         }
     }
 
     pub fn run(&mut self, runned_cycles: u8) {
+        // run the system timer
+        if self.timer.run(runned_cycles) {
+            self.nvic.set_interrupt(InterruptSources::TIMER);
+        }
+        self.divider.run(runned_cycles);
+
         // run the GPU and catch interrupt requests if any
         match self.gpu.run(runned_cycles) {
             GpuInterruptRequest::Both => {
