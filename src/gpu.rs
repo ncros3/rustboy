@@ -411,6 +411,8 @@ impl Gpu {
 
     fn render_scan_line(&mut self) {
         let mut scan_line: [TilePixelValue; SCREEN_WIDTH] = [Default::default(); SCREEN_WIDTH];
+
+        // display background from VRAM memory
         if self.background_display_enabled {
             // The x index of the current tile
             let mut tile_x_index = self.viewport_x_offset / 8;
@@ -472,6 +474,7 @@ impl Gpu {
             }
         }
 
+        // display object from VRAM & OAM memory
         if self.object_display_enabled {
             let object_height = if self.object_size == ObjectSize::OS8X16 {
                 16
@@ -521,8 +524,6 @@ impl Gpu {
                 }
             }
         }
-
-        if self.window_display_enabled {}
     }
 
     fn tile_value_to_background_color(&self, tile_value: &TilePixelValue) -> PixelColor {
