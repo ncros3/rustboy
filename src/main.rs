@@ -2,6 +2,7 @@ mod bus;
 mod cpu;
 mod gpu;
 mod nvic;
+mod timer;
 
 use cpu::Cpu;
 
