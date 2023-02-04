@@ -724,8 +724,10 @@ pub struct Cpu {
     registers: Registers,
     pc: u16,
     sp: u16,
-    bus: Bus,
+    pub bus: Bus,
     mode: CpuMode,
+    debug: bool,
+    break_point: Option<u16>,
 }
 
 impl Cpu {
@@ -736,6 +738,32 @@ impl Cpu {
             sp: 0x0000,
             bus: Bus::new(),
             mode: CpuMode::RUN,
+            debug: false,
+            break_point: None,
+        }
+    }
+
+    fn debug_active(&self) -> bool {
+        self.debug
+    }
+
+    pub fn debug_set_break_point(&mut self, break_point: u16) {
+        self.debug = true;
+        self.break_point = Some(break_point);
+    }
+
+    fn debug_run(&self) {
+        // panic if break point is set on this address
+        if let Some(break_point) = self.break_point {
+            if break_point == self.pc {
+                println!("Cpu stopped at break point 0x{:06x}", self.pc);
+
+                println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", self.bus.read_bus(self.pc), self.pc, self.sp);
+                println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", self.registers.read_bc(), self.registers.read_af(), self.registers.read_de(), self.registers.read_hl());
+                println!();
+
+                panic!("break point reached");
+            }
         }
     }
 
@@ -750,6 +778,21 @@ impl Cpu {
 
     pub fn run(&mut self) -> u8 {
         let mut runned_cycles: u8  = 0;
+        // manage debug 
+        if self.debug_active() {
+            self.debug_run();
+        }
+
+        // catch interrupt as soon as possible
+        if let Some(interrupt_source) = self.bus.nvic.get_interrupt() {
+            self.mode = CpuMode::RUN;
+            self.jump_to_interrupt_routine(interrupt_source);
+            runned_cycles = RUN_12_CYCLES;
+
+            // run the bus subsystem
+            self.bus.run(runned_cycles);
+        };
+
         // run CPU if it's not in HALT or STOP mode
         if self.mode == CpuMode::RUN {
             // fetch instruction
@@ -762,20 +805,17 @@ impl Cpu {
                 panic!("Unknown instruction found for 0x{:x}", instruction_byte);
             };
 
+            println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", self.bus.read_bus(self.pc), self.pc, self.sp);
+            println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", self.registers.read_bc(), self.registers.read_af(), self.registers.read_de(), self.registers.read_hl());
+            println!();
+
             // update runned_cycles & PC value
             runned_cycles = add_runned_cycles;
             self.pc = next_pc;
+
+            // run the bus subsystem
+            self.bus.run(runned_cycles);
         } 
-
-        // manage interrupt if any
-        if let Some(interrupt_source) = self.bus.nvic.get_interrupt() {
-            self.mode = CpuMode::RUN;
-            self.jump_to_interrupt_routine(interrupt_source);
-            runned_cycles += RUN_12_CYCLES;
-        };
-
-        // run the bus subsystem
-        self.bus.run(runned_cycles);
 
         // return runned cycles
         runned_cycles
@@ -1110,11 +1150,17 @@ impl Cpu {
     fn jump_relative(&mut self, flag: bool) -> (u16, u8) {
         // get the immediate from memory
         let immediate_address = self.pc.wrapping_add(1);
-        let immediate = self.bus.read_bus(immediate_address);
+        let immediate = self.bus.read_bus(immediate_address) as i8;
 
         // do the jump following the flag value
         if flag {
-            (self.pc.wrapping_add(immediate as u16), RUN_3_CYCLES)
+            // manage signed value to add to PC
+            if immediate >= 0 {
+                (self.pc.wrapping_add(immediate as u16), RUN_3_CYCLES)
+            } else {
+                // using wrapping_sub() implies to convert immediate to absolute value
+                (self.pc.wrapping_sub(immediate.abs() as u16), RUN_3_CYCLES)
+            }
         } else {
             (self.pc.wrapping_add(2), RUN_2_CYCLES)
         }
@@ -2279,7 +2325,7 @@ mod cpu_tests {
         cpu.bus.nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
         cpu.bus.nvic.set_interrupt(InterruptSources::LCD_STAT);
         cpu.run();
-        assert_eq!(cpu.pc, LCDSTAT_VECTOR);
+        assert_eq!(cpu.pc, LCDSTAT_VECTOR + 1);
     }
 
     #[test]
