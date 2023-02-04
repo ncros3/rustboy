@@ -138,12 +138,6 @@ impl Bus {
             UNUSED_BEGIN..=UNUSED_END => 0, // unused memory
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => self.zero_page[(address - ZERO_PAGE_BEGIN) as usize],
             INTERRUPT_ENABLE_REGISTER => self.nvic.to_byte(),
-            _ => {
-                panic!(
-                    "Reading from an unkown part of memory at address 0x{:x}",
-                    address
-                );
-            }
         }
     }
 
