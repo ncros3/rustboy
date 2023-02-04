@@ -778,13 +778,23 @@ impl Cpu {
 
     pub fn run(&mut self) -> u8 {
         let mut runned_cycles: u8  = 0;
+        // manage debug 
+        if self.debug_active() {
+            self.debug_run();
+        }
+
+        // catch interrupt as soon as possible
+        if let Some(interrupt_source) = self.bus.nvic.get_interrupt() {
+            self.mode = CpuMode::RUN;
+            self.jump_to_interrupt_routine(interrupt_source);
+            runned_cycles = RUN_12_CYCLES;
+
+            // run the bus subsystem
+            self.bus.run(runned_cycles);
+        };
+
         // run CPU if it's not in HALT or STOP mode
         if self.mode == CpuMode::RUN {
-            // manage debug 
-            if self.debug_active() {
-                self.debug_run();
-            }
-
             // fetch instruction
             let instruction_byte = self.bus.read_bus(self.pc);
             // decode instruction
@@ -802,17 +812,10 @@ impl Cpu {
             // update runned_cycles & PC value
             runned_cycles = add_runned_cycles;
             self.pc = next_pc;
+
+            // run the bus subsystem
+            self.bus.run(runned_cycles);
         } 
-
-        // manage interrupt if any
-        if let Some(interrupt_source) = self.bus.nvic.get_interrupt() {
-            self.mode = CpuMode::RUN;
-            self.jump_to_interrupt_routine(interrupt_source);
-            runned_cycles += RUN_12_CYCLES;
-        };
-
-        // run the bus subsystem
-        self.bus.run(runned_cycles);
 
         // return runned cycles
         runned_cycles
@@ -2322,7 +2325,7 @@ mod cpu_tests {
         cpu.bus.nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
         cpu.bus.nvic.set_interrupt(InterruptSources::LCD_STAT);
         cpu.run();
-        assert_eq!(cpu.pc, LCDSTAT_VECTOR);
+        assert_eq!(cpu.pc, LCDSTAT_VECTOR + 1);
     }
 
     #[test]
