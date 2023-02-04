@@ -754,7 +754,6 @@ impl Cpu {
         if self.mode == CpuMode::RUN {
             // fetch instruction
             let instruction_byte = self.bus.read_bus(self.pc);
-            println!("instruction byte : {} / address : {}", instruction_byte, self.pc);
             // decode instruction
             let (next_pc, add_runned_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
                 // execute instruction
@@ -762,6 +761,10 @@ impl Cpu {
             } else {
                 panic!("Unknown instruction found for 0x{:x}", instruction_byte);
             };
+
+            println!("instruction byte : {:#04x} / pc : {:#04x} / sp : {:#04x}", instruction_byte, self.pc, self.sp);
+            println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", self.registers.read_bc(), self.registers.read_af(), self.registers.read_de(), self.registers.read_hl());
+            println!();
 
             // update runned_cycles & PC value
             runned_cycles = add_runned_cycles;
@@ -1111,11 +1114,17 @@ impl Cpu {
     fn jump_relative(&mut self, flag: bool) -> (u16, u8) {
         // get the immediate from memory
         let immediate_address = self.pc.wrapping_add(1);
-        let immediate = self.bus.read_bus(immediate_address);
+        let immediate = self.bus.read_bus(immediate_address) as i8;
 
         // do the jump following the flag value
         if flag {
-            (self.pc.wrapping_add(immediate as u16), RUN_3_CYCLES)
+            // manage signed value to add to PC
+            if immediate >= 0 {
+                (self.pc.wrapping_add(immediate as u16), RUN_3_CYCLES)
+            } else {
+                // using wrapping_sub() implies to convert immediate to absolute value
+                (self.pc.wrapping_sub(immediate.abs() as u16), RUN_3_CYCLES)
+            }
         } else {
             (self.pc.wrapping_add(2), RUN_2_CYCLES)
         }
