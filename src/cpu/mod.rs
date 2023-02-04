@@ -726,6 +726,8 @@ pub struct Cpu {
     sp: u16,
     pub bus: Bus,
     mode: CpuMode,
+    debug: bool,
+    break_point: Option<u16>,
 }
 
 impl Cpu {
@@ -736,6 +738,32 @@ impl Cpu {
             sp: 0x0000,
             bus: Bus::new(),
             mode: CpuMode::RUN,
+            debug: false,
+            break_point: None,
+        }
+    }
+
+    fn debug_active(&self) -> bool {
+        self.debug
+    }
+
+    pub fn debug_set_break_point(&mut self, break_point: u16) {
+        self.debug = true;
+        self.break_point = Some(break_point);
+    }
+
+    fn debug_run(&self) {
+        // panic if break point is set on this address
+        if let Some(break_point) = self.break_point {
+            if break_point == self.pc {
+                println!("Cpu stopped at break point 0x{:06x}", self.pc);
+
+                println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", self.bus.read_bus(self.pc), self.pc, self.sp);
+                println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", self.registers.read_bc(), self.registers.read_af(), self.registers.read_de(), self.registers.read_hl());
+                println!();
+
+                panic!("break point reached");
+            }
         }
     }
 
@@ -752,6 +780,11 @@ impl Cpu {
         let mut runned_cycles: u8  = 0;
         // run CPU if it's not in HALT or STOP mode
         if self.mode == CpuMode::RUN {
+            // manage debug 
+            if self.debug_active() {
+                self.debug_run();
+            }
+
             // fetch instruction
             let instruction_byte = self.bus.read_bus(self.pc);
             // decode instruction
@@ -762,7 +795,7 @@ impl Cpu {
                 panic!("Unknown instruction found for 0x{:x}", instruction_byte);
             };
 
-            println!("instruction byte : {:#04x} / pc : {:#04x} / sp : {:#04x}", instruction_byte, self.pc, self.sp);
+            println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", self.bus.read_bus(self.pc), self.pc, self.sp);
             println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", self.registers.read_bc(), self.registers.read_af(), self.registers.read_de(), self.registers.read_hl());
             println!();
 
