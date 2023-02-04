@@ -724,7 +724,7 @@ pub struct Cpu {
     registers: Registers,
     pc: u16,
     sp: u16,
-    bus: Bus,
+    pub bus: Bus,
     mode: CpuMode,
 }
 
@@ -754,6 +754,7 @@ impl Cpu {
         if self.mode == CpuMode::RUN {
             // fetch instruction
             let instruction_byte = self.bus.read_bus(self.pc);
+            println!("instruction byte : {} / address : {}", instruction_byte, self.pc);
             // decode instruction
             let (next_pc, add_runned_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
                 // execute instruction

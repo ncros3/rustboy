@@ -7,8 +7,8 @@ use crate::gpu::{
 use crate::nvic::{Nvic, InterruptSources};
 use crate::timer::{Timer, Frequency};
 
-pub const BOOT_ROM_BEGIN: u16 = 0x00;
-pub const BOOT_ROM_END: u16 = 0xFF;
+pub const BOOT_ROM_BEGIN: u16 = 0x0000;
+pub const BOOT_ROM_END: u16 = 0x00FF;
 pub const BOOT_ROM_SIZE: u16 = BOOT_ROM_END - BOOT_ROM_BEGIN + 1;
 
 pub const ROM_BANK_0_BEGIN: u16 = 0x0000;
@@ -61,7 +61,7 @@ pub struct Bus {
     external_ram: [u8; EXTERNAL_RAM_SIZE as usize],
     working_ram: [u8; WORKING_RAM_SIZE as usize],
     zero_page: [u8; ZERO_PAGE_SIZE as usize],
-    gpu: Gpu,
+    pub gpu: Gpu,
     pub nvic: Nvic,
     timer: Timer,
     divider: Timer,
@@ -69,11 +69,12 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Bus {
+        // initialize divider timer
         let mut divider = Timer::new(Frequency::F16384);
         divider.on = true;
 
         Bus {
-            boot_rom: Some([0x00; BOOT_ROM_SIZE as usize]),
+            boot_rom: None,
             rom_bank_0: [0x00; ROM_BANK_0_SIZE as usize],
             rom_bank_n: [0x00; ROM_BANK_N_SIZE as usize],
             external_ram: [0x00; EXTERNAL_RAM_SIZE as usize],
@@ -84,6 +85,12 @@ impl Bus {
             timer: Timer::new(Frequency::F4096),
             divider: divider,
         }
+    }
+
+    pub fn load(&mut self, boot_rom: &[u8]){
+        let mut rom_data = [0x00; BOOT_ROM_SIZE as usize];
+        rom_data.copy_from_slice(boot_rom);
+        self.boot_rom = Some(rom_data);
     }
 
     pub fn run(&mut self, runned_cycles: u8) {
@@ -107,7 +114,17 @@ impl Bus {
 
     pub fn read_bus(&self, address: u16) -> u8 {
         match address {
-            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => self.rom_bank_0[address as usize],
+            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
+                match address {
+                    BOOT_ROM_BEGIN..=BOOT_ROM_END => 
+                        if let Some(boot_rom) = self.boot_rom {
+                            boot_rom[address as usize]
+                        } else {
+                            self.rom_bank_0[address as usize]
+                        }
+                    _ => self.rom_bank_0[address as usize]
+                }
+            }
             ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.rom_bank_n[(address - ROM_BANK_N_BEGIN) as usize],
             
             VRAM_BEGIN..=VRAM_END => self.gpu.read_vram(address - VRAM_BEGIN),

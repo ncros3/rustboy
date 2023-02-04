@@ -6,8 +6,8 @@ const TILE_SET_SIZE: u16 = 384;
 const NUMBER_OF_SPRITES: usize = 40;
 const SPRITE_LENGTH_IN_BYTE: usize = 4;
 
-const SCREEN_WIDTH: usize = 160;
-const SCREEN_HEIGHT: usize = 144;
+pub const SCREEN_WIDTH: usize = 160;
+pub const SCREEN_HEIGHT: usize = 144;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 enum ObjectPalette {
