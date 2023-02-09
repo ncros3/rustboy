@@ -395,7 +395,7 @@ mod gpu_tests {
 
             // load data in gpu tile set
             for i in 0..NUMBER_OF_PIXELS/2 {
-                gpu.frame_buffer[i] = 255;
+                gpu.frame_buffer[i] = 155;
             }
 
             // run the gpu for an entire frame
@@ -403,10 +403,10 @@ mod gpu_tests {
 
             // copy this frame from gpu frame buffer
             for i in 0..NUMBER_OF_PIXELS/2 {
-                buffer[i] = (gpu.frame_buffer[i] as u32) << 24
+                buffer[i] =  255 << 24
                             | (gpu.frame_buffer[i] as u32) << 16
                             | (gpu.frame_buffer[i] as u32) << 8
-                            | 255 << 0;
+                            | (gpu.frame_buffer[i] as u32) << 0;
             }
 
             // display the frame rendered by the gpu
