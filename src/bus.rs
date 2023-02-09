@@ -2,7 +2,7 @@ use crate::gpu::{
     Gpu, 
     GpuInterruptRequest, 
     TileMap,
-    BackgroundAndWindowDataSelect,
+    DataSet,
     ObjectSize};
 use crate::nvic::{Nvic, InterruptSources};
 use crate::timer::{Timer, Frequency};
@@ -184,7 +184,7 @@ impl Bus {
                 | ((self.gpu.window_tile_map == TileMap::X9C00) as u8) << 6
                 | (self.gpu.window_display_enabled as u8) << 5
                 | ((self.gpu.background_and_window_data_select
-                    == BackgroundAndWindowDataSelect::X8000) as u8) << 4
+                    == DataSet::X8000) as u8) << 4
                 | ((self.gpu.background_tile_map == TileMap::X9C00) as u8) << 3
                 | ((self.gpu.object_size == ObjectSize::OS8X16) as u8) << 2
                 | (self.gpu.object_display_enabled as u8) << 1
@@ -209,7 +209,7 @@ impl Bus {
             }
             0xFF44 => {
                 // Current Line
-                self.gpu.line
+                self.gpu.current_line
             }
             _ => panic!("Reading from an unknown I/O register {:x}", address),
         }
@@ -273,9 +273,9 @@ impl Bus {
                 };
                 self.gpu.window_display_enabled = ((data >> 5) & 0b1) == 1;
                 self.gpu.background_and_window_data_select = if ((data >> 4) & 0b1) == 1 {
-                    BackgroundAndWindowDataSelect::X8000
+                    DataSet::X8000
                 } else {
-                    BackgroundAndWindowDataSelect::X8800
+                    DataSet::X8800
                 };
                 self.gpu.background_tile_map = if ((data >> 3) & 0b1) == 1 {
                     TileMap::X9C00
@@ -307,7 +307,7 @@ impl Bus {
                 self.gpu.viewport_x_offset = data;
             }
             0xFF45 => {
-                self.gpu.line_check = data;
+                self.gpu.compare_line = data;
             }
             0xFF46 => {
                 // TODO: account for the fact this takes 160 microseconds
