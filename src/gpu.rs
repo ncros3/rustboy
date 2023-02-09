@@ -6,6 +6,9 @@ const TILE_SET_SIZE: u16 = 384;
 const NUMBER_OF_SPRITES: usize = 40;
 const SPRITE_LENGTH_IN_BYTE: usize = 4;
 
+const OBJECT_X_OFFSET: i16 = -8;
+const OBJECT_Y_OFFSET: i16 = -16;
+
 pub const SCREEN_WIDTH: usize = 160;
 pub const SCREEN_HEIGHT: usize = 144;
 
@@ -78,8 +81,8 @@ pub struct ObjectData {
 impl Default for ObjectData {
     fn default() -> Self {
         ObjectData {
-            x: -16,
-            y: -8,
+            x: OBJECT_X_OFFSET,
+            y: OBJECT_Y_OFFSET,
             tile: Default::default(),
             palette: Default::default(),
             xflip: Default::default(),
