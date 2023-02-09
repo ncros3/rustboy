@@ -254,7 +254,7 @@ impl Gpu {
             background_palette: PaletteColor::new(),
             object_palette_0: PaletteColor::new(),
             object_palette_1: PaletteColor::new(),
-            
+
             window: Window { x: 0, y: 0 },
 
             cycles: 0,
@@ -348,16 +348,6 @@ impl Gpu {
         // display background from VRAM memory
         if self.background_display_enabled {
             
-        }
-
-    }
-
-    fn tile_value_to_background_color(&self, tile_value: &PixelValue) -> PixelColor {
-        match tile_value {
-            PixelValue::Zero => self.background_palette.0,
-            PixelValue::One => self.background_palette.1,
-            PixelValue::Two => self.background_palette.2,
-            PixelValue::Three => self.background_palette.3,
         }
     }
 }
