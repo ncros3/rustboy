@@ -195,11 +195,11 @@ impl Bus {
                 let mode: u8 = self.gpu.mode.into();
 
                 0b10000000
-                | (self.gpu.line_equals_line_check_interrupt_enabled as u8) << 6
+                | (self.gpu.line_compare_it_enable as u8) << 6
                 | (self.gpu.oam_interrupt_enabled as u8) << 5
                 | (self.gpu.vblank_interrupt_enabled as u8) << 4
                 | (self.gpu.hblank_interrupt_enabled as u8) << 3
-                | (self.gpu.line_equals_line_check as u8) << 2
+                | (self.gpu.line_compare_state as u8) << 2
                 | mode
             }
 
@@ -292,7 +292,7 @@ impl Bus {
             }
             0xFF41 => {
                 // LCD Controller Status
-                self.gpu.line_equals_line_check_interrupt_enabled =
+                self.gpu.line_compare_it_enable =
                     (data & 0b1000000) == 0b1000000;
                 self.gpu.oam_interrupt_enabled = (data & 0b100000) == 0b100000;
                 self.gpu.vblank_interrupt_enabled = (data & 0b10000) == 0b10000;
@@ -322,17 +322,13 @@ impl Bus {
             }
             0xFF47 => {
                 // Background Colors Setting
-                self.gpu.background_colors = data.into();
+                self.gpu.background_palette = data.into();
             }
             0xFF48 => {
-                self.gpu.obj_0_color_3 = (data >> 6).into();
-                self.gpu.obj_0_color_2 = ((data >> 4) & 0b11).into();
-                self.gpu.obj_0_color_1 = ((data >> 2) & 0b11).into();
+                //TODO: implement object palette color 0
             }
             0xFF49 => {
-                self.gpu.obj_1_color_3 = (data >> 6).into();
-                self.gpu.obj_1_color_2 = ((data >> 4) & 0b11).into();
-                self.gpu.obj_1_color_1 = ((data >> 2) & 0b11).into();
+                //TODO: implement object palette color 1
             }
             0xFF4A => {
                 self.gpu.window.y = data;

@@ -10,14 +10,57 @@ pub const SCREEN_WIDTH: usize = 160;
 pub const SCREEN_HEIGHT: usize = 144;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-enum ObjectPalette {
-    Zero,
-    One,
+pub enum PixelColor {
+    WHITE = 255,
+    LIGHT_GRAY = 192,
+    DARK_GRAY = 96,
+    BLACK = 0,
 }
 
-impl Default for ObjectPalette {
+impl std::convert::From<u8> for PixelColor {
+    fn from(n: u8) -> Self {
+        match n {
+            0 => PixelColor::WHITE,
+            1 => PixelColor::LIGHT_GRAY,
+            2 => PixelColor::DARK_GRAY,
+            3 => PixelColor::BLACK,
+            _ => panic!("Cannot covert {} to color", n),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct PaletteColor(PixelColor, PixelColor, PixelColor, PixelColor);
+
+impl PaletteColor {
+    fn new() -> PaletteColor {
+        PaletteColor(
+            PixelColor::WHITE,
+            PixelColor::LIGHT_GRAY,
+            PixelColor::DARK_GRAY,
+            PixelColor::BLACK,
+        )
+    }
+}
+
+impl std::convert::From<u8> for PaletteColor {
+    fn from(value: u8) -> Self {
+        PaletteColor(
+            (value & 0b11).into(),
+            ((value >> 2) & 0b11).into(),
+            ((value >> 4) & 0b11).into(),
+            (value >> 6).into(),
+        )
+    }
+}
+
+impl Default for PaletteColor {
     fn default() -> Self {
-        ObjectPalette::Zero
+        PaletteColor(
+            PixelColor::WHITE, 
+            PixelColor::WHITE, 
+            PixelColor::WHITE, 
+            PixelColor::WHITE)
     }
 }
 
@@ -26,7 +69,7 @@ pub struct ObjectData {
     x: i16,
     y: i16,
     tile: u8,
-    palette: ObjectPalette,
+    palette: PaletteColor,
     xflip: bool,
     yflip: bool,
     priority: bool,
@@ -47,65 +90,15 @@ impl Default for ObjectData {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum TilePixelValue {
+pub enum PixelValue {
     Zero,
     One,
     Two,
     Three,
 }
-impl Default for TilePixelValue {
+impl Default for PixelValue {
     fn default() -> Self {
-        TilePixelValue::Zero
-    }
-}
-
-type Tile = [[TilePixelValue; TILE_LENGHT as usize]; TILE_LENGHT as usize];
-
-fn create_tile() -> Tile {
-    [[TilePixelValue::Zero; TILE_LENGHT as usize]; TILE_LENGHT as usize]
-}
-
-#[derive(Copy, Clone)]
-pub enum PixelColor {
-    WHITE = 255,
-    LIGHT_GRAY = 192,
-    DARK_GRAY = 96,
-    BLACK = 0,
-}
-
-impl std::convert::From<u8> for PixelColor {
-    fn from(n: u8) -> Self {
-        match n {
-            0 => PixelColor::WHITE,
-            1 => PixelColor::LIGHT_GRAY,
-            2 => PixelColor::DARK_GRAY,
-            3 => PixelColor::BLACK,
-            _ => panic!("Cannot covert {} to color", n),
-        }
-    }
-}
-
-pub struct BackgroundColors(PixelColor, PixelColor, PixelColor, PixelColor);
-
-impl BackgroundColors {
-    fn new() -> BackgroundColors {
-        BackgroundColors(
-            PixelColor::WHITE,
-            PixelColor::LIGHT_GRAY,
-            PixelColor::DARK_GRAY,
-            PixelColor::BLACK,
-        )
-    }
-}
-
-impl std::convert::From<u8> for BackgroundColors {
-    fn from(value: u8) -> Self {
-        BackgroundColors(
-            (value & 0b11).into(),
-            ((value >> 2) & 0b11).into(),
-            ((value >> 4) & 0b11).into(),
-            (value >> 6).into(),
-        )
+        PixelValue::Zero
     }
 }
 
@@ -178,13 +171,9 @@ pub struct Gpu {
     // ***** GPU PARAMETERS ******
     // VRAM is a memory area used to store graphics such as backgrounds and sprites
     vram: [u8; VRAM_SIZE as usize],
-    // tile set is a buffer computed by the GPU from VRAM at each write operation
-    tile_set: [Tile; TILE_SET_SIZE as usize],
     // OAM is a memory area used to store sprites attributes
     // Sprites data are stored in VRAM memory $8000-8FFF
     oam: [u8; OAM_SIZE as usize],
-    // object data is a buffer computed by the GPU from OAM at each write operation
-    object_data: [ObjectData; NUMBER_OF_SPRITES],
 
     // ****** LCD DISPLAY PARAMETERS *******
     // 0xFF40: LCD control register
@@ -195,15 +184,14 @@ pub struct Gpu {
     pub background_tile_map: TileMap,
     pub object_size: ObjectSize,
     pub object_display_enabled: bool,
-
     pub background_display_enabled: bool,
 
     // 0xFF41: LCD status register 
-    pub line_equals_line_check_interrupt_enabled: bool,
+    pub line_compare_it_enable: bool,
     pub oam_interrupt_enabled: bool,
     pub vblank_interrupt_enabled: bool,
     pub hblank_interrupt_enabled: bool,
-    pub line_equals_line_check: bool,
+    pub line_compare_state: bool,
     pub mode: Mode,
 
     // 0xFF42 - 0xFF43: SCY viewport Y offset
@@ -217,17 +205,13 @@ pub struct Gpu {
     pub compare_line: u8,
 
     // 0xFF47: Background palette
-    pub background_colors: BackgroundColors,
+    pub background_palette: PaletteColor,
 
     // 0xFF48: Objects palette 0
-    pub obj_0_color_1: PixelColor,
-    pub obj_0_color_2: PixelColor,
-    pub obj_0_color_3: PixelColor,
+    pub object_palette_0: PaletteColor,
 
     // 0xFF49: Objects palette 1
-    pub obj_1_color_1: PixelColor,
-    pub obj_1_color_2: PixelColor,
-    pub obj_1_color_3: PixelColor,
+    pub object_palette_1: PaletteColor,
 
     // 0xFF4A - 0xFF4B: window position
     pub window: Window,
@@ -242,42 +226,39 @@ pub struct Gpu {
 impl Gpu {
     pub fn new() -> Gpu {
         Gpu {
-            // GPU parameters
             vram: [0x00; VRAM_SIZE as usize],
-            tile_set: [create_tile(); TILE_SET_SIZE as usize],
             oam: [0; OAM_SIZE as usize],
-            object_data: [Default::default(); NUMBER_OF_SPRITES],
 
-            // lCD parameters
-            background_colors: BackgroundColors::new(),
-            viewport_x_offset: 0,
-            viewport_y_offset: 0,
             lcd_display_enabled: false,
+            window_tile_map: TileMap::X9800,
             window_display_enabled: false,
-            background_display_enabled: false,
+            background_and_window_data_select: DataSet::X8000,
+            background_tile_map: TileMap::X9800,
+            object_size: ObjectSize::OS8X8,
             object_display_enabled: false,
-            line_equals_line_check_interrupt_enabled: false,
+            background_display_enabled: false,
+
+            line_compare_it_enable: false,
             oam_interrupt_enabled: false,
             vblank_interrupt_enabled: false,
             hblank_interrupt_enabled: false,
-            compare_line: 0,
-            line_equals_line_check: false,
-            window_tile_map: TileMap::X9800,
-            background_tile_map: TileMap::X9800,
-            background_and_window_data_select: DataSet::X8800,
-            object_size: ObjectSize::OS8X8,
-            obj_0_color_1: PixelColor::LIGHT_GRAY,
-            obj_0_color_2: PixelColor::DARK_GRAY,
-            obj_0_color_3: PixelColor::BLACK,
-            obj_1_color_1: PixelColor::LIGHT_GRAY,
-            obj_1_color_2: PixelColor::DARK_GRAY,
-            obj_1_color_3: PixelColor::BLACK,
-            window: Window { x: 0, y: 0 },
-            current_line: 0,
+            line_compare_state: false,
             mode: Mode::HorizontalBlank,
+
+            viewport_y_offset: 0,
+            viewport_x_offset: 0,
+
+            current_line: 0,
+            compare_line: 0,
+
+            background_palette: PaletteColor::new(),
+            object_palette_0: PaletteColor::new(),
+            object_palette_1: PaletteColor::new(),
+            
+            window: Window { x: 0, y: 0 },
+
             cycles: 0,
 
-            // frame  buffer
             frame_buffer: [0; SCREEN_WIDTH * SCREEN_HEIGHT],
         }
     }
@@ -362,7 +343,7 @@ impl Gpu {
 
 
     fn draw_line(&mut self) {
-        let mut scan_line: [TilePixelValue; SCREEN_WIDTH] = [Default::default(); SCREEN_WIDTH];
+        let mut scan_line: [PixelValue; SCREEN_WIDTH] = [Default::default(); SCREEN_WIDTH];
 
         // display background from VRAM memory
         if self.background_display_enabled {
@@ -371,12 +352,12 @@ impl Gpu {
 
     }
 
-    fn tile_value_to_background_color(&self, tile_value: &TilePixelValue) -> PixelColor {
+    fn tile_value_to_background_color(&self, tile_value: &PixelValue) -> PixelColor {
         match tile_value {
-            TilePixelValue::Zero => self.background_colors.0,
-            TilePixelValue::One => self.background_colors.1,
-            TilePixelValue::Two => self.background_colors.2,
-            TilePixelValue::Three => self.background_colors.3,
+            PixelValue::Zero => self.background_palette.0,
+            PixelValue::One => self.background_palette.1,
+            PixelValue::Two => self.background_palette.2,
+            PixelValue::Three => self.background_palette.3,
         }
     }
 }
@@ -385,33 +366,6 @@ impl Gpu {
 mod gpu_tests {
     use super::*;
     use minifb::{Key, Window, WindowOptions};
-
-    #[test]
-    fn test_fill_tile_set() {
-        let mut gpu = Gpu::new();
-        gpu.write_vram(0x0000, 0xCC);
-        gpu.write_vram(0x0001, 0xAA);
-
-        assert_eq!(gpu.tile_set[0][0][0], TilePixelValue::Three);
-        assert_eq!(gpu.tile_set[0][0][5], TilePixelValue::One);
-        assert_eq!(gpu.tile_set[0][0][2], TilePixelValue::Two);
-
-        gpu.write_vram(0x00F0, 0xCC);
-        gpu.write_vram(0x00F1, 0xAA);
-
-        assert_eq!(gpu.tile_set[15][0][0], TilePixelValue::Three);
-        assert_eq!(gpu.tile_set[15][0][5], TilePixelValue::One);
-        assert_eq!(gpu.tile_set[15][0][2], TilePixelValue::Two);
-    }
-
-    #[test]
-    fn test_create_tile() {
-        let mut new_tile = create_tile();
-        assert_eq!(new_tile[1][1], TilePixelValue::Zero);
-
-        new_tile[1][2] = TilePixelValue::Two;
-        assert_eq!(new_tile[1][2], TilePixelValue::Two);
-    }
 
     #[test]
     fn test_read_write_vram() {
