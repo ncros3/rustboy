@@ -1,8 +1,7 @@
 use crate::gpu::{
     Gpu, 
     GpuInterruptRequest, 
-    TileMap,
-    DataSet,
+    TileMapArea,
     ObjectSize};
 use crate::nvic::{Nvic, InterruptSources};
 use crate::timer::{Timer, Frequency};
@@ -101,15 +100,7 @@ impl Bus {
         self.divider.run(runned_cycles);
 
         // run the GPU and catch interrupt requests if any
-        match self.gpu.run(runned_cycles) {
-            GpuInterruptRequest::Both => {
-                self.nvic.set_interrupt(InterruptSources::VBLANK);
-                self.nvic.set_interrupt(InterruptSources::LCD_STAT);  
-                },
-            GpuInterruptRequest::VBlank => self.nvic.set_interrupt(InterruptSources::VBLANK),
-            GpuInterruptRequest::LCDStat => self.nvic.set_interrupt(InterruptSources::LCD_STAT),
-            GpuInterruptRequest::None => {},
-        }
+        self.gpu.run(runned_cycles);
     }
 
     pub fn read_bus(&self, address: u16) -> u8 {
@@ -179,37 +170,20 @@ impl Bus {
             0xFF04 => self.divider.value,
             0xFF0F => self.nvic.to_byte(),
             0xFF40 => {
-                // LCD Control
-                (self.gpu.lcd_display_enabled as u8) << 7
-                | ((self.gpu.window_tile_map == TileMap::X9C00) as u8) << 6
-                | (self.gpu.window_display_enabled as u8) << 5
-                | ((self.gpu.background_and_window_data_select
-                    == DataSet::X8000) as u8) << 4
-                | ((self.gpu.background_tile_map == TileMap::X9C00) as u8) << 3
-                | ((self.gpu.object_size == ObjectSize::OS8X16) as u8) << 2
-                | (self.gpu.object_display_enabled as u8) << 1
-                | (self.gpu.background_display_enabled as u8)
+                //TODO LCD Control
+                0
             }
             0xFF41 => {
-                // LCD Controller Status
-                let mode: u8 = self.gpu.mode.into();
-
-                0b10000000
-                | (self.gpu.line_compare_it_enable as u8) << 6
-                | (self.gpu.oam_interrupt_enabled as u8) << 5
-                | (self.gpu.vblank_interrupt_enabled as u8) << 4
-                | (self.gpu.hblank_interrupt_enabled as u8) << 3
-                | (self.gpu.line_compare_state as u8) << 2
-                | mode
+                //TODO LCD Controller Status
+                0
             }
-
             0xFF42 => {
-                // Scroll Y Position
-                self.gpu.viewport_y_offset
+                //TODO Scroll Y Position
+                0
             }
             0xFF44 => {
-                // Current Line
-                self.gpu.current_line
+                //TODO Current Line
+                0
             }
             _ => panic!("Reading from an unknown I/O register {:x}", address),
         }
@@ -264,65 +238,26 @@ impl Bus {
 
             }
             0xFF40 => {
-                // LCD Control
-                self.gpu.lcd_display_enabled = (data >> 7) == 1;
-                self.gpu.window_tile_map = if ((data >> 6) & 0b1) == 1 {
-                    TileMap::X9C00
-                } else {
-                    TileMap::X9800
-                };
-                self.gpu.window_display_enabled = ((data >> 5) & 0b1) == 1;
-                self.gpu.background_and_window_data_select = if ((data >> 4) & 0b1) == 1 {
-                    DataSet::X8000
-                } else {
-                    DataSet::X8800
-                };
-                self.gpu.background_tile_map = if ((data >> 3) & 0b1) == 1 {
-                    TileMap::X9C00
-                } else {
-                    TileMap::X9800
-                };
-                self.gpu.object_size = if ((data >> 2) & 0b1) == 1 {
-                    ObjectSize::OS8X16
-                } else {
-                    ObjectSize::OS8X8
-                };
-                self.gpu.object_display_enabled = ((data >> 1) & 0b1) == 1;
-                self.gpu.background_display_enabled = (data & 0b1) == 1;
+                //TODO LCD Control
             }
             0xFF41 => {
-                // LCD Controller Status
-                self.gpu.line_compare_it_enable =
-                    (data & 0b1000000) == 0b1000000;
-                self.gpu.oam_interrupt_enabled = (data & 0b100000) == 0b100000;
-                self.gpu.vblank_interrupt_enabled = (data & 0b10000) == 0b10000;
-                self.gpu.hblank_interrupt_enabled = (data & 0b1000) == 0b1000;
+                //TODO LCD Controller Status
             }
             0xFF42 => {
-                // Viewport Y Offset
-                self.gpu.viewport_y_offset = data;
+                //TODO Viewport Y Offset
             }
             0xFF43 => {
-                // Viewport X Offset
-                self.gpu.viewport_x_offset = data;
+                //TODO Viewport X Offset
             }
             0xFF45 => {
-                self.gpu.compare_line = data;
+                // TODO compare line
             }
             0xFF46 => {
                 // TODO: account for the fact this takes 160 microseconds
-                let dma_source = (data as u16) << 8;
-                let dma_destination = 0xFE00;
-                for offset in 0..150 {
-                    self.write_bus(
-                        dma_destination + offset,
-                        self.read_bus(dma_source + offset),
-                    )
-                }
+                // TODO implement DMA
             }
             0xFF47 => {
-                // Background Colors Setting
-                self.gpu.background_palette = data.into();
+                //TODO Background Colors Setting
             }
             0xFF48 => {
                 //TODO: implement object palette color 0
@@ -331,10 +266,10 @@ impl Bus {
                 //TODO: implement object palette color 1
             }
             0xFF4A => {
-                self.gpu.window.y = data;
+                //TODO implement window x
             }
             0xFF4B => {
-                self.gpu.window.x = data;
+                //TODO implement window y
             }
             0xFF50 => {
                 // Unmap boot ROM
