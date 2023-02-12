@@ -382,6 +382,55 @@ mod gpu_tests {
         assert_eq!(gpu.frame_buffer[0x0508], PixelColor::BLACK as u8);
     }
 
+    #[test]
+    fn test_tile_data_area_2() {
+        let mut gpu = Gpu::new();
+
+        // init GPU
+        gpu.background_display_enabled = true;
+        gpu.background_tile_data_area = false;
+        gpu.background_tile_map_area = TileMapArea::X9800;
+
+        // init VRAM
+        // here we're looking for tile at index 32 and 33
+        gpu.write_vram(0x1200, 0x80);
+        gpu.write_vram(0x1201, 0x80);
+        gpu.write_vram(0x1210, 0x80);
+        gpu.write_vram(0x1211, 0x80);
+
+        // here we're looking for tile at index 128 and 129
+        gpu.write_vram(0x0800, 0x80);
+        gpu.write_vram(0x0801, 0x80);
+        gpu.write_vram(0x0810, 0x80);
+        gpu.write_vram(0x0811, 0x80);
+
+
+        // set tile map
+        // here we're looking for tile map at index 32 and 33 / line 9
+        // which redirects to tile data index 32 and 33
+        gpu.write_vram(0x1820, 0x20);
+        gpu.write_vram(0x1821, 0x21);
+        // here we're looking for tile map at index 512 and 513 / line 129
+        // which redirects to tile data index 128 and 129
+        gpu.write_vram(0x1A00, 0x80);
+        gpu.write_vram(0x1A01, 0x81);
+
+        // draw the line in the frame buffer
+        gpu.current_line = 9; // first line of the second tile row -> line 9
+        gpu.draw_line();
+
+        gpu.current_line = 129; // first line of the 16th tile row -> line 129
+        gpu.draw_line();
+
+        // check frame buffer
+        // line 8 * 160 = 1440 / 0x0500
+        assert_eq!(gpu.frame_buffer[0x0500], PixelColor::BLACK as u8);
+        assert_eq!(gpu.frame_buffer[0x0508], PixelColor::BLACK as u8);
+        // line 128 * 160 = 1440 / 0x0500
+        assert_eq!(gpu.frame_buffer[0x5000], PixelColor::BLACK as u8);
+        assert_eq!(gpu.frame_buffer[0x5008], PixelColor::BLACK as u8);
+    }
+
     // #[test]
     // fn test_draw_frame_buffer(){
     //     const SCALE_FACTOR: usize = 3;

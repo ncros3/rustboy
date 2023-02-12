@@ -100,15 +100,7 @@ impl Bus {
         self.divider.run(runned_cycles);
 
         // run the GPU and catch interrupt requests if any
-        match self.gpu.run(runned_cycles) {
-            GpuInterruptRequest::Both => {
-                self.nvic.set_interrupt(InterruptSources::VBLANK);
-                self.nvic.set_interrupt(InterruptSources::LCD_STAT);  
-                },
-            GpuInterruptRequest::VBlank => self.nvic.set_interrupt(InterruptSources::VBLANK),
-            GpuInterruptRequest::LCDStat => self.nvic.set_interrupt(InterruptSources::LCD_STAT),
-            GpuInterruptRequest::None => {},
-        }
+        self.gpu.run(runned_cycles);
     }
 
     pub fn read_bus(&self, address: u16) -> u8 {
