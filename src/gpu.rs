@@ -388,8 +388,6 @@ mod gpu_tests {
         )
         .unwrap();
 
-
-
         while window.is_open() && !window.is_key_down(Key::Escape) {
             // temporary buffer to print on the screen
             let mut buffer = [0; NUMBER_OF_PIXELS];
