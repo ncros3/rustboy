@@ -6,66 +6,13 @@ const TILE_SET_SIZE: u16 = 384;
 const NUMBER_OF_SPRITES: usize = 40;
 const SPRITE_LENGTH_IN_BYTE: usize = 4;
 
+const OBJECT_X_OFFSET: i16 = -8;
+const OBJECT_Y_OFFSET: i16 = -16;
+
 pub const SCREEN_WIDTH: usize = 160;
 pub const SCREEN_HEIGHT: usize = 144;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-enum ObjectPalette {
-    Zero,
-    One,
-}
-
-impl Default for ObjectPalette {
-    fn default() -> Self {
-        ObjectPalette::Zero
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct ObjectData {
-    x: i16,
-    y: i16,
-    tile: u8,
-    palette: ObjectPalette,
-    xflip: bool,
-    yflip: bool,
-    priority: bool,
-}
-
-impl Default for ObjectData {
-    fn default() -> Self {
-        ObjectData {
-            x: -16,
-            y: -8,
-            tile: Default::default(),
-            palette: Default::default(),
-            xflip: Default::default(),
-            yflip: Default::default(),
-            priority: Default::default(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum TilePixelValue {
-    Zero,
-    One,
-    Two,
-    Three,
-}
-impl Default for TilePixelValue {
-    fn default() -> Self {
-        TilePixelValue::Zero
-    }
-}
-
-type Tile = [[TilePixelValue; TILE_LENGHT as usize]; TILE_LENGHT as usize];
-
-fn create_tile() -> Tile {
-    [[TilePixelValue::Zero; TILE_LENGHT as usize]; TILE_LENGHT as usize]
-}
-
-#[derive(Copy, Clone)]
 pub enum PixelColor {
     WHITE = 255,
     LIGHT_GRAY = 192,
@@ -85,11 +32,12 @@ impl std::convert::From<u8> for PixelColor {
     }
 }
 
-pub struct BackgroundColors(PixelColor, PixelColor, PixelColor, PixelColor);
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct PaletteColor(PixelColor, PixelColor, PixelColor, PixelColor);
 
-impl BackgroundColors {
-    fn new() -> BackgroundColors {
-        BackgroundColors(
+impl PaletteColor {
+    fn new() -> PaletteColor {
+        PaletteColor(
             PixelColor::WHITE,
             PixelColor::LIGHT_GRAY,
             PixelColor::DARK_GRAY,
@@ -98,14 +46,62 @@ impl BackgroundColors {
     }
 }
 
-impl std::convert::From<u8> for BackgroundColors {
+impl std::convert::From<u8> for PaletteColor {
     fn from(value: u8) -> Self {
-        BackgroundColors(
+        PaletteColor(
             (value & 0b11).into(),
             ((value >> 2) & 0b11).into(),
             ((value >> 4) & 0b11).into(),
             (value >> 6).into(),
         )
+    }
+}
+
+impl Default for PaletteColor {
+    fn default() -> Self {
+        PaletteColor(
+            PixelColor::WHITE, 
+            PixelColor::WHITE, 
+            PixelColor::WHITE, 
+            PixelColor::WHITE)
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ObjectData {
+    x: i16,
+    y: i16,
+    tile: u8,
+    palette: PaletteColor,
+    xflip: bool,
+    yflip: bool,
+    priority: bool,
+}
+
+impl Default for ObjectData {
+    fn default() -> Self {
+        ObjectData {
+            x: OBJECT_X_OFFSET,
+            y: OBJECT_Y_OFFSET,
+            tile: Default::default(),
+            palette: Default::default(),
+            xflip: Default::default(),
+            yflip: Default::default(),
+            priority: Default::default(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum PixelValue {
+    Zero,
+    One,
+    Two,
+    Three,
+}
+impl Default for PixelValue {
+    fn default() -> Self {
+        PixelValue::Zero
     }
 }
 
@@ -116,7 +112,7 @@ pub enum TileMap {
 }
 
 #[derive(Eq, PartialEq)]
-pub enum BackgroundAndWindowDataSelect {
+pub enum DataSet {
     X8000,
     X8800,
 }
@@ -178,88 +174,95 @@ pub struct Gpu {
     // ***** GPU PARAMETERS ******
     // VRAM is a memory area used to store graphics such as backgrounds and sprites
     vram: [u8; VRAM_SIZE as usize],
-    // tile set is a buffer computed by the GPU from VRAM at each write operation
-    tile_set: [Tile; TILE_SET_SIZE as usize],
     // OAM is a memory area used to store sprites attributes
     // Sprites data are stored in VRAM memory $8000-8FFF
     oam: [u8; OAM_SIZE as usize],
-    // object data is a buffer computed by the GPU from OAM at each write operation
-    object_data: [ObjectData; NUMBER_OF_SPRITES],
 
     // ****** LCD DISPLAY PARAMETERS *******
-    pub background_colors: BackgroundColors,
-    pub viewport_x_offset: u8,
-    pub viewport_y_offset: u8,
+    // 0xFF40: LCD control register
     pub lcd_display_enabled: bool,
+    pub window_tile_map: TileMap,
     pub window_display_enabled: bool,
-    pub background_display_enabled: bool,
+    pub background_and_window_data_select: DataSet,
+    pub background_tile_map: TileMap,
+    pub object_size: ObjectSize,
     pub object_display_enabled: bool,
-    pub line_equals_line_check_interrupt_enabled: bool,
+    pub background_display_enabled: bool,
+
+    // 0xFF41: LCD status register 
+    pub line_compare_it_enable: bool,
     pub oam_interrupt_enabled: bool,
     pub vblank_interrupt_enabled: bool,
     pub hblank_interrupt_enabled: bool,
-    pub line_check: u8,
-    pub line_equals_line_check: bool,
-    pub window_tile_map: TileMap,
-    pub background_tile_map: TileMap,
-    pub background_and_window_data_select: BackgroundAndWindowDataSelect,
-    pub object_size: ObjectSize,
-    pub obj_0_color_1: PixelColor,
-    pub obj_0_color_2: PixelColor,
-    pub obj_0_color_3: PixelColor,
-    pub obj_1_color_1: PixelColor,
-    pub obj_1_color_2: PixelColor,
-    pub obj_1_color_3: PixelColor,
-    pub window: Window,
-    pub line: u8,
+    pub line_compare_state: bool,
     pub mode: Mode,
+
+    // 0xFF42 - 0xFF43: SCY viewport Y offset
+    pub viewport_y_offset: u8,
+    pub viewport_x_offset: u8,
+
+    // 0xFF44: LY 
+    pub current_line: u8,
+
+    // 0xFF45: LY compare
+    pub compare_line: u8,
+
+    // 0xFF47: Background palette
+    pub background_palette: PaletteColor,
+
+    // 0xFF48: Objects palette 0
+    pub object_palette_0: PaletteColor,
+
+    // 0xFF49: Objects palette 1
+    pub object_palette_1: PaletteColor,
+
+    // 0xFF4A - 0xFF4B: window position
+    pub window: Window,
+
+    // ****** GPU GENERAL PARAMETERS *******
     cycles: u16,
 
-    // Output frame buffer
-    pub frame_buffer: [u8; SCREEN_WIDTH * SCREEN_HEIGHT * 4],
+    // ****** OUTPUT FRAME BUFFER *******
+    pub frame_buffer: [u8; SCREEN_WIDTH * SCREEN_HEIGHT],
 }
 
 impl Gpu {
     pub fn new() -> Gpu {
         Gpu {
-            // GPU parameters
             vram: [0x00; VRAM_SIZE as usize],
-            tile_set: [create_tile(); TILE_SET_SIZE as usize],
             oam: [0; OAM_SIZE as usize],
-            object_data: [Default::default(); NUMBER_OF_SPRITES],
 
-            // lCD parameters
-            background_colors: BackgroundColors::new(),
-            viewport_x_offset: 0,
-            viewport_y_offset: 0,
             lcd_display_enabled: false,
+            window_tile_map: TileMap::X9800,
             window_display_enabled: false,
-            background_display_enabled: false,
+            background_and_window_data_select: DataSet::X8000,
+            background_tile_map: TileMap::X9800,
+            object_size: ObjectSize::OS8X8,
             object_display_enabled: false,
-            line_equals_line_check_interrupt_enabled: false,
+            background_display_enabled: false,
+
+            line_compare_it_enable: false,
             oam_interrupt_enabled: false,
             vblank_interrupt_enabled: false,
             hblank_interrupt_enabled: false,
-            line_check: 0,
-            line_equals_line_check: false,
-            window_tile_map: TileMap::X9800,
-            background_tile_map: TileMap::X9800,
-            background_and_window_data_select: BackgroundAndWindowDataSelect::X8800,
-            object_size: ObjectSize::OS8X8,
-            obj_0_color_1: PixelColor::LIGHT_GRAY,
-            obj_0_color_2: PixelColor::DARK_GRAY,
-            obj_0_color_3: PixelColor::BLACK,
-            obj_1_color_1: PixelColor::LIGHT_GRAY,
-            obj_1_color_2: PixelColor::DARK_GRAY,
-            obj_1_color_3: PixelColor::BLACK,
-            window: Window { x: 0, y: 0 },
-            line: 0,
+            line_compare_state: false,
             mode: Mode::HorizontalBlank,
+
+            viewport_y_offset: 0,
+            viewport_x_offset: 0,
+
+            current_line: 0,
+            compare_line: 0,
+
+            background_palette: PaletteColor::new(),
+            object_palette_0: PaletteColor::new(),
+            object_palette_1: PaletteColor::new(),
+
+            window: Window { x: 0, y: 0 },
+
             cycles: 0,
 
-            // frame  buffer
-            frame_buffer: [0; SCREEN_WIDTH * SCREEN_HEIGHT * 4],
-
+            frame_buffer: [0; SCREEN_WIDTH * SCREEN_HEIGHT],
         }
     }
 
@@ -269,65 +272,11 @@ impl Gpu {
 
     pub fn write_vram(&mut self, address: u16, data: u8) {
         self.vram[address as usize] = data;
-
-        // check if address exceeds tile set storage
-        if address >= 0x1800 {
-            return
-        }
-
-        // save data in Tile set dedicated structure
-        let normalized_address = (address & 0xFFFE) as usize;
-        let byte1 = self.vram[normalized_address];
-        let byte2 = self.vram[normalized_address + 1];
-
-        let tile_index = (address / 16) as usize;
-        let row_index = ((address % 16) / 2) as usize;
-
-        for pixel_index in 0..8 {
-            let mask = 1 << (7 - pixel_index);
-            let lsb = byte1 & mask;
-            let msb = byte2 & mask;
-
-            let value = match (lsb != 0, msb != 0) {
-                (true, true) => TilePixelValue::Three,
-                (false, true) => TilePixelValue::Two,
-                (true, false) => TilePixelValue::One,
-                (false, false) => TilePixelValue::Zero,
-            };
-
-            self.tile_set[tile_index][row_index][pixel_index] = value;
-        }
     }
 
     pub fn write_oam(&mut self, index: usize, data: u8) {
         // save data in OAM memory
         self.oam[index] = data;
-
-        // convert OAM raw data in structure OAM attributes
-        let object_index = index / SPRITE_LENGTH_IN_BYTE;
-        if object_index > NUMBER_OF_SPRITES {
-            return;
-        }
-
-        let byte = index % SPRITE_LENGTH_IN_BYTE;
-
-        // get a reference to the object
-        let mut object_data = self.object_data.get_mut(object_index).unwrap();
-        match byte {
-            0 => object_data.y = (data as i16) - 0x10,
-            1 => object_data.x = (data as i16) - 0x8,
-            2 => object_data.tile = data,
-            _ => {
-                object_data.palette = if (data & 0x10) != 0 {
-                    ObjectPalette::One
-                } else {
-                    ObjectPalette::Zero
-                };
-                object_data.xflip = (data & 0x20) != 0;
-                object_data.yflip = (data & 0x40) != 0;
-                object_data.priority = (data & 0x80) == 0;
-            }
-        }
     }
 
     pub fn read_oam(&self, address: usize) -> u8 {
@@ -346,9 +295,9 @@ impl Gpu {
             Mode::HorizontalBlank => {
                 if self.cycles >= 200 {
                     self.cycles = self.cycles % 200;
-                    self.line += 1;
+                    self.current_line += 1;
 
-                    if self.line >= 144 {
+                    if self.current_line >= 144 {
                         self.mode = Mode::VerticalBlank;
                         request.add(GpuInterruptRequest::VBlank);
                         if self.vblank_interrupt_enabled {
@@ -360,21 +309,19 @@ impl Gpu {
                             request.add(GpuInterruptRequest::LCDStat)
                         }
                     }
-                    self.set_equal_lines_check(&mut request);
                 }
             }
             Mode::VerticalBlank => {
                 if self.cycles >= 456 {
                     self.cycles = self.cycles % 456;
-                    self.line += 1;
-                    if self.line == 154 {
+                    self.current_line += 1;
+                    if self.current_line == 154 {
                         self.mode = Mode::OAMAccess;
-                        self.line = 0;
+                        self.current_line = 0;
                         if self.oam_interrupt_enabled {
                             request.add(GpuInterruptRequest::LCDStat)
                         }
                     }
-                    self.set_equal_lines_check(&mut request);
                 }
             }
             Mode::OAMAccess => {
@@ -390,144 +337,20 @@ impl Gpu {
                         request.add(GpuInterruptRequest::LCDStat)
                     }
                     self.mode = Mode::HorizontalBlank;
-                    self.render_scan_line()
+                    self.draw_line()
                 }
             }
         }
         request
     }
 
-    fn set_equal_lines_check(&mut self, request: &mut GpuInterruptRequest) {
-        let line_equals_line_check = self.line == self.line_check;
-        if line_equals_line_check && self.line_equals_line_check_interrupt_enabled {
-            request.add(GpuInterruptRequest::LCDStat);
-        }
-        self.line_equals_line_check = line_equals_line_check;
-    }
 
-    fn render_scan_line(&mut self) {
-        let mut scan_line: [TilePixelValue; SCREEN_WIDTH] = [Default::default(); SCREEN_WIDTH];
+    fn draw_line(&mut self) {
+        let mut scan_line: [PixelValue; SCREEN_WIDTH] = [Default::default(); SCREEN_WIDTH];
 
         // display background from VRAM memory
         if self.background_display_enabled {
-            // The x index of the current tile
-            let mut tile_x_index = self.viewport_x_offset / 8;
-            // The current scan line's y-offset in the entire background space is a combination
-            // of both the line inside the view port we're currently on and the amount of the view port is scrolled
-            let tile_y_index = self.line.wrapping_add(self.viewport_y_offset);
-            // The current tile we're on is equal to the total y offset broken up into 8 pixel chunks
-            // and multipled by the width of the entire background (i.e. 32 tiles)
-            let tile_offset = (tile_y_index as u16 / 8) * 32u16;
-
-            // Where is our tile map defined?
-            let background_tile_map = if self.background_tile_map == TileMap::X9800 {
-                0x9800
-            } else {
-                0x9C00
-            };
-            // Munge this so that the beginning of VRAM is index 0
-            let tile_map_begin = background_tile_map - VRAM_BEGIN;
-            // Where we are in the tile map is the beginning of the tile map
-            // plus the current tile's offset
-            let tile_map_offset = (tile_map_begin + tile_offset) as usize;
-
-            // When line and scrollY are zero we just start at the top of the tile
-            // If they're non-zero we must index into the tile cycling through 0 - 7
-            let row_y_offset = tile_y_index % 8;
-            let mut pixel_x_index = self.viewport_x_offset % 8;
-
-            if self.background_and_window_data_select == BackgroundAndWindowDataSelect::X8800 {
-                panic!("TODO: support 0x8800 background and window data select");
-            }
-
-            let mut frame_buffer_offset = self.line as usize * SCREEN_WIDTH * 4;
-            // Start at the beginning of the line and go pixel by pixel
-            for line_x in 0..SCREEN_WIDTH {
-                // Grab the tile index specified in the tile map
-                let tile_index = self.vram[tile_map_offset + tile_x_index as usize];
-
-                let tile_value = self.tile_set[tile_index as usize][row_y_offset as usize]
-                    [pixel_x_index as usize];
-                let color = self.tile_value_to_background_color(&tile_value);
-
-                self.frame_buffer[frame_buffer_offset] = color as u8;
-                self.frame_buffer[frame_buffer_offset + 1] = color as u8;
-                self.frame_buffer[frame_buffer_offset + 2] = color as u8;
-                self.frame_buffer[frame_buffer_offset + 3] = 255;
-                frame_buffer_offset += 4;
-                scan_line[line_x] = tile_value;
-                // Loop through the 8 pixels within the tile
-                pixel_x_index = (pixel_x_index + 1) % 8;
-
-                // Check if we've fully looped through the tile
-                if pixel_x_index == 0 {
-                    // Now increase the tile x_offset by 1
-                    tile_x_index = tile_x_index + 1;
-                }
-                if self.background_and_window_data_select == BackgroundAndWindowDataSelect::X8800 {
-                    panic!("TODO: support 0x8800 background and window data select");
-                }
-            }
-        }
-
-        // display object from VRAM & OAM memory
-        if self.object_display_enabled {
-            let object_height = if self.object_size == ObjectSize::OS8X16 {
-                16
-            } else {
-                8
-            };
-            for object in self.object_data.iter() {
-                let line = self.line as i16;
-                if object.y <= line && object.y + object_height > line {
-                    let pixel_y_offset = line - object.y;
-                    let tile_index = if object_height == 16 && (!object.yflip && pixel_y_offset > 7)
-                        || (object.yflip && pixel_y_offset <= 7)
-                    {
-                        object.tile + 1
-                    } else {
-                        object.tile
-                    };
-
-                    let tile = self.tile_set[tile_index as usize];
-                    let tile_row = if object.yflip {
-                        tile[(7 - (pixel_y_offset % 8)) as usize]
-                    } else {
-                        tile[(pixel_y_offset % 8) as usize]
-                    };
-
-                    let canvas_y_offset = line as i32 * SCREEN_WIDTH as i32;
-                    let mut canvas_offset = ((canvas_y_offset + object.x as i32) * 4) as usize;
-                    for x in 0..8i16 {
-                        let pixel_x_offset = if object.xflip { (7 - x) } else { x } as usize;
-                        let x_offset = object.x + x;
-                        let pixel = tile_row[pixel_x_offset];
-                        if x_offset >= 0
-                            && x_offset < SCREEN_WIDTH as i16
-                            && pixel != TilePixelValue::Zero
-                            && (object.priority
-                                || scan_line[x_offset as usize] == TilePixelValue::Zero)
-                        {
-                            let color = self.tile_value_to_background_color(&pixel);
-
-                            self.frame_buffer[canvas_offset + 0] = color as u8;
-                            self.frame_buffer[canvas_offset + 1] = color as u8;
-                            self.frame_buffer[canvas_offset + 2] = color as u8;
-                            self.frame_buffer[canvas_offset + 3] = 255;
-                        }
-                        canvas_offset += 4;
-                    }
-                }
-            }
-        }
-    }
-
-    fn tile_value_to_background_color(&self, tile_value: &TilePixelValue) -> PixelColor {
-        match tile_value {
-            TilePixelValue::Zero => self.background_colors.0,
-            TilePixelValue::One => self.background_colors.1,
-            TilePixelValue::Two => self.background_colors.2,
-            TilePixelValue::Three => self.background_colors.3,
+            
         }
     }
 }
@@ -535,33 +358,7 @@ impl Gpu {
 #[cfg(test)]
 mod gpu_tests {
     use super::*;
-
-    #[test]
-    fn test_fill_tile_set() {
-        let mut gpu = Gpu::new();
-        gpu.write_vram(0x0000, 0xCC);
-        gpu.write_vram(0x0001, 0xAA);
-
-        assert_eq!(gpu.tile_set[0][0][0], TilePixelValue::Three);
-        assert_eq!(gpu.tile_set[0][0][5], TilePixelValue::One);
-        assert_eq!(gpu.tile_set[0][0][2], TilePixelValue::Two);
-
-        gpu.write_vram(0x00F0, 0xCC);
-        gpu.write_vram(0x00F1, 0xAA);
-
-        assert_eq!(gpu.tile_set[15][0][0], TilePixelValue::Three);
-        assert_eq!(gpu.tile_set[15][0][5], TilePixelValue::One);
-        assert_eq!(gpu.tile_set[15][0][2], TilePixelValue::Two);
-    }
-
-    #[test]
-    fn test_create_tile() {
-        let mut new_tile = create_tile();
-        assert_eq!(new_tile[1][1], TilePixelValue::Zero);
-
-        new_tile[1][2] = TilePixelValue::Two;
-        assert_eq!(new_tile[1][2], TilePixelValue::Two);
-    }
+    use minifb::{Key, Window, WindowOptions};
 
     #[test]
     fn test_read_write_vram() {
@@ -572,5 +369,50 @@ mod gpu_tests {
         assert_eq!(gpu.read_vram(0x0001), 0xAA);
         assert_eq!(gpu.read_vram(0x0002), 0x55);
         assert_eq!(gpu.read_vram(0x0010), 0xAA);
+    }
+
+    #[test]
+    fn test_draw_frame_buffer(){
+        const SCALE_FACTOR: usize = 3;
+        const WINDOW_DIMENSIONS: [usize; 2] = [(SCREEN_WIDTH * SCALE_FACTOR), (SCREEN_HEIGHT * SCALE_FACTOR)];
+        const NUMBER_OF_PIXELS: usize = 23040;
+
+        let mut gpu = Gpu::new();
+        let mut cycles : u32 = 0;
+
+        let mut window = Window::new(
+            "Rustboy",
+            WINDOW_DIMENSIONS[0],
+            WINDOW_DIMENSIONS[1],
+            WindowOptions::default(),
+        )
+        .unwrap();
+
+        while window.is_open() && !window.is_key_down(Key::Escape) {
+            // temporary buffer to print on the screen
+            let mut buffer = [0; NUMBER_OF_PIXELS];
+            // update cycles
+            cycles += 1;
+
+            // load data in gpu tile set
+            for i in 0..NUMBER_OF_PIXELS/2 {
+                gpu.frame_buffer[i] = 155;
+            }
+
+            // run the gpu for an entire frame
+            gpu.run(1);
+
+            // copy this frame from gpu frame buffer
+            for i in 0..NUMBER_OF_PIXELS/2 {
+                buffer[i] =  255 << 24
+                            | (gpu.frame_buffer[i] as u32) << 16
+                            | (gpu.frame_buffer[i] as u32) << 8
+                            | (gpu.frame_buffer[i] as u32) << 0;
+            }
+
+            // display the frame rendered by the gpu
+            window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
+        }
+    
     }
 }

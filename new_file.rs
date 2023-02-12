@@ -1,34 +1,4 @@
-mod bus;
-mod cpu;
-mod gpu;
-mod nvic;
-mod timer;
-
-use minifb::{Key, Window, WindowOptions};
-use std::io::Read;
-use std::thread::sleep;
-use std::time::{Duration, Instant};
-
-use cpu::Cpu;
-use gpu::{SCREEN_HEIGHT, SCREEN_WIDTH};
-
-use crate::bus::BOOT_ROM_BEGIN;
-
-// Window parameters
-const SCALE_FACTOR: usize = 3;
-const WINDOW_DIMENSIONS: [usize; 2] = [(SCREEN_WIDTH * SCALE_FACTOR), (SCREEN_HEIGHT * SCALE_FACTOR)];
-
-// system parameters
-const ONE_SECOND_IN_MICROS: usize = 1000000000;
-const ONE_SECOND_IN_CYCLES: usize = 4190000;
-const ONE_FRAME_IN_CYCLES: usize = 70224;
-const NUMBER_OF_PIXELS: usize = SCREEN_WIDTH * SCREEN_HEIGHT;
-
-
-
-fn main() {
-
-    const BOOTROM: [u8; 256] = [
+const BOOTROM: [u8; 256] = [
     // init_stack:
     0x31, 0xFE, 0xFF, // LD     SP 0xfffe
     0xAF,             // XOR    A A
@@ -37,7 +7,7 @@ fn main() {
     // clear_vram:
     0x32,             // LDD    [HL] A
     0xCB, 0x7C,       // BIT    H 7
-    0x20, 0xFD,       // JR NZ  clear_vram
+    0x20, 0xFB,       // JR NZ  clear_vram
 
     // init_sound:
     0x21, 0x26, 0xFF, // LD     HL 0xff26
@@ -50,34 +20,34 @@ fn main() {
     0xE2,             // LD     [0xff00 + C] A
     0x32,             // LDD    [HL] A
     0x3E, 0x77,       // LD     A 0x77
-    0x77,             // LD     [HL] A
+    0x77,             // LD     [HL] A              // Program addr = 28
 
     // init_palette:
-    0x3E, 0xFC,       // LD     A 0xfc
-    0xE0, 0x47,       // LD     [0xff00 + #BGP] A
+    0x3E, 0xFC,       // LD     A 0xfc              // Program addr = 29
+    0xE0, 0x47,       // LD     [0xff00 + #BGP] A   // Program addr = 31
 
     // init_crc:
-    0x11, 0x04, 0x01, // LD     DE 0x0104
-    0x21, 0x10, 0x80, // LD     HL 0x8010
+    0x11, 0x04, 0x01, // LD     DE 0x0104           // Program addr = 33
+    0x21, 0x10, 0x80, // LD     HL 0x8010           // Program addr = 36
     // crc_loop:
-    0x1A,             // LD     A [DE]
-    0xCD, 0x95, 0x00, // CALL   crc_0
-    0xCD, 0x96, 0x00, // CALL   crc_1
+    0x1A,             // LD     A [DE]              // Program addr = 37
+    0xCD, 0x95, 0x00, // CALL   crc_0               // Program addr = 38
+    0xCD, 0x96, 0x00, // CALL   crc_1               // Program addr = 41
 
-    0x13,             // INC    DE
+    0x13,             // INC    DE                  // Program addr = 44
     0x7B,             // LD     A E
-    0xFE, 0x34,       // CP     A 0x34
-    0x20, 0xFA,       // JR NZ  do_crc
+    0xFE, 0x34,       // CP     A 0x34              // Program addr = 46
+    0x20, 0xF3,       // JR NZ  do_crc              // Program addr = 48
 
-    0x11, 0xD8, 0x00, // LD     DE #tile_data
+    0x11, 0xD8, 0x00, // LD     DE #tile_data       // Program addr = 50
     0x06, 0x08,       // LD     B 8
     // copy_tile_map:
-    0x1A,             // LD     A [DE]
+    0x1A,             // LD     A [DE]              // Program addr = 50
     0x13,             // INC    DE
     0x22,             // LDI    [HL] A
     0x23,             // INC    HL
     0x05,             // DEC    B
-    0x20, 0xFA,       // JR NZ  copy_tile_map
+    0x20, 0xF9,       // JR NZ  copy_tile_map
 
     // init_tile
     0x3E, 0x19,       // LD     A 0x19
@@ -87,12 +57,12 @@ fn main() {
     0x0E, 0x0C,       // LD     C 0x0c
     // init_tiles_inner:
     0x3D,             // DEC    A
-    0x28, 0x0A,       // JR Z   init_scroll
+    0x28, 0x08,       // JR Z   init_scroll
     0x32,             // LDD    [HL] A
     0x0D,             // DEC    C
-    0x20, 0xFA,       // JR NZ  init_tiles_inner
+    0x20, 0xF9,       // JR NZ  init_tiles_inner
     0x2E, 0x0F,       // LD     L 0x0f
-    0x18, 0xF4,       // JR     init_tiles_loop
+    0x18, 0xF3,       // JR     init_tiles_loop
 
     // init_scroll:
     0x67,             // LD     H A
@@ -112,22 +82,22 @@ fn main() {
     // wait_vblank:
     0xF0, 0x44,       // LD     A [0xff00 + #LY]
     0xFE, 0x90,       // CP     A 0x90
-    0x20, 0xFC,       // JR NZ  wait_vblank
+    0x20, 0xFA,       // JR NZ  wait_vblank
 
     0x0D,             // DEC    C
-    0x20, 0xF9,       // JR NZ  wait_vblank
+    0x20, 0xF7,       // JR NZ  wait_vblank
     0x1D,             // DEC    E
-    0x20, 0xF4,       // JR NZ  wait_next_vblank
+    0x20, 0xF2,       // JR NZ  wait_next_vblank
 
     0x0E, 0x13,       // LD     C 0x13
     0x24,             // INC    H
     0x7C,             // LD     A H
     0x1E, 0x83,       // LD     E 0x83
     0xFE, 0x62,       // CP     A 0x62
-    0x28, 0x08,       // JR Z   play_sound
+    0x28, 0x06,       // JR Z   play_sound
     0x1E, 0xC1,       // LD     E 0xc1
     0xFE, 0x64,       // CP     A 0x64
-    0x20, 0x08,       // JR NZ  skip_sound
+    0x20, 0x06,       // JR NZ  skip_sound
     // play_sound:
     0x7B,             // LD     A E
     0xE2,             // LD     [0xff00 + C] A
@@ -139,11 +109,11 @@ fn main() {
     0x90,             // SUB    A B
     0xE0, 0x42,       // LD     [0xff00 + #SCY] A
     0x15,             // DEC    D
-    0x20, 0xD5,       // JR NZ  scroll_loop
+    0x20, 0xD2,       // JR NZ  scroll_loop
     0x05,             // DEC    B
-    0x20, 0x51,       // JN NZ  validate_cart
+    0x20, 0x4F,       // JN NZ  validate_cart
     0x16, 0x20,       // LD     D 0x20
-    0x18, 0xCE,       // JR     scroll_loop
+    0x18, 0xCB,       // JR     scroll_loop
 
 
     // crc_0:
@@ -158,7 +128,7 @@ fn main() {
     0xCB, 0x11,       // RL     C
     0x17,             // RL     A
     0x05,             // DEC    B
-    0x20, 0xF7,       // JR NZ  crc_round
+    0x20, 0xF5,       // JR NZ  crc_round
 
     0x22,             // LDI    [HL] A
     0x23,             // INC    HL
@@ -190,14 +160,14 @@ fn main() {
     0x23,             // INC    HL
     0x7D,             // LD     A L
     0xFE, 0x34,       // CP     A 0x32
-    0x20, 0xF6,       // JR NZ  checksum_check
+    0x20, 0xF5,       // JR NZ  checksum_check
     0x06, 0x19,       // LD     B 0x19
     0x78,             // LD     A B
     // header_sum
     0x86,             // ADD    A [HL]
     0x23,             // INC    HL
     0x05,             // DEC    B
-    0x20, 0xFC,       // JR NZ  header_sum
+    0x20, 0xFB,       // JR NZ  header_sum
     0x86,             // ADD    A [HL]
     // same as above, infinite loop if the sum is bad, replace with
     // NOPs to run anyway.
@@ -207,51 +177,3 @@ fn main() {
     // how you tell the hardware to unmap the bootrom
     0xE0, 0x50,       // LD [0xff00 + 0x50] A
     ];
-
-    // create the emulated system
-    let mut cpu = Cpu::new();
-    cpu.bus.load(&BOOTROM);
-    
-    cpu.debug_set_break_point(0x00e9);
-
-    // create a window to render system's output
-    let mut window = Window::new(
-        "Rustboy",
-        WINDOW_DIMENSIONS[0],
-        WINDOW_DIMENSIONS[1],
-        WindowOptions::default(),
-    )
-    .unwrap();
-
-    // run the emulated system
-    let mut buffer = [0; NUMBER_OF_PIXELS];
-    let mut cycles_elapsed_in_frame = 0usize;
-    let mut now = Instant::now();
-    while window.is_open() && !window.is_key_down(Key::Escape) {
-        let time_delta = now.elapsed().subsec_nanos();
-        now = Instant::now();
-        let delta = time_delta as f64 / ONE_SECOND_IN_MICROS as f64;
-        let cycles_to_run = delta * ONE_SECOND_IN_CYCLES as f64;
-
-        let mut cycles_elapsed = 0;
-        while cycles_elapsed <= cycles_to_run as usize {
-            cycles_elapsed += cpu.run() as usize;
-        }
-        cycles_elapsed_in_frame += cycles_elapsed;
-
-        // TODO: Consider updating buffer after every line is rendered.
-        if cycles_elapsed_in_frame >= ONE_FRAME_IN_CYCLES {
-            for (i, pixel) in cpu.bus.gpu.frame_buffer.chunks(4).enumerate() {
-                buffer[i] = (pixel[3] as u32) << 24
-                    | (pixel[2] as u32) << 16
-                    | (pixel[1] as u32) << 8
-                    | (pixel[0] as u32)
-            }
-            // println!("update buffer window");
-            window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
-            cycles_elapsed_in_frame = 0;
-        } else {
-            sleep(Duration::from_nanos(2))
-        }
-    }
-}

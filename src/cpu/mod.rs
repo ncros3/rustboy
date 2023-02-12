@@ -805,10 +805,6 @@ impl Cpu {
                 panic!("Unknown instruction found for 0x{:x}", instruction_byte);
             };
 
-            println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", self.bus.read_bus(self.pc), self.pc, self.sp);
-            println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", self.registers.read_bc(), self.registers.read_af(), self.registers.read_de(), self.registers.read_hl());
-            println!();
-
             // update runned_cycles & PC value
             runned_cycles = add_runned_cycles;
             self.pc = next_pc;

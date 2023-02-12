@@ -2,7 +2,7 @@ use crate::gpu::{
     Gpu, 
     GpuInterruptRequest, 
     TileMap,
-    BackgroundAndWindowDataSelect,
+    DataSet,
     ObjectSize};
 use crate::nvic::{Nvic, InterruptSources};
 use crate::timer::{Timer, Frequency};
@@ -184,7 +184,7 @@ impl Bus {
                 | ((self.gpu.window_tile_map == TileMap::X9C00) as u8) << 6
                 | (self.gpu.window_display_enabled as u8) << 5
                 | ((self.gpu.background_and_window_data_select
-                    == BackgroundAndWindowDataSelect::X8000) as u8) << 4
+                    == DataSet::X8000) as u8) << 4
                 | ((self.gpu.background_tile_map == TileMap::X9C00) as u8) << 3
                 | ((self.gpu.object_size == ObjectSize::OS8X16) as u8) << 2
                 | (self.gpu.object_display_enabled as u8) << 1
@@ -195,11 +195,11 @@ impl Bus {
                 let mode: u8 = self.gpu.mode.into();
 
                 0b10000000
-                | (self.gpu.line_equals_line_check_interrupt_enabled as u8) << 6
+                | (self.gpu.line_compare_it_enable as u8) << 6
                 | (self.gpu.oam_interrupt_enabled as u8) << 5
                 | (self.gpu.vblank_interrupt_enabled as u8) << 4
                 | (self.gpu.hblank_interrupt_enabled as u8) << 3
-                | (self.gpu.line_equals_line_check as u8) << 2
+                | (self.gpu.line_compare_state as u8) << 2
                 | mode
             }
 
@@ -209,7 +209,7 @@ impl Bus {
             }
             0xFF44 => {
                 // Current Line
-                self.gpu.line
+                self.gpu.current_line
             }
             _ => panic!("Reading from an unknown I/O register {:x}", address),
         }
@@ -273,9 +273,9 @@ impl Bus {
                 };
                 self.gpu.window_display_enabled = ((data >> 5) & 0b1) == 1;
                 self.gpu.background_and_window_data_select = if ((data >> 4) & 0b1) == 1 {
-                    BackgroundAndWindowDataSelect::X8000
+                    DataSet::X8000
                 } else {
-                    BackgroundAndWindowDataSelect::X8800
+                    DataSet::X8800
                 };
                 self.gpu.background_tile_map = if ((data >> 3) & 0b1) == 1 {
                     TileMap::X9C00
@@ -292,7 +292,7 @@ impl Bus {
             }
             0xFF41 => {
                 // LCD Controller Status
-                self.gpu.line_equals_line_check_interrupt_enabled =
+                self.gpu.line_compare_it_enable =
                     (data & 0b1000000) == 0b1000000;
                 self.gpu.oam_interrupt_enabled = (data & 0b100000) == 0b100000;
                 self.gpu.vblank_interrupt_enabled = (data & 0b10000) == 0b10000;
@@ -307,7 +307,7 @@ impl Bus {
                 self.gpu.viewport_x_offset = data;
             }
             0xFF45 => {
-                self.gpu.line_check = data;
+                self.gpu.compare_line = data;
             }
             0xFF46 => {
                 // TODO: account for the fact this takes 160 microseconds
@@ -322,17 +322,13 @@ impl Bus {
             }
             0xFF47 => {
                 // Background Colors Setting
-                self.gpu.background_colors = data.into();
+                self.gpu.background_palette = data.into();
             }
             0xFF48 => {
-                self.gpu.obj_0_color_3 = (data >> 6).into();
-                self.gpu.obj_0_color_2 = ((data >> 4) & 0b11).into();
-                self.gpu.obj_0_color_1 = ((data >> 2) & 0b11).into();
+                //TODO: implement object palette color 0
             }
             0xFF49 => {
-                self.gpu.obj_1_color_3 = (data >> 6).into();
-                self.gpu.obj_1_color_2 = ((data >> 4) & 0b11).into();
-                self.gpu.obj_1_color_1 = ((data >> 2) & 0b11).into();
+                //TODO: implement object palette color 1
             }
             0xFF4A => {
                 self.gpu.window.y = data;
