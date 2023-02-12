@@ -1,8 +1,7 @@
 use crate::gpu::{
     Gpu, 
     GpuInterruptRequest, 
-    TileMap,
-    DataSet,
+    TileMapArea,
     ObjectSize};
 use crate::nvic::{Nvic, InterruptSources};
 use crate::timer::{Timer, Frequency};
