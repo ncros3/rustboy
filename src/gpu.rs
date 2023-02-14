@@ -8,6 +8,8 @@ const VERTICAL_BLANK_CYCLES: u16 = 4560;
 const OAM_SCAN_CYCLES: u16 = 80;
 const DRAW_PIXEL_CYCLES: u16 = 172;
 
+const LAST_LINE_TO_DRAW: u8 = 143;
+
 pub const SCREEN_WIDTH: usize = 160;
 pub const SCREEN_HEIGHT: usize = 144;
 
@@ -175,7 +177,7 @@ impl Gpu {
             viewport_y_offset: 0,
             viewport_x_offset: 0,
 
-            current_line: 0,
+            current_line: 0,    // start at the first line to display
             compare_line: 0,
 
             background_palette: Palette::new(),
@@ -215,10 +217,15 @@ impl Gpu {
             Mode::HorizontalBlank => {
                 if self.cycles >= HORIZONTAL_BLANK_CYCLES {
                     self.cycles = self.cycles % HORIZONTAL_BLANK_CYCLES;
+                
                     // we detect the end of a line
-                    self.current_line += 1;
+                    if self.current_line < LAST_LINE_TO_DRAW {
+                        self.current_line += 1;
 
-                    self.mode = Mode::VerticalBlank;
+                        self.mode = Mode::OAMScan;
+                    } else {
+                        self.mode = Mode::VerticalBlank;
+                    }
                 }
             }
             Mode::VerticalBlank => {
@@ -252,11 +259,11 @@ impl Gpu {
 
     fn draw_line(&mut self) {
         if self.background_display_enabled {
-            let pixel_y_index: u8 = (self.current_line - 1).wrapping_add(self.viewport_y_offset);
+            let pixel_y_index: u8 = self.current_line - 1;
 
             for pixel_x_index in 0..SCREEN_WIDTH {
                 // compute the tile index in tile map
-                let tile_map_y_index = (pixel_y_index / TILE_ROW_SIZE_IN_PIXEL) as u16;
+                let tile_map_y_index = (pixel_y_index.wrapping_add(self.viewport_y_offset) / TILE_ROW_SIZE_IN_PIXEL) as u16;
                 let tile_map_x_index = (((pixel_x_index as u8).wrapping_add(self.viewport_x_offset) as usize) / (TILE_ROW_SIZE_IN_PIXEL as usize)) as u16;
                 let tile_map_index = tile_map_y_index * (TILE_MAP_SIZE as u16) + tile_map_x_index;
 
@@ -266,7 +273,7 @@ impl Gpu {
                 let tile_mem_addr = (tile_mem_index as u16) * TILE_SIZE_IN_BYTES;
 
                 // get the row offset in the tile
-                let tile_row_offset = pixel_y_index % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
+                let tile_row_offset = pixel_y_index.wrapping_add(self.viewport_y_offset) % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
 
                 // get tile row data from vram
                 let (data_1, data_0) = self.get_tile_data(tile_mem_addr, tile_row_offset as u16);
@@ -281,8 +288,6 @@ impl Gpu {
 
                 // fill frame buffer
                 self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
-
-                println!("pixel index : {} / frame_buffer : {}", pixel_x_index, self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)])
             }
         }
     }
@@ -364,7 +369,7 @@ mod gpu_tests {
         gpu.draw_line();
 
         // check frame buffer
-        // line 8 * 160 = 1440 / 0x0500
+        // line 8 * 160 = 1280 / 0x0500
         assert_eq!(gpu.frame_buffer[0x0500], PixelColor::BLACK as u8);
         assert_eq!(gpu.frame_buffer[0x0508], PixelColor::BLACK as u8);
     }
@@ -491,48 +496,45 @@ mod gpu_tests {
         assert_eq!(gpu.frame_buffer[0x0507], PixelColor::BLACK as u8);
     }
 
-    // #[test]
-    // fn test_draw_frame_buffer(){
-    //     const SCALE_FACTOR: usize = 3;
-    //     const WINDOW_DIMENSIONS: [usize; 2] = [(SCREEN_WIDTH * SCALE_FACTOR), (SCREEN_HEIGHT * SCALE_FACTOR)];
-    //     const NUMBER_OF_PIXELS: usize = 23040;
+    #[test]
+    fn test_draw_frame() {
+        let mut gpu = Gpu::new();
 
-    //     let mut gpu = Gpu::new();
-    //     let mut cycles : u32 = 0;
+        // init GPU
+        gpu.background_display_enabled = true;
+        gpu.background_tile_data_area = true;
+        gpu.background_tile_map_area = TileMapArea::X9800;
 
-    //     let mut window = Window::new(
-    //         "Rustboy",
-    //         WINDOW_DIMENSIONS[0],
-    //         WINDOW_DIMENSIONS[1],
-    //         WindowOptions::default(),
-    //     )
-    //     .unwrap();
+        // init VRAM
+        // here we're looking for tile at index 32 and 33
+        gpu.write_vram(0x0200, 0x80);
+        gpu.write_vram(0x0201, 0x80);
 
-    //     while window.is_open() && !window.is_key_down(Key::Escape) {
-    //         // temporary buffer to print on the screen
-    //         let mut buffer = [0; NUMBER_OF_PIXELS];
-    //         // update cycles
-    //         cycles += 1;
+        // set tile map
+        // here we're looking for tile at index 0 and 1
+        gpu.write_vram(0x1800, 0x20);
+        gpu.write_vram(0x1801, 0x20);
+        // here we're looking for tile at index 32 and 33
+        gpu.write_vram(0x1820, 0x20);
+        gpu.write_vram(0x1821, 0x20);
+        // here we're looking for tile map at index 512 and 513 / line 129
+        gpu.write_vram(0x1A00, 0x20);
+        gpu.write_vram(0x1A01, 0x20);
 
-    //         // load data in gpu tile set
-    //         for i in 0..NUMBER_OF_PIXELS/2 {
-    //             gpu.frame_buffer[i] = 155;
-    //         }
+        // draw the line in the frame buffer
+        while gpu.current_line < LAST_LINE_TO_DRAW {
+            gpu.run(1);
+        }
 
-    //         // run the gpu for an entire frame
-    //         gpu.run(1);
-
-    //         // copy this frame from gpu frame buffer
-    //         for i in 0..NUMBER_OF_PIXELS/2 {
-    //             buffer[i] =  255 << 24
-    //                         | (gpu.frame_buffer[i] as u32) << 16
-    //                         | (gpu.frame_buffer[i] as u32) << 8
-    //                         | (gpu.frame_buffer[i] as u32) << 0;
-    //         }
-
-    //         // display the frame rendered by the gpu
-    //         window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
-    //     }
-    
-    // }
+        // check frame buffer
+        // line 0 * 160 = 0 / 0x0000
+        assert_eq!(gpu.frame_buffer[0x0000], PixelColor::BLACK as u8);
+        assert_eq!(gpu.frame_buffer[0x0008], PixelColor::BLACK as u8);
+        // line 8 * 160 = 1280 / 0x0500
+        assert_eq!(gpu.frame_buffer[0x0500], PixelColor::BLACK as u8);
+        assert_eq!(gpu.frame_buffer[0x0508], PixelColor::BLACK as u8);
+        // line 128 * 160 = 20480 / 0x5000
+        assert_eq!(gpu.frame_buffer[0x5000], PixelColor::BLACK as u8);
+        assert_eq!(gpu.frame_buffer[0x5008], PixelColor::BLACK as u8);
+    }
 }
