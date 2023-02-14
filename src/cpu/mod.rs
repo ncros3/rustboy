@@ -711,6 +711,7 @@ macro_rules! long_inst {
 #[derive(PartialEq)]
 pub enum CpuMode {
     RUN,
+    INTERRUPT,
     STOP,
     HALT,
 }
@@ -782,37 +783,64 @@ impl Cpu {
         if self.debug_active() {
             self.debug_run();
         }
-
+    
         // catch interrupt as soon as possible
         if let Some(interrupt_source) = self.bus.nvic.get_interrupt() {
+            // set the cpu in RUN mode to handle interrupt routine
             self.mode = CpuMode::RUN;
+            // disable interrupts while handling interrupt routine
+            self.bus.nvic.master_enable(false);
+            // jump to interrupt routine
             self.jump_to_interrupt_routine(interrupt_source);
-            runned_cycles = RUN_12_CYCLES;
+            // 2 NOP (2 cycles) + PUSH (2 cycles) + set PC (1 cycle)
+            runned_cycles = RUN_5_CYCLES;
 
             // run the bus subsystem
             self.bus.run(runned_cycles);
-        };
-
+        }
+    
         // run CPU if it's not in HALT or STOP mode
-        if self.mode == CpuMode::RUN {
-            // fetch instruction
-            let instruction_byte = self.bus.read_bus(self.pc);
-            // decode instruction
-            let (next_pc, add_runned_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
-                // execute instruction
-                self.execute(instruction)
-            } else {
-                panic!("Unknown instruction found for 0x{:x}", instruction_byte);
-            };
-
-            // update runned_cycles & PC value
-            runned_cycles = add_runned_cycles;
-            self.pc = next_pc;
-
-            // run the bus subsystem
-            self.bus.run(runned_cycles);
-        } 
-
+        match self.mode {
+    
+            CpuMode::RUN => {
+                // fetch instruction
+                let instruction_byte = self.bus.read_bus(self.pc);
+                // decode instruction
+                let (next_pc, runned_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
+                    // execute instruction
+                    self.execute(instruction)
+                } else {
+                    panic!("Unknown instruction found for 0x{:x}", instruction_byte);
+                };
+    
+                // update PC value
+                self.pc = next_pc;
+    
+                // run the bus subsystem
+                self.bus.run(runned_cycles);
+            }
+    
+            CpuMode::INTERRUPT => {
+                // managed earlier
+            }
+    
+            CpuMode::HALT => {
+                // oscillator and LCD controller are not stopped in HALT mode
+                runned_cycles += RUN_1_CYCLE;
+                // exit HALT mode if an interrupt is pending
+                if self.bus.nvic.is_an_interrupt_pending() {
+                    self.mode = CpuMode::RUN
+                }
+    
+                // run the bus subsystem
+                self.bus.run(runned_cycles);
+            }
+    
+            CpuMode::STOP => {
+                // all system is stopped
+            }
+        }
+    
         // return runned cycles
         runned_cycles
     }
