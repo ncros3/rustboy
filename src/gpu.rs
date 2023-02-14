@@ -3,6 +3,11 @@ use crate::bus::{VRAM_BEGIN, VRAM_SIZE, OAM_SIZE};
 const OBJECT_X_OFFSET: i16 = -8;
 const OBJECT_Y_OFFSET: i16 = -16;
 
+const HORIZONTAL_BLANK_CYCLES: u16 = 204;
+const VERTICAL_BLANK_CYCLES: u16 = 4560;
+const OAM_SCAN_CYCLES: u16 = 80;
+const DRAW_PIXEL_CYCLES: u16 = 172;
+
 pub const SCREEN_WIDTH: usize = 160;
 pub const SCREEN_HEIGHT: usize = 144;
 
@@ -61,8 +66,8 @@ pub enum ObjectSize {
 pub enum Mode {
     HorizontalBlank,
     VerticalBlank,
-    OAMAccess,
-    VRAMAccess,
+    OAMScan,
+    DrawPixel,
 }
 
 #[derive(Eq, PartialEq)]
@@ -195,7 +200,6 @@ impl Gpu {
     }
 
     pub fn write_oam(&mut self, index: usize, data: u8) {
-        // save data in OAM memory
         self.oam[index] = data;
     }
 
@@ -203,76 +207,57 @@ impl Gpu {
         self.oam[address]
     }
 
-    pub fn run(&mut self, cycles: u8) -> GpuInterruptRequest {
-        let mut request = GpuInterruptRequest::None;
-        if !self.lcd_display_enabled {
-            return request;
-        }
+    pub fn run(&mut self, cycles: u8) {
+        // update GPU cycles counter
         self.cycles += cycles as u16;
 
-        let mode = self.mode;
-        match mode {
+        match self.mode {
             Mode::HorizontalBlank => {
-                if self.cycles >= 200 {
-                    self.cycles = self.cycles % 200;
+                if self.cycles >= HORIZONTAL_BLANK_CYCLES {
+                    self.cycles = self.cycles % HORIZONTAL_BLANK_CYCLES;
+                    // we detect the end of a line
                     self.current_line += 1;
 
-                    if self.current_line >= 144 {
-                        self.mode = Mode::VerticalBlank;
-                        request.add(GpuInterruptRequest::VBlank);
-                        if self.vblank_interrupt_enabled {
-                            request.add(GpuInterruptRequest::LCDStat)
-                        }
-                    } else {
-                        self.mode = Mode::OAMAccess;
-                        if self.oam_interrupt_enabled {
-                            request.add(GpuInterruptRequest::LCDStat)
-                        }
-                    }
+                    self.mode = Mode::VerticalBlank;
                 }
             }
             Mode::VerticalBlank => {
-                if self.cycles >= 456 {
-                    self.cycles = self.cycles % 456;
-                    self.current_line += 1;
-                    if self.current_line == 154 {
-                        self.mode = Mode::OAMAccess;
-                        self.current_line = 0;
-                        if self.oam_interrupt_enabled {
-                            request.add(GpuInterruptRequest::LCDStat)
-                        }
-                    }
+                if self.cycles >= VERTICAL_BLANK_CYCLES {
+                    self.cycles = self.cycles % VERTICAL_BLANK_CYCLES;
+                    // reset the line counter to draw a new frame
+                    self.current_line = 1;
+
+                    self.mode = Mode::OAMScan;
                 }
             }
-            Mode::OAMAccess => {
-                if self.cycles >= 80 {
-                    self.cycles = self.cycles % 80;
-                    self.mode = Mode::VRAMAccess;
+            Mode::OAMScan => {
+                if self.cycles >= OAM_SCAN_CYCLES {
+                    self.cycles = self.cycles % OAM_SCAN_CYCLES;
+
+                    self.mode = Mode::DrawPixel;
                 }
             }
-            Mode::VRAMAccess => {
-                if self.cycles >= 172 {
-                    self.cycles = self.cycles % 172;
-                    if self.hblank_interrupt_enabled {
-                        request.add(GpuInterruptRequest::LCDStat)
-                    }
+            Mode::DrawPixel => {
+                if self.cycles >= DRAW_PIXEL_CYCLES {
+                    self.cycles = self.cycles % DRAW_PIXEL_CYCLES;
+                    // draw the line at the end of the draw pixel mode
+                    self.draw_line();
+
                     self.mode = Mode::HorizontalBlank;
-                    self.draw_line()
                 }
             }
         }
-        request
     }
 
 
     fn draw_line(&mut self) {
         if self.background_display_enabled {
-            let pixel_y_index = self.current_line - 1;
+            let pixel_y_index: u8 = (self.current_line - 1).wrapping_add(self.viewport_y_offset);
 
             for pixel_x_index in 0..SCREEN_WIDTH {
                 // compute the tile index in tile map
                 let tile_map_y_index = (pixel_y_index / TILE_ROW_SIZE_IN_PIXEL) as u16;
-                let tile_map_x_index = (pixel_x_index / (TILE_ROW_SIZE_IN_PIXEL as usize)) as u16;
+                let tile_map_x_index = (((pixel_x_index as u8).wrapping_add(self.viewport_x_offset) as usize) / (TILE_ROW_SIZE_IN_PIXEL as usize)) as u16;
                 let tile_map_index = tile_map_y_index * (TILE_MAP_SIZE as u16) + tile_map_x_index;
 
                 // get the tile memory address from the tile map
@@ -287,8 +272,8 @@ impl Gpu {
                 let (data_1, data_0) = self.get_tile_data(tile_mem_addr, tile_row_offset as u16);
 
                 // get pixel bits from data
-                let bit_0 = data_0 >> (7 - (pixel_x_index % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
-                let bit_1 = data_1 >> (7 - (pixel_x_index % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
+                let bit_0 = data_0 >> (7 - (((pixel_x_index as u8).wrapping_add(self.viewport_x_offset) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
+                let bit_1 = data_1 >> (7 - (((pixel_x_index as u8).wrapping_add(self.viewport_x_offset) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
 
                 // find pixel color
                 let pixel_value = (bit_1 << 1) | bit_0;
@@ -296,6 +281,8 @@ impl Gpu {
 
                 // fill frame buffer
                 self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
+
+                println!("pixel index : {} / frame_buffer : {}", pixel_x_index, self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)])
             }
         }
     }
@@ -377,13 +364,13 @@ mod gpu_tests {
         gpu.draw_line();
 
         // check frame buffer
-        // line 9 * 160 = 1440 / 0x05A0
+        // line 8 * 160 = 1440 / 0x0500
         assert_eq!(gpu.frame_buffer[0x0500], PixelColor::BLACK as u8);
         assert_eq!(gpu.frame_buffer[0x0508], PixelColor::BLACK as u8);
     }
 
     #[test]
-    fn test_tile_data_area_2() {
+    fn test_tile_data_area() {
         let mut gpu = Gpu::new();
 
         // init GPU
@@ -404,7 +391,6 @@ mod gpu_tests {
         gpu.write_vram(0x0810, 0x80);
         gpu.write_vram(0x0811, 0x80);
 
-
         // set tile map
         // here we're looking for tile map at index 32 and 33 / line 9
         // which redirects to tile data index 32 and 33
@@ -423,12 +409,86 @@ mod gpu_tests {
         gpu.draw_line();
 
         // check frame buffer
-        // line 8 * 160 = 1440 / 0x0500
+        // line 8 * 160 = 1280 / 0x0500
         assert_eq!(gpu.frame_buffer[0x0500], PixelColor::BLACK as u8);
         assert_eq!(gpu.frame_buffer[0x0508], PixelColor::BLACK as u8);
-        // line 128 * 160 = 1440 / 0x0500
+        // line 128 * 160 = 20480 / 0x5000
         assert_eq!(gpu.frame_buffer[0x5000], PixelColor::BLACK as u8);
         assert_eq!(gpu.frame_buffer[0x5008], PixelColor::BLACK as u8);
+    }
+
+    #[test]
+    fn test_tile_map_area() {
+        let mut gpu = Gpu::new();
+
+        // init GPU
+        gpu.background_display_enabled = true;
+        gpu.background_tile_data_area = true;
+        gpu.background_tile_map_area = TileMapArea::X9800;
+        gpu.current_line = 9; // first line of the second tile row
+
+        // init VRAM
+        // here we're looking for tile at index 32 and 33
+        gpu.write_vram(0x0200, 0x80);
+        gpu.write_vram(0x0201, 0x80);
+        gpu.write_vram(0x0210, 0x80);
+        gpu.write_vram(0x0211, 0x80);
+
+        // set tile map
+        // here we're looking for tile at index 32 and 33
+        gpu.write_vram(0x1820, 0x20);
+        gpu.write_vram(0x1821, 0x21);
+
+        // draw the line in the frame buffer
+        gpu.draw_line();
+
+        // check frame buffer
+        // line 8 * 160 = 1280 / 0x0500
+        assert_eq!(gpu.frame_buffer[0x0500], PixelColor::BLACK as u8);
+        assert_eq!(gpu.frame_buffer[0x0508], PixelColor::BLACK as u8);
+    }
+
+    #[test]
+    fn test_scrolling() {
+        let mut gpu = Gpu::new();
+
+        // init GPU
+        gpu.background_display_enabled = true;
+        gpu.background_tile_data_area = true;
+        gpu.background_tile_map_area = TileMapArea::X9C00;
+
+        // init VRAM
+        // here we're looking for tile at index 32 and 33
+        gpu.write_vram(0x0200, 0x80);
+        gpu.write_vram(0x0201, 0x80);
+        gpu.write_vram(0x0210, 0x80);
+        gpu.write_vram(0x0211, 0x80);
+
+        // set tile map
+        // here we're looking for tile at index 32 and 33
+        gpu.write_vram(0x1C20, 0x20);
+        gpu.write_vram(0x1C21, 0x21);
+
+        // scroll on y axis and draw the line
+        gpu.viewport_y_offset = 1;
+        gpu.viewport_x_offset = 0;
+        gpu.current_line = 8; // line 8 now corresponds to line 9
+        gpu.draw_line();
+
+        // check frame buffer
+        // line 9 * 160 = 1440 / 0x05A0
+        assert_eq!(gpu.frame_buffer[0x05A0], PixelColor::BLACK as u8);
+        assert_eq!(gpu.frame_buffer[0x05A8], PixelColor::BLACK as u8);
+
+        // scroll on x axis and draw the line
+        gpu.viewport_y_offset = 0;
+        gpu.viewport_x_offset = 1;
+        gpu.current_line = 9;
+        gpu.draw_line();
+
+        // check frame buffer
+        // line 8 * 160 = 1280 / 0x0500
+        assert_eq!(gpu.frame_buffer[0x0507], PixelColor::BLACK as u8);
     }
 
     // #[test]
