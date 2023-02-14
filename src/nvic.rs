@@ -43,7 +43,7 @@ impl Nvic {
 
     pub fn get_interrupt(&mut self) -> Option<InterruptSources> {
         if self.interrupt_master_enable {
-            if (self.interrupt_enable & self.interrupt_flag) != 0 {
+            if self.is_an_interrupt_pending() {
                 // we detected an interrupt
                 // find the interrupt source and clear the bit flag
                 for interrupt_index in FIRST_INTERRUPT_SOURCE..=LAST_INTERRUPT_SOURCE {
@@ -70,6 +70,14 @@ impl Nvic {
             }
         } else {
             None
+        }
+    }
+
+    pub fn is_an_interrupt_pending(&self) -> bool {
+        if (self.interrupt_enable & self.interrupt_flag) != 0 {
+            true
+        } else {
+            false
         }
     }
 
