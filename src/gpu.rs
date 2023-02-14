@@ -177,7 +177,7 @@ impl Gpu {
             viewport_y_offset: 0,
             viewport_x_offset: 0,
 
-            current_line: 0,    // start at the first line to display
+            current_line: 0,
             compare_line: 0,
 
             background_palette: Palette::new(),
