@@ -241,10 +241,8 @@ impl Gpu {
                     if self.cycles >= HORIZONTAL_BLANK_CYCLES {
                         self.cycles = self.cycles % HORIZONTAL_BLANK_CYCLES;
                     
-                        // we detect the end of a line
+                        // we detected the end of a line
                         if self.current_line < SCREEN_HEIGHT as u8 {
-                            println!("mode HBLANK / line {}", self.get_current_line());
-
                             self.current_line += 1;
                             // run the compare line circuitry
                             self.compare_line(nvic);
@@ -282,11 +280,8 @@ impl Gpu {
                     // we reached the end of the mode
                     if self.cycles >= VERTICAL_BLANK_CYCLES {
                         self.cycles = self.cycles % VERTICAL_BLANK_CYCLES;
-
-                        println!("mode VBLANK");
-
                         // reset the line counter to draw a new frame
-                        self.current_line = 0;
+                        self.current_line = 1;
                         // reset the vblank line counter
                         self.vblank_line = 0;
                         // reset new mode flag
@@ -328,8 +323,6 @@ impl Gpu {
 
     fn draw_line(&mut self) {
         if self.background_display_enabled {
-            println!("draw line : {}", self.get_current_line());
-
             let pixel_y_index: u8 = self.current_line - 1;
 
             for pixel_x_index in 0..SCREEN_WIDTH {
