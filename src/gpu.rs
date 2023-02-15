@@ -10,8 +10,6 @@ const OAM_SCAN_CYCLES: u16 = 80;
 const DRAW_PIXEL_CYCLES: u16 = 172;
 const ONE_LINE_CYCLES: u16 = HORIZONTAL_BLANK_CYCLES + OAM_SCAN_CYCLES + DRAW_PIXEL_CYCLES;
 
-const LAST_LINE_TO_DRAW: u8 = 143;
-
 pub const SCREEN_WIDTH: usize = 160;
 pub const SCREEN_HEIGHT: usize = 144;
 
@@ -67,7 +65,7 @@ pub enum ObjectSize {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Mode {
+pub enum GpuMode {
     HorizontalBlank,
     VerticalBlank,
     OAMScan,
@@ -85,7 +83,7 @@ pub struct Gpu {
     // ****** LCD DISPLAY PARAMETERS *******
     // 0xFF40: LCD control register
     pub lcd_display_enabled: bool,
-    pub window_tile_map: TileMapArea,
+    pub window_tile_map_area: TileMapArea,
     pub window_display_enabled: bool,
     pub background_tile_data_area: bool,
     pub background_tile_map_area: TileMapArea,
@@ -99,7 +97,7 @@ pub struct Gpu {
     pub vblank_interrupt_enabled: bool,
     pub hblank_interrupt_enabled: bool,
     pub line_compare_state: bool,
-    pub mode: Mode,
+    pub mode: GpuMode,
 
     // 0xFF42 - 0xFF43: SCY viewport Y offset
     pub viewport_y_offset: u8,
@@ -140,7 +138,7 @@ impl Gpu {
             oam: [0; OAM_SIZE as usize],
 
             lcd_display_enabled: false,
-            window_tile_map: TileMapArea::X9800,
+            window_tile_map_area: TileMapArea::X9800,
             window_display_enabled: false,
             background_tile_data_area: false,
             background_tile_map_area: TileMapArea::X9800,
@@ -153,7 +151,7 @@ impl Gpu {
             vblank_interrupt_enabled: false,
             hblank_interrupt_enabled: false,
             line_compare_state: false,
-            mode: Mode::HorizontalBlank,
+            mode: GpuMode::HorizontalBlank,
 
             viewport_y_offset: 0,
             viewport_x_offset: 0,
@@ -176,20 +174,54 @@ impl Gpu {
         }
     }
 
-    pub fn read_vram(&self, address: u16) -> u8 {
+    fn read_vram(&self, address: u16) -> u8 {
         self.vram[address as usize]
     }
 
-    pub fn write_vram(&mut self, address: u16, data: u8) {
+    pub fn read_vram_ext(&self, address: u16) -> u8 {
+        if self.mode == GpuMode::DrawPixel {
+            // acess denied
+            0xFF
+        } else {
+            self.read_vram(address)
+        }
+    }
+
+    fn write_vram(&mut self, address: u16, data: u8) { 
         self.vram[address as usize] = data;
     }
 
-    pub fn write_oam(&mut self, index: usize, data: u8) {
+    pub fn write_vram_ext(&mut self, address: u16, data: u8) {
+        if self.mode == GpuMode::DrawPixel {
+            // ignore write command
+        } else {
+            self.write_vram(address, data);
+        }
+    }
+
+    fn read_oam(&self, address: usize) -> u8 {
+        self.oam[address]
+    }
+
+    pub fn read_oam_ext(&self, address: usize) -> u8 {
+        if (self.mode == GpuMode::DrawPixel) ||  (self.mode == GpuMode::OAMScan) {
+            // acess denied
+            0xFF
+        } else {
+            self.read_oam(address)
+        }
+    }
+
+    fn write_oam(&mut self, index: usize, data: u8) {
         self.oam[index] = data;
     }
 
-    pub fn read_oam(&self, address: usize) -> u8 {
-        self.oam[address]
+    pub fn write_oam_ext(&mut self, index: usize, data: u8) {
+        if (self.mode == GpuMode::DrawPixel) ||  (self.mode == GpuMode::OAMScan) {
+            // ignore write command
+        } else {
+            self.write_oam(index, data);
+        }
     }
 
     pub fn run(&mut self, cycles: u8, nvic: &mut Nvic) {
@@ -197,7 +229,7 @@ impl Gpu {
         self.cycles += cycles as u16;
 
         match self.mode {
-            Mode::HorizontalBlank => {
+            GpuMode::HorizontalBlank => {
                 // handle interrupts generation
                 if self.new_mode_flag && self.hblank_interrupt_enabled{
                     self.new_mode_flag = false;
@@ -216,16 +248,16 @@ impl Gpu {
                         // reset new mode flag
                         self.new_mode_flag = true;
                         // go to next gpu mode
-                        self.mode = Mode::OAMScan;
+                        self.mode = GpuMode::OAMScan;
                     } else {
                         // reset new mode flag
                         self.new_mode_flag = true;
                         // go to next gpu mode
-                        self.mode = Mode::VerticalBlank;
+                        self.mode = GpuMode::VerticalBlank;
                     }
                 }
             }
-            Mode::VerticalBlank => {
+            GpuMode::VerticalBlank => {
                 // handle interrupts generation
                 if self.new_mode_flag {
                     self.new_mode_flag = false;
@@ -254,10 +286,10 @@ impl Gpu {
                     // reset new mode flag
                     self.new_mode_flag = true;
                     // go to next gpu mode
-                    self.mode = Mode::OAMScan;
-                }   
+                    self.mode = GpuMode::OAMScan;
+                }
             }
-            Mode::OAMScan => {
+            GpuMode::OAMScan => {
                 // handle interrupts generation
                 if self.new_mode_flag && self.oam_interrupt_enabled{
                     self.new_mode_flag = false;
@@ -270,17 +302,17 @@ impl Gpu {
                     // reset new mode flag
                     self.new_mode_flag = true;
                     // go to next gpu mode
-                    self.mode = Mode::DrawPixel;
+                    self.mode = GpuMode::DrawPixel;
                 }
             }
-            Mode::DrawPixel => {
+            GpuMode::DrawPixel => {
                 // we reached the end of the mode
                 if self.cycles >= DRAW_PIXEL_CYCLES {
                     self.cycles = self.cycles % DRAW_PIXEL_CYCLES;
                     // draw the line at the end of the draw pixel mode
                     self.draw_line();
                     // go to next gpu mode
-                    self.mode = Mode::HorizontalBlank;
+                    self.mode = GpuMode::HorizontalBlank;
                 }
             }
         }
@@ -366,6 +398,131 @@ impl Gpu {
             }
         } else {
             self.line_compare_state = false;
+        }
+    }
+
+    pub fn control_from_byte(&mut self, data: u8) {
+        // bit 7
+        self.lcd_display_enabled = ((data >> 7) & 0x01) != 0;
+        // bit 6
+        if((data >> 6) & 0x01) != 0 {
+            self.window_tile_map_area = TileMapArea::X9C00;            
+        } else {
+            self.window_tile_map_area = TileMapArea::X9800;
+        }
+        // bit 5
+        self.window_display_enabled = ((data >> 5) & 0x01) != 0;
+        // bit 4
+        self.background_tile_data_area = ((data >> 4) & 0x01) != 0;
+        // bit 3
+        if((data >> 3) & 0x01) != 0 {
+            self.background_tile_map_area = TileMapArea::X9C00;         
+        } else {
+            self.background_tile_map_area = TileMapArea::X9800;
+        }
+        // bit 2
+        if((data >> 2) & 0x01) != 0 {
+            self.object_size = ObjectSize::OS8X16;       
+        } else {
+            self.object_size = ObjectSize::OS8X8;
+        }
+        // bit 1
+        self.object_display_enabled = ((data >> 1) & 0x01) != 0;
+        // bit 0
+        self.background_display_enabled = (data & 0x01) != 0;
+    }
+
+    pub fn control_to_byte(&self) -> u8 {
+        let window_tile_map_area_bit: u8 = if self.window_tile_map_area == TileMapArea::X9C00 {
+            1
+        } else {
+            0
+        };
+
+        let background_tile_map_area_bit: u8 = if self.background_tile_map_area == TileMapArea::X9C00 {
+            1
+        } else {
+            0
+        };
+
+        let object_size_bit: u8 = if self.object_size == ObjectSize::OS8X16 {
+            1
+        } else {
+            0
+        };
+
+        ((self.lcd_display_enabled as u8) << 7)
+            | (window_tile_map_area_bit << 6)
+            | ((self.window_display_enabled as u8) << 5)
+            | ((self.background_tile_data_area as u8) << 4)
+            | (background_tile_map_area_bit << 3)
+            | (object_size_bit << 2)
+            | ((self.object_display_enabled as u8) << 1)
+            | (self.background_display_enabled as u8)
+    }
+
+    pub fn status_from_byte(&mut self, data: u8) {
+        self.line_compare_it_enable = ((data >> 6) & 0x01) != 0;
+        self.oam_interrupt_enabled = ((data >> 5) & 0x01) != 0;
+        self.vblank_interrupt_enabled = ((data >> 4) & 0x01) != 0;
+        self.hblank_interrupt_enabled = ((data >> 3) & 0x01) != 0;
+    }
+
+    pub fn status_to_byte(&self) -> u8 {
+        let gpu_mode_bits = match self.mode {
+            GpuMode::HorizontalBlank => 0,
+            GpuMode::VerticalBlank => 1,
+            GpuMode::OAMScan => 2,
+            GpuMode::DrawPixel => 3,
+        };
+
+        0x80
+            | ((self.line_compare_it_enable as u8) << 6)
+            | ((self.oam_interrupt_enabled as u8) << 5)
+            | ((self.vblank_interrupt_enabled as u8) << 4)
+            | ((self.hblank_interrupt_enabled as u8) << 3)
+            | ((self.line_compare_state as u8) << 2)
+            | ((gpu_mode_bits as u8) & 0x11)
+    }
+
+    pub fn get_scy(&self) -> u8 {
+        self.viewport_y_offset
+    }
+
+    pub fn get_scx(&self) -> u8 {
+        self.viewport_x_offset
+    }
+
+    pub fn get_current_line(&self) -> u8 {
+        self.current_line
+    }
+
+    pub fn get_compare_line(&self) -> u8 {
+        self.compare_line
+    }
+
+    pub fn set_scy(&mut self, data: u8) {
+        self.viewport_y_offset = data;
+    }
+
+    pub fn set_scx(&mut self, data: u8) {
+        self.viewport_x_offset = data;
+    }
+
+    pub fn set_compare_line(&mut self, data: u8) {
+        self.compare_line = data;
+    }
+
+    pub fn set_window_y(&mut self, data: u8) {
+        self.window_y_offset = data;
+    }
+
+    pub fn set_window_x(&mut self, data: u8) {
+        let data_offset: i16 = (data - 7) as i16;
+        if data_offset >= 0 {
+            self.window_x_offset = data_offset as u8;
+        } else {
+            self.window_x_offset = 0;
         }
     }
 }
@@ -565,7 +722,7 @@ mod gpu_tests {
         gpu.write_vram(0x1A01, 0x20);
 
         // draw the line in the frame buffer
-        while gpu.current_line < LAST_LINE_TO_DRAW {
+        while gpu.current_line < (SCREEN_HEIGHT - 1) as u8 {
             gpu.run(1, &mut nvic);
         }
 
@@ -598,7 +755,7 @@ mod gpu_tests {
         }
 
         // check that we are in vblank mode and vblank interrupt has been asserted
-        assert_eq!(gpu.mode, Mode::VerticalBlank);
+        assert_eq!(gpu.mode, GpuMode::VerticalBlank);
         assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::VBLANK);
     }
 
@@ -616,13 +773,13 @@ mod gpu_tests {
         let mut runned_cycles: u32 = 0;
 
         // run GPU
-        while runned_cycles < (HORIZONTAL_BLANK_CYCLES + 1) as u32 {
+        while runned_cycles < HORIZONTAL_BLANK_CYCLES as u32 {
             gpu.run(1, &mut nvic);
             runned_cycles += 1;
         }
 
         // check that we are in vblank mode and vblank interrupt has been asserted
-        assert_eq!(gpu.mode, Mode::OAMScan);
+        assert_eq!(gpu.mode, GpuMode::OAMScan);
         assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
         assert_eq!(nvic.get_interrupt(), None);
 
@@ -634,7 +791,7 @@ mod gpu_tests {
         }
 
         // check that we are in vblank mode and vblank interrupt has been asserted
-        assert_eq!(gpu.mode, Mode::HorizontalBlank);
+        assert_eq!(gpu.mode, GpuMode::HorizontalBlank);
         assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
     }
 
@@ -652,13 +809,13 @@ mod gpu_tests {
         let mut runned_cycles: u32 = 0;
 
         // run the gpu
-        while runned_cycles < ((SCREEN_HEIGHT + 1) * (ONE_LINE_CYCLES as usize)) as u32 {
+        while runned_cycles < (SCREEN_HEIGHT * (ONE_LINE_CYCLES as usize) + (HORIZONTAL_BLANK_CYCLES as usize) + 1) as u32 {
             gpu.run(1, &mut nvic);
             runned_cycles += 1;
         }
 
         // check that we are in vblank mode and vblank interrupt has been asserted
-        assert_eq!(gpu.mode, Mode::VerticalBlank);
+        assert_eq!(gpu.mode, GpuMode::VerticalBlank);
         assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
     }
 
@@ -686,6 +843,25 @@ mod gpu_tests {
         assert_eq!(gpu.current_line, 3);
         assert_eq!(gpu.line_compare_state, true);
         assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
+    }
 
+    #[test]
+    fn test_control_reg() {
+        let mut gpu = Gpu::new();
+
+        gpu.control_from_byte(0xDB);
+        let reg = gpu.control_to_byte();
+        
+        assert_eq!(reg, 0xDB);
+    }
+
+    #[test]
+    fn test_status_reg() {
+        let mut gpu = Gpu::new();
+
+        gpu.status_from_byte(0xDF);
+        let reg = gpu.status_to_byte();
+        
+        assert_eq!(reg, 0xD8);
     }
 }
