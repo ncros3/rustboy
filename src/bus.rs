@@ -113,14 +113,11 @@ impl Bus {
                 }
             }
             ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.rom_bank_n[(address - ROM_BANK_N_BEGIN) as usize],
-            
-            VRAM_BEGIN..=VRAM_END => self.gpu.read_vram(address - VRAM_BEGIN),
-            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => {
-                self.external_ram[(address - EXTERNAL_RAM_BEGIN) as usize]
-            }
+            VRAM_BEGIN..=VRAM_END => self.gpu.read_vram_ext(address - VRAM_BEGIN),
+            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.external_ram[(address - EXTERNAL_RAM_BEGIN) as usize],
             WORKING_RAM_BEGIN..=WORKING_RAM_END => self.working_ram[(address - WORKING_RAM_BEGIN) as usize],
             ECHO_RAM_BEGIN..=ECHO_RAM_END => self.working_ram[(address - ECHO_RAM_BEGIN) as usize],
-            OAM_BEGIN..=OAM_END => self.gpu.read_oam((address - OAM_BEGIN) as usize),
+            OAM_BEGIN..=OAM_END => self.gpu.read_oam_ext((address - OAM_BEGIN) as usize),
             IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.read_io_register(address as usize),
             UNUSED_BEGIN..=UNUSED_END => 0, // unused memory
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => self.zero_page[(address - ZERO_PAGE_BEGIN) as usize],
@@ -133,16 +130,14 @@ impl Bus {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
                 self.rom_bank_0[address as usize] = data;
             }
-            VRAM_BEGIN..=VRAM_END => self.gpu.write_vram(address - VRAM_BEGIN, data),
+            VRAM_BEGIN..=VRAM_END => self.gpu.write_vram_ext(address - VRAM_BEGIN, data),
             EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => {
                 self.external_ram[(address - EXTERNAL_RAM_BEGIN) as usize] = data;
             }
             WORKING_RAM_BEGIN..=WORKING_RAM_END => {
                 self.working_ram[(address - WORKING_RAM_BEGIN) as usize] = data;
             }
-            OAM_BEGIN..=OAM_END => {
-                self.gpu.write_oam((address - OAM_BEGIN) as usize, data);
-            }
+            OAM_BEGIN..=OAM_END => self.gpu.write_oam_ext((address - OAM_BEGIN) as usize, data),
             IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.write_io_register(address as usize, data),
             UNUSED_BEGIN..=UNUSED_END => { /* Writing to here does nothing */ }
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => {
@@ -165,22 +160,12 @@ impl Bus {
             0xFF02 => 0, // TODO: serial
             0xFF04 => self.divider.value,
             0xFF0F => self.nvic.to_byte(),
-            0xFF40 => {
-                //TODO LCD Control
-                0
-            }
-            0xFF41 => {
-                //TODO LCD Controller Status
-                0
-            }
-            0xFF42 => {
-                //TODO Scroll Y Position
-                0
-            }
-            0xFF44 => {
-                //TODO Current Line
-                0
-            }
+            0xFF40 => self.gpu.control_to_byte(),
+            0xFF41 => self.gpu.status_to_byte(),
+            0xFF42 => self.gpu.get_scy(),
+            0xFF43 => self.gpu.get_scx(),
+            0xFF44 => self.gpu.get_current_line(),
+            0xFF45 => self.gpu.get_compare_line(),
             _ => panic!("Reading from an unknown I/O register {:x}", address),
         }
     }
@@ -231,23 +216,12 @@ impl Bus {
             0xff30 | 0xff31 | 0xff32 | 0xff33 | 0xff34 | 0xff35 | 0xff36 | 0xff37 | 0xff38
             | 0xff39 | 0xff3a | 0xff3b | 0xff3c | 0xff3d | 0xff3e | 0xff3f => {
                 //Wave Pattern RAM
-
             }
-            0xFF40 => {
-                //TODO LCD Control
-            }
-            0xFF41 => {
-                //TODO LCD Controller Status
-            }
-            0xFF42 => {
-                //TODO Viewport Y Offset
-            }
-            0xFF43 => {
-                //TODO Viewport X Offset
-            }
-            0xFF45 => {
-                // TODO compare line
-            }
+            0xFF40 => self.gpu.control_from_byte(data),
+            0xFF41 => self.gpu.status_from_byte(data),
+            0xFF42 => self.gpu.set_scy(data),
+            0xFF43 => self.gpu.set_scx(data),
+            0xFF45 => self.gpu.set_compare_line(data),
             0xFF46 => {
                 // TODO: account for the fact this takes 160 microseconds
                 // TODO implement DMA
@@ -261,12 +235,8 @@ impl Bus {
             0xFF49 => {
                 //TODO: implement object palette color 1
             }
-            0xFF4A => {
-                //TODO implement window x
-            }
-            0xFF4B => {
-                //TODO implement window y
-            }
+            0xFF4A => self.gpu.set_window_y(data),
+            0xFF4B => self.gpu.set_window_x(data),
             0xFF50 => {
                 // Unmap boot ROM
                 self.boot_rom = None;
