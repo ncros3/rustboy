@@ -17,7 +17,6 @@ const RUN_3_CYCLES: u8 = 3;
 const RUN_4_CYCLES: u8 = 4;
 const RUN_5_CYCLES: u8 = 5;
 const RUN_6_CYCLES: u8 = 6;
-const RUN_12_CYCLES: u8 = 12;
 
 macro_rules! run_instruction_in_register {
     ($register_in: ident => $register_out: ident, $self:ident.$instruction:ident) => {{
@@ -785,18 +784,8 @@ impl Cpu {
         }
     
         // catch interrupt as soon as possible
-        if let Some(interrupt_source) = self.bus.nvic.get_interrupt() {
-            // set the cpu in RUN mode to handle interrupt routine
-            self.mode = CpuMode::RUN;
-            // disable interrupts while handling interrupt routine
-            self.bus.nvic.master_enable(false);
-            // jump to interrupt routine
-            self.jump_to_interrupt_routine(interrupt_source);
-            // 2 NOP (2 cycles) + PUSH (2 cycles) + set PC (1 cycle)
-            runned_cycles = RUN_5_CYCLES;
-
-            // run the bus subsystem
-            self.bus.run(runned_cycles);
+        if self.bus.nvic.is_an_interrupt_to_run() {
+            self.mode = CpuMode::INTERRUPT;
         }
     
         // run CPU if it's not in HALT or STOP mode
@@ -821,12 +810,27 @@ impl Cpu {
             }
     
             CpuMode::INTERRUPT => {
-                // managed earlier
+                // get the interrupt source
+                if let Some(interrupt_source) = self.bus.nvic.get_interrupt() {
+                    // set the cpu in RUN mode to handle interrupt routine
+                    self.mode = CpuMode::RUN;
+                    // disable interrupts while handling interrupt routine
+                    self.bus.nvic.master_enable(false);
+                    // jump to interrupt routine
+                    self.jump_to_interrupt_routine(interrupt_source);
+                    // 2 NOP (2 cycles) + PUSH (2 cycles) + set PC (1 cycle)
+                    runned_cycles = RUN_5_CYCLES;
+
+                    // run the bus subsystem
+                    self.bus.run(runned_cycles);
+                } else {
+                    panic!("An interrupt has been triggered but no interrupt source has been found !")
+                }
             }
     
             CpuMode::HALT => {
                 // oscillator and LCD controller are not stopped in HALT mode
-                runned_cycles += RUN_1_CYCLE;
+                runned_cycles = RUN_1_CYCLE;
                 // exit HALT mode if an interrupt is pending
                 if self.bus.nvic.is_an_interrupt_pending() {
                     self.mode = CpuMode::RUN
@@ -849,7 +853,7 @@ impl Cpu {
         self.push(self.pc);
         match interrupt_source {
             InterruptSources::VBLANK => self.pc = VBLANK_VECTOR,
-            InterruptSources::LCD_STAT => self.pc = LCDSTAT_VECTOR,
+            InterruptSources::STAT => self.pc = LCDSTAT_VECTOR,
             InterruptSources::TIMER => self.pc = TIMER_VECTOR,
             _ => {},
         }
@@ -2346,10 +2350,10 @@ mod cpu_tests {
         assert_eq!(cpu.pc, 0x0004);
 
         cpu.bus.nvic.master_enable(true);
-        cpu.bus.nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
-        cpu.bus.nvic.set_interrupt(InterruptSources::LCD_STAT);
+        cpu.bus.nvic.enable_interrupt(InterruptSources::STAT, true);
+        cpu.bus.nvic.set_interrupt(InterruptSources::STAT);
         cpu.run();
-        assert_eq!(cpu.pc, LCDSTAT_VECTOR + 1);
+        assert_eq!(cpu.pc, LCDSTAT_VECTOR);
     }
 
     #[test]

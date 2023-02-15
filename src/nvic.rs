@@ -1,7 +1,7 @@
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum InterruptSources {
     VBLANK,
-    LCD_STAT,
+    STAT,
     TIMER,
     SERIAL,
     JOYPAD,
@@ -42,34 +42,39 @@ impl Nvic {
     }
 
     pub fn get_interrupt(&mut self) -> Option<InterruptSources> {
+        // find the interrupt source and clear the bit flag
+        for interrupt_index in FIRST_INTERRUPT_SOURCE..=LAST_INTERRUPT_SOURCE {
+            if (self.interrupt_enable & self.interrupt_flag & (1 << interrupt_index)) != 0 {
+                // clear the interrupt flag
+                self.interrupt_flag &= !(1 << interrupt_index);
+
+                // high priority interrupt found
+                let interrupt_source = match 1 << interrupt_index {
+                    1 => InterruptSources::VBLANK,
+                    2 => InterruptSources::STAT,
+                    4 => InterruptSources::TIMER,
+                    8 => InterruptSources::SERIAL,
+                    16 => InterruptSources::JOYPAD,
+                    _ => panic!("Interrupt index exceeded interrupt max number")
+                };
+
+                return Some(interrupt_source);
+            }
+        }
+
+        return None;
+    }
+
+    pub fn is_an_interrupt_to_run(&self) -> bool {
         if self.interrupt_master_enable {
             if self.is_an_interrupt_pending() {
                 // we detected an interrupt
-                // find the interrupt source and clear the bit flag
-                for interrupt_index in FIRST_INTERRUPT_SOURCE..=LAST_INTERRUPT_SOURCE {
-                    if (self.interrupt_enable & self.interrupt_flag & (1 << interrupt_index)) != 0 {
-                        // clear the interrupt flag
-                        self.interrupt_flag &= !(1 << interrupt_index);
-
-                        // high priority interrupt found
-                        let interrupt_source = match 1 << interrupt_index {
-                            1 => InterruptSources::VBLANK,
-                            2 => InterruptSources::LCD_STAT,
-                            4 => InterruptSources::TIMER,
-                            8 => InterruptSources::SERIAL,
-                            16 => InterruptSources::JOYPAD,
-                            _ => panic!("Interrupt index exceeded interrupt max number")
-                        };
-
-                        return Some(interrupt_source);
-                    }
-                }
-                panic!("Interrupt source not defined")
+                true
             } else {
-                None
+                false
             }
         } else {
-            None
+            false
         }
     }
 
@@ -101,13 +106,13 @@ mod nvic_tests {
         nvic.enable_interrupt(InterruptSources::VBLANK, true);
         assert_eq!(nvic.interrupt_enable, 0x01);
 
-        nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
+        nvic.enable_interrupt(InterruptSources::STAT, true);
         assert_eq!(nvic.interrupt_enable, 0x03);
 
         nvic.enable_interrupt(InterruptSources::JOYPAD, true);
         assert_eq!(nvic.interrupt_enable, 0x13);
 
-        nvic.enable_interrupt(InterruptSources::LCD_STAT, false);
+        nvic.enable_interrupt(InterruptSources::STAT, false);
         assert_eq!(nvic.interrupt_enable, 0x11);
     }
 
@@ -118,67 +123,81 @@ mod nvic_tests {
         nvic.master_enable(true);
         nvic.enable_interrupt(InterruptSources::VBLANK, true);
         assert_eq!(nvic.interrupt_enable, 0x01);
-        nvic.enable_interrupt(InterruptSources::LCD_STAT, true);
+        nvic.enable_interrupt(InterruptSources::STAT, true);
         assert_eq!(nvic.interrupt_enable, 0x03);
 
         nvic.set_interrupt(InterruptSources::SERIAL);
+        assert_eq!(nvic.is_an_interrupt_to_run(), false);
+        assert_eq!(nvic.is_an_interrupt_pending(), false);
         let mut interrupt = nvic.get_interrupt();
         match interrupt {
             Some(InterruptSources::VBLANK) => assert!(false),
-            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::STAT) => assert!(false),
             Some(InterruptSources::TIMER) => assert!(false),
             Some(InterruptSources::SERIAL) => assert!(false),
             Some(InterruptSources::JOYPAD) => assert!(false),
             None => assert!(true)
         }
 
-        nvic.set_interrupt(InterruptSources::LCD_STAT);
+        nvic.set_interrupt(InterruptSources::STAT);
+        assert_eq!(nvic.is_an_interrupt_to_run(), true);
+        assert_eq!(nvic.is_an_interrupt_pending(), true);
         interrupt = nvic.get_interrupt();
         match interrupt {
             Some(InterruptSources::VBLANK) => assert!(false),
-            Some(InterruptSources::LCD_STAT) => assert!(true),
+            Some(InterruptSources::STAT) => assert!(true),
             Some(InterruptSources::TIMER) => assert!(false),
             Some(InterruptSources::SERIAL) => assert!(false),
             Some(InterruptSources::JOYPAD) => assert!(false),
             None => assert!(false)
         }
 
+        // check that interrupt has been cleared
         interrupt = nvic.get_interrupt();
+        assert_eq!(nvic.is_an_interrupt_to_run(), false);
+        assert_eq!(nvic.is_an_interrupt_pending(), false);
         match interrupt {
             Some(InterruptSources::VBLANK) => assert!(false),
-            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::STAT) => assert!(false),
             Some(InterruptSources::TIMER) => assert!(false),
             Some(InterruptSources::SERIAL) => assert!(false),
             Some(InterruptSources::JOYPAD) => assert!(false),
             None => assert!(true)
         }
 
-        nvic.set_interrupt(InterruptSources::LCD_STAT);
+        // check interrupt priority
+        nvic.set_interrupt(InterruptSources::STAT);
         nvic.set_interrupt(InterruptSources::VBLANK);
+        assert_eq!(nvic.is_an_interrupt_to_run(), true);
+        assert_eq!(nvic.is_an_interrupt_pending(), true);
         interrupt = nvic.get_interrupt();
         match interrupt {
             Some(InterruptSources::VBLANK) => assert!(true),
-            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::STAT) => assert!(false),
             Some(InterruptSources::TIMER) => assert!(false),
             Some(InterruptSources::SERIAL) => assert!(false),
             Some(InterruptSources::JOYPAD) => assert!(false),
             None => assert!(false)
         }
 
+        assert_eq!(nvic.is_an_interrupt_to_run(), true);
+        assert_eq!(nvic.is_an_interrupt_pending(), true);
         interrupt = nvic.get_interrupt();
         match interrupt {
             Some(InterruptSources::VBLANK) => assert!(false),
-            Some(InterruptSources::LCD_STAT) => assert!(true),
+            Some(InterruptSources::STAT) => assert!(true),
             Some(InterruptSources::TIMER) => assert!(false),
             Some(InterruptSources::SERIAL) => assert!(false),
             Some(InterruptSources::JOYPAD) => assert!(false),
             None => assert!(false)
         }
 
+        assert_eq!(nvic.is_an_interrupt_to_run(), false);
+        assert_eq!(nvic.is_an_interrupt_pending(), false);
         interrupt = nvic.get_interrupt();
         match interrupt {
             Some(InterruptSources::VBLANK) => assert!(false),
-            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::STAT) => assert!(false),
             Some(InterruptSources::TIMER) => assert!(false),
             Some(InterruptSources::SERIAL) => assert!(false),
             Some(InterruptSources::JOYPAD) => assert!(false),
@@ -197,20 +216,24 @@ mod nvic_tests {
         assert_eq!(nvic.interrupt_enable, 0x11);
 
         nvic.set_interrupt(InterruptSources::JOYPAD);
+        assert_eq!(nvic.is_an_interrupt_to_run(), true);
+        assert_eq!(nvic.is_an_interrupt_pending(), true);
         let mut interrupt = nvic.get_interrupt();
         match interrupt {
             Some(InterruptSources::VBLANK) => assert!(false),
-            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::STAT) => assert!(false),
             Some(InterruptSources::TIMER) => assert!(false),
             Some(InterruptSources::SERIAL) => assert!(false),
             Some(InterruptSources::JOYPAD) => assert!(true),
             None => assert!(false)
         }
 
+        assert_eq!(nvic.is_an_interrupt_to_run(), false);
+        assert_eq!(nvic.is_an_interrupt_pending(), false);
         interrupt = nvic.get_interrupt();
         match interrupt {
             Some(InterruptSources::VBLANK) => assert!(false),
-            Some(InterruptSources::LCD_STAT) => assert!(false),
+            Some(InterruptSources::STAT) => assert!(false),
             Some(InterruptSources::TIMER) => assert!(false),
             Some(InterruptSources::SERIAL) => assert!(false),
             Some(InterruptSources::JOYPAD) => assert!(false),

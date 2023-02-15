@@ -1,8 +1,4 @@
-use crate::gpu::{
-    Gpu, 
-    GpuInterruptRequest, 
-    TileMapArea,
-    ObjectSize};
+use crate::gpu::Gpu;
 use crate::nvic::{Nvic, InterruptSources};
 use crate::timer::{Timer, Frequency};
 
@@ -99,8 +95,8 @@ impl Bus {
         }
         self.divider.run(runned_cycles);
 
-        // run the GPU and catch interrupt requests if any
-        self.gpu.run(runned_cycles);
+        // run the GPU 
+        self.gpu.run(runned_cycles, &mut self.nvic);
     }
 
     pub fn read_bus(&self, address: u16) -> u8 {
