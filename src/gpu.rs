@@ -1,4 +1,5 @@
 use crate::bus::{VRAM_BEGIN, VRAM_SIZE, OAM_SIZE};
+use crate::nvic::{Nvic, InterruptSources};
 
 const OBJECT_X_OFFSET: i16 = -8;
 const OBJECT_Y_OFFSET: i16 = -16;
@@ -7,6 +8,7 @@ const HORIZONTAL_BLANK_CYCLES: u16 = 204;
 const VERTICAL_BLANK_CYCLES: u16 = 4560;
 const OAM_SCAN_CYCLES: u16 = 80;
 const DRAW_PIXEL_CYCLES: u16 = 172;
+const ONE_LINE_CYCLES: u16 = HORIZONTAL_BLANK_CYCLES + OAM_SCAN_CYCLES + DRAW_PIXEL_CYCLES;
 
 const LAST_LINE_TO_DRAW: u8 = 143;
 
@@ -64,35 +66,12 @@ pub enum ObjectSize {
     OS8X16,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Mode {
     HorizontalBlank,
     VerticalBlank,
     OAMScan,
     DrawPixel,
-}
-
-#[derive(Eq, PartialEq)]
-pub enum GpuInterruptRequest {
-    None,
-    VBlank,
-    LCDStat,
-    Both,
-}
-
-impl GpuInterruptRequest {
-    fn add(&mut self, other: GpuInterruptRequest) {
-        match self {
-            GpuInterruptRequest::None => *self = other,
-            GpuInterruptRequest::VBlank if other == GpuInterruptRequest::LCDStat => {
-                *self = GpuInterruptRequest::Both
-            }
-            GpuInterruptRequest::LCDStat if other == GpuInterruptRequest::VBlank => {
-                *self = GpuInterruptRequest::Both
-            }
-            _ => {}
-        };
-    }
 }
 
 pub struct Gpu {
@@ -145,8 +124,10 @@ pub struct Gpu {
     window_x_offset: u8,
     window_y_offset: u8,
 
-    // ****** GPU GENERAL PARAMETERS *******
+    // ****** GPU INTERNAL PARAMETERS *******
     cycles: u16,
+    new_mode_flag: bool,
+    vblank_line: u16,
 
     // ****** OUTPUT FRAME BUFFER *******
     pub frame_buffer: [u8; SCREEN_WIDTH * SCREEN_HEIGHT],
@@ -188,6 +169,8 @@ impl Gpu {
             window_y_offset: 0,
 
             cycles: 0,
+            new_mode_flag: true,
+            vblank_line: 0,
 
             frame_buffer: [0; SCREEN_WIDTH * SCREEN_HEIGHT],
         }
@@ -209,47 +192,94 @@ impl Gpu {
         self.oam[address]
     }
 
-    pub fn run(&mut self, cycles: u8) {
+    pub fn run(&mut self, cycles: u8, nvic: &mut Nvic) {
         // update GPU cycles counter
         self.cycles += cycles as u16;
 
         match self.mode {
             Mode::HorizontalBlank => {
+                // handle interrupts generation
+                if self.new_mode_flag && self.hblank_interrupt_enabled{
+                    self.new_mode_flag = false;
+                    nvic.set_interrupt(InterruptSources::STAT);
+                }
+
+                // we reached the end of the mode
                 if self.cycles >= HORIZONTAL_BLANK_CYCLES {
                     self.cycles = self.cycles % HORIZONTAL_BLANK_CYCLES;
                 
                     // we detect the end of a line
-                    if self.current_line < LAST_LINE_TO_DRAW {
+                    if self.current_line < SCREEN_HEIGHT as u8 {
                         self.current_line += 1;
-
+                        // run the compare line circuitry
+                        self.compare_line(nvic);
+                        // reset new mode flag
+                        self.new_mode_flag = true;
+                        // go to next gpu mode
                         self.mode = Mode::OAMScan;
                     } else {
+                        // reset new mode flag
+                        self.new_mode_flag = true;
+                        // go to next gpu mode
                         self.mode = Mode::VerticalBlank;
                     }
                 }
             }
             Mode::VerticalBlank => {
+                // handle interrupts generation
+                if self.new_mode_flag {
+                    self.new_mode_flag = false;
+                    nvic.set_interrupt(InterruptSources::VBLANK);
+
+                    if self.vblank_interrupt_enabled {
+                        nvic.set_interrupt(InterruptSources::STAT);
+                    }
+                }
+
+                // if we reached a new line in vblank mode, run compare line circuitry
+                if (self.cycles / ((self.vblank_line + 1) * ONE_LINE_CYCLES)) != 0 {
+                    self.vblank_line += 1;
+                    self.current_line += 1;
+
+                    self.compare_line(nvic);
+                }
+
+                // we reached the end of the mode
                 if self.cycles >= VERTICAL_BLANK_CYCLES {
                     self.cycles = self.cycles % VERTICAL_BLANK_CYCLES;
                     // reset the line counter to draw a new frame
-                    self.current_line = 1;
-
+                    self.current_line = 0;
+                    // reset the vblank line counter
+                    self.vblank_line = 0;
+                    // reset new mode flag
+                    self.new_mode_flag = true;
+                    // go to next gpu mode
                     self.mode = Mode::OAMScan;
-                }
+                }   
             }
             Mode::OAMScan => {
+                // handle interrupts generation
+                if self.new_mode_flag && self.oam_interrupt_enabled{
+                    self.new_mode_flag = false;
+                    nvic.set_interrupt(InterruptSources::STAT);
+                }
+
+                // we reached the end of the mode
                 if self.cycles >= OAM_SCAN_CYCLES {
                     self.cycles = self.cycles % OAM_SCAN_CYCLES;
-
+                    // reset new mode flag
+                    self.new_mode_flag = true;
+                    // go to next gpu mode
                     self.mode = Mode::DrawPixel;
                 }
             }
             Mode::DrawPixel => {
+                // we reached the end of the mode
                 if self.cycles >= DRAW_PIXEL_CYCLES {
                     self.cycles = self.cycles % DRAW_PIXEL_CYCLES;
                     // draw the line at the end of the draw pixel mode
                     self.draw_line();
-
+                    // go to next gpu mode
                     self.mode = Mode::HorizontalBlank;
                 }
             }
@@ -325,12 +355,24 @@ impl Gpu {
             _ => self.background_palette.0 as u8,
         }
     }
+
+    fn compare_line(&mut self, nvic: &mut Nvic) {
+        if self.current_line == self.compare_line {
+            self.line_compare_state = true;
+
+            // managed interrupt
+            if self.line_compare_it_enable {
+                nvic.set_interrupt(InterruptSources::STAT);
+            }
+        } else {
+            self.line_compare_state = false;
+        }
+    }
 }
 
 #[cfg(test)]
 mod gpu_tests {
     use super::*;
-    use minifb::{Key, Window, WindowOptions};
 
     #[test]
     fn test_read_write_vram() {
@@ -499,6 +541,7 @@ mod gpu_tests {
     #[test]
     fn test_draw_frame() {
         let mut gpu = Gpu::new();
+        let mut nvic = Nvic::new();
 
         // init GPU
         gpu.background_display_enabled = true;
@@ -523,7 +566,7 @@ mod gpu_tests {
 
         // draw the line in the frame buffer
         while gpu.current_line < LAST_LINE_TO_DRAW {
-            gpu.run(1);
+            gpu.run(1, &mut nvic);
         }
 
         // check frame buffer
@@ -536,5 +579,113 @@ mod gpu_tests {
         // line 128 * 160 = 20480 / 0x5000
         assert_eq!(gpu.frame_buffer[0x5000], PixelColor::BLACK as u8);
         assert_eq!(gpu.frame_buffer[0x5008], PixelColor::BLACK as u8);
+    }
+
+    #[test]
+    fn test_vblank_interrupts() {
+        let mut gpu = Gpu::new();
+        let mut nvic = Nvic::new();
+
+        nvic.master_enable(true);
+        nvic.enable_interrupt(InterruptSources::VBLANK, true);
+
+        let mut runned_cycles: u32 = 0;
+
+        // run GPU
+        while runned_cycles < ((SCREEN_HEIGHT + 1) * (ONE_LINE_CYCLES as usize)) as u32 {
+            gpu.run(1, &mut nvic);
+            runned_cycles += 1;
+        }
+
+        // check that we are in vblank mode and vblank interrupt has been asserted
+        assert_eq!(gpu.mode, Mode::VerticalBlank);
+        assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::VBLANK);
+    }
+
+    #[test]
+    fn test_stat_interrupts() {
+        let mut gpu = Gpu::new();
+        let mut nvic = Nvic::new();
+
+        nvic.master_enable(true);
+        nvic.enable_interrupt(InterruptSources::STAT, true);
+        gpu.oam_interrupt_enabled = true;
+        gpu.hblank_interrupt_enabled = true;
+        gpu.vblank_interrupt_enabled = false;
+
+        let mut runned_cycles: u32 = 0;
+
+        // run GPU
+        while runned_cycles < (HORIZONTAL_BLANK_CYCLES + 1) as u32 {
+            gpu.run(1, &mut nvic);
+            runned_cycles += 1;
+        }
+
+        // check that we are in vblank mode and vblank interrupt has been asserted
+        assert_eq!(gpu.mode, Mode::OAMScan);
+        assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
+        assert_eq!(nvic.get_interrupt(), None);
+
+        // run GPU
+        runned_cycles = 0;
+        while runned_cycles < (OAM_SCAN_CYCLES + DRAW_PIXEL_CYCLES) as u32 {
+            gpu.run(1, &mut nvic);
+            runned_cycles += 1;
+        }
+
+        // check that we are in vblank mode and vblank interrupt has been asserted
+        assert_eq!(gpu.mode, Mode::HorizontalBlank);
+        assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
+    }
+
+    #[test]
+    fn test_vblank_stat_interrupts() {
+        let mut gpu = Gpu::new();
+        let mut nvic = Nvic::new();
+
+        nvic.master_enable(true);
+        nvic.enable_interrupt(InterruptSources::STAT, true);
+        gpu.oam_interrupt_enabled = false;
+        gpu.hblank_interrupt_enabled = false;
+        gpu.vblank_interrupt_enabled = true;
+
+        let mut runned_cycles: u32 = 0;
+
+        // run the gpu
+        while runned_cycles < ((SCREEN_HEIGHT + 1) * (ONE_LINE_CYCLES as usize)) as u32 {
+            gpu.run(1, &mut nvic);
+            runned_cycles += 1;
+        }
+
+        // check that we are in vblank mode and vblank interrupt has been asserted
+        assert_eq!(gpu.mode, Mode::VerticalBlank);
+        assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
+    }
+
+    #[test]
+    fn test_compare_line() {
+        let mut gpu = Gpu::new();
+        let mut nvic = Nvic::new();
+
+        nvic.master_enable(true);
+        nvic.enable_interrupt(InterruptSources::STAT, true);
+        gpu.line_compare_it_enable = true;
+        gpu.compare_line = 3;
+
+        assert_eq!(gpu.line_compare_state, false);
+
+        let mut runned_cycles: u32 = 0;
+
+        // run the gpu for 3 lines
+        while runned_cycles < (ONE_LINE_CYCLES * 2 + HORIZONTAL_BLANK_CYCLES) as u32 {
+            gpu.run(1, &mut nvic);
+            runned_cycles += 1;
+        }
+
+        // check that we are in vblank mode and vblank interrupt has been asserted
+        assert_eq!(gpu.current_line, 3);
+        assert_eq!(gpu.line_compare_state, true);
+        assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
+
     }
 }
