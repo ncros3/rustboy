@@ -59,26 +59,20 @@ pub struct Bus {
     pub gpu: Gpu,
     pub nvic: Nvic,
     timer: Timer,
-    divider: Timer,
 }
 
 impl Bus {
     pub fn new() -> Bus {
-        // initialize divider timer
-        let mut divider = Timer::new(Frequency::F16384);
-        divider.on = true;
-
         Bus {
             boot_rom: None,
-            rom_bank_0: [0x00; ROM_BANK_0_SIZE as usize],
-            rom_bank_n: [0x00; ROM_BANK_N_SIZE as usize],
-            external_ram: [0x00; EXTERNAL_RAM_SIZE as usize],
-            working_ram: [0x00; WORKING_RAM_SIZE as usize],
-            zero_page: [0x00; ZERO_PAGE_SIZE as usize],
+            rom_bank_0: [0xFF; ROM_BANK_0_SIZE as usize],
+            rom_bank_n: [0xFF; ROM_BANK_N_SIZE as usize],
+            external_ram: [0xFF; EXTERNAL_RAM_SIZE as usize],
+            working_ram: [0xFF; WORKING_RAM_SIZE as usize],
+            zero_page: [0xFF; ZERO_PAGE_SIZE as usize],
             gpu: Gpu::new(),
             nvic: Nvic::new(),
-            timer: Timer::new(Frequency::F4096),
-            divider: divider,
+            timer: Timer::new(),
         }
     }
 
@@ -89,11 +83,8 @@ impl Bus {
     }
 
     pub fn run(&mut self, runned_cycles: u8) {
-        // run the system timer
-        if self.timer.run(runned_cycles) {
-            self.nvic.set_interrupt(InterruptSources::TIMER);
-        }
-        self.divider.run(runned_cycles);
+        // run the timer
+        self.timer.run(runned_cycles, &mut self.nvic);
 
         // run the GPU 
         self.gpu.run(runned_cycles, &mut self.nvic);
@@ -158,7 +149,9 @@ impl Bus {
             0xFF00 => 0, // TODO: joypad
             0xFF01 => 0, // TODO: serial
             0xFF02 => 0, // TODO: serial
-            0xFF04 => self.divider.value,
+            0xFF04 => self.timer.get_divider(),
+            0xFF05 => self.timer.get_value(),
+            0xFF06 => self.timer.get_modulo(),
             0xFF0F => self.nvic.to_byte(),
             0xFF40 => self.gpu.control_to_byte(),
             0xFF41 => self.gpu.status_to_byte(),
@@ -175,22 +168,10 @@ impl Bus {
             0xFF00 => { /* Joyad control */ }
             0xFF01 => { /* Serial Transfer */ }
             0xFF02 => { /* Serial Transfer Control */ }
-            0xFF04 => self.divider.value = 0,
-            0xFF05 => {
-                self.timer.value = data;
-            }
-            0xFF06 => {
-                self.timer.modulo = data;
-            }
-            0xFF07 => {
-                self.timer.frequency = match data & 0b11 {
-                    0b00 => Frequency::F4096,
-                    0b11 => Frequency::F16384,
-                    0b10 => Frequency::F65536,
-                    _ => Frequency::F262144,
-                };
-                self.timer.on = (data & 0b100) == 0b100
-            }
+            0xFF04 => self.timer.set_divider(),
+            0xFF05 => self.timer.set_value(data),
+            0xFF06 => self.timer.set_modulo(data),
+            0xFF07 => self.timer.settings_from_byte(data),
             0xFF0F => self.nvic.from_byte(data),
             0xFF10 => { /* Channel 1 Sweep register */ }
             0xFF11 => { /* Channel 1 Sound Length and Wave */ }
@@ -226,15 +207,9 @@ impl Bus {
                 // TODO: account for the fact this takes 160 microseconds
                 // TODO implement DMA
             }
-            0xFF47 => {
-                //TODO Background Colors Setting
-            }
-            0xFF48 => {
-                //TODO: implement object palette color 0
-            }
-            0xFF49 => {
-                //TODO: implement object palette color 1
-            }
+            0xFF47 => self.gpu.set_background_palette(data),
+            0xFF48 => self.gpu.set_object_palette_0(data),
+            0xFF49 => self.gpu.set_object_palette_1(data),
             0xFF4A => self.gpu.set_window_y(data),
             0xFF4B => self.gpu.set_window_x(data),
             0xFF50 => {

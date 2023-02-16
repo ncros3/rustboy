@@ -28,17 +28,35 @@ pub enum PixelColor {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Palette(PixelColor, PixelColor, PixelColor, PixelColor);
+pub struct Palette{
+    pub color_0: PixelColor, 
+    pub color_1: PixelColor, 
+    pub color_2: PixelColor, 
+    pub color_3: PixelColor,
+}
 
 impl Palette {
     fn new() -> Palette {
-        Palette(
-            PixelColor::WHITE,
-            PixelColor::LIGHT_GRAY,
-            PixelColor::DARK_GRAY,
-            PixelColor::BLACK,
-        )
+        Palette {
+            color_0: PixelColor::WHITE,
+            color_1: PixelColor::LIGHT_GRAY,
+            color_2: PixelColor::DARK_GRAY,
+            color_3: PixelColor::BLACK,
+        }
     }
+}
+
+macro_rules! set_palette {
+    ($self:ident.$palette:ident.$palette_index:ident, $data: ident, $color_index: expr) => {{
+        let value = ($data >> ($color_index * 2)) & 0x03;
+
+        match value {
+            0 => $self.$palette.$palette_index = PixelColor::WHITE,
+            1 => $self.$palette.$palette_index = PixelColor::LIGHT_GRAY,
+            2 => $self.$palette.$palette_index = PixelColor::DARK_GRAY,
+            _ => $self.$palette.$palette_index = PixelColor::BLACK,
+        }
+    }};
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -134,8 +152,8 @@ pub struct Gpu {
 impl Gpu {
     pub fn new() -> Gpu {
         Gpu {
-            vram: [0x00; VRAM_SIZE as usize],
-            oam: [0; OAM_SIZE as usize],
+            vram: [0xFF; VRAM_SIZE as usize],
+            oam: [0xFF; OAM_SIZE as usize],
 
             lcd_display_enabled: false,
             window_tile_map_area: TileMapArea::X9800,
@@ -317,6 +335,8 @@ impl Gpu {
                     }
                 }
             }
+        } else {
+            self.mode = GpuMode::HorizontalBlank;
         }
     }
 
@@ -382,11 +402,10 @@ impl Gpu {
 
     fn get_bg_pixel_color_from_palette(&self, pixel_value: u8) -> u8 {
         match pixel_value {
-            0 => self.background_palette.0 as u8,
-            1 => self.background_palette.1 as u8,
-            2 => self.background_palette.2 as u8,
-            3 => self.background_palette.3 as u8,
-            _ => self.background_palette.0 as u8,
+            0 => self.background_palette.color_0 as u8,
+            1 => self.background_palette.color_1 as u8,
+            2 => self.background_palette.color_2 as u8,
+            _ => self.background_palette.color_3 as u8,
         }
     }
 
@@ -526,6 +545,27 @@ impl Gpu {
         } else {
             self.window_x_offset = 0;
         }
+    }
+
+    pub fn set_background_palette(&mut self, data: u8) {
+        set_palette!(self.background_palette.color_0, data, 0);
+        set_palette!(self.background_palette.color_1, data, 1);
+        set_palette!(self.background_palette.color_2, data, 2);
+        set_palette!(self.background_palette.color_3, data, 3);
+    }
+
+    pub fn set_object_palette_0(&mut self, data: u8) {
+        set_palette!(self.object_palette_0.color_0, data, 0);
+        set_palette!(self.object_palette_0.color_1, data, 1);
+        set_palette!(self.object_palette_0.color_2, data, 2);
+        set_palette!(self.object_palette_0.color_3, data, 3);
+    }
+
+    pub fn set_object_palette_1(&mut self, data: u8) {
+        set_palette!(self.object_palette_1.color_0, data, 0);
+        set_palette!(self.object_palette_1.color_1, data, 1);
+        set_palette!(self.object_palette_1.color_2, data, 2);
+        set_palette!(self.object_palette_1.color_3, data, 3);
     }
 }
 
@@ -871,5 +911,36 @@ mod gpu_tests {
         let reg = gpu.status_to_byte();
         
         assert_eq!(reg, 0xD8);
+    }
+
+    #[test]
+    fn test_set_background_palette() {
+        let mut gpu = Gpu::new();
+
+        gpu.set_background_palette(0b10010011);
+
+        assert_eq!(gpu.background_palette.color_3, PixelColor::DARK_GRAY);
+        assert_eq!(gpu.background_palette.color_2, PixelColor::LIGHT_GRAY);
+        assert_eq!(gpu.background_palette.color_1, PixelColor::WHITE);
+        assert_eq!(gpu.background_palette.color_0, PixelColor::BLACK);
+    }
+
+    #[test]
+    fn test_set_object_palette() {
+        let mut gpu = Gpu::new();
+
+        gpu.set_object_palette_0(0b10010011);
+
+        assert_eq!(gpu.object_palette_0.color_3, PixelColor::DARK_GRAY);
+        assert_eq!(gpu.object_palette_0.color_2, PixelColor::LIGHT_GRAY);
+        assert_eq!(gpu.object_palette_0.color_1, PixelColor::WHITE);
+        assert_eq!(gpu.object_palette_0.color_0, PixelColor::BLACK);
+
+        gpu.set_object_palette_1(0b11010010);
+
+        assert_eq!(gpu.object_palette_1.color_3, PixelColor::BLACK);
+        assert_eq!(gpu.object_palette_1.color_2, PixelColor::LIGHT_GRAY);
+        assert_eq!(gpu.object_palette_1.color_1, PixelColor::WHITE);
+        assert_eq!(gpu.object_palette_1.color_0, PixelColor::DARK_GRAY);
     }
 }
