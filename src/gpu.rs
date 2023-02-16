@@ -134,8 +134,8 @@ pub struct Gpu {
 impl Gpu {
     pub fn new() -> Gpu {
         Gpu {
-            vram: [0x00; VRAM_SIZE as usize],
-            oam: [0; OAM_SIZE as usize],
+            vram: [0xFF; VRAM_SIZE as usize],
+            oam: [0xFF; OAM_SIZE as usize],
 
             lcd_display_enabled: false,
             window_tile_map_area: TileMapArea::X9800,
@@ -317,6 +317,8 @@ impl Gpu {
                     }
                 }
             }
+        } else {
+            self.mode = GpuMode::HorizontalBlank;
         }
     }
 

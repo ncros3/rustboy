@@ -70,11 +70,11 @@ impl Bus {
 
         Bus {
             boot_rom: None,
-            rom_bank_0: [0x00; ROM_BANK_0_SIZE as usize],
-            rom_bank_n: [0x00; ROM_BANK_N_SIZE as usize],
-            external_ram: [0x00; EXTERNAL_RAM_SIZE as usize],
-            working_ram: [0x00; WORKING_RAM_SIZE as usize],
-            zero_page: [0x00; ZERO_PAGE_SIZE as usize],
+            rom_bank_0: [0xFF; ROM_BANK_0_SIZE as usize],
+            rom_bank_n: [0xFF; ROM_BANK_N_SIZE as usize],
+            external_ram: [0xFF; EXTERNAL_RAM_SIZE as usize],
+            working_ram: [0xFF; WORKING_RAM_SIZE as usize],
+            zero_page: [0xFF; ZERO_PAGE_SIZE as usize],
             gpu: Gpu::new(),
             nvic: Nvic::new(),
             timer: Timer::new(Frequency::F4096),
