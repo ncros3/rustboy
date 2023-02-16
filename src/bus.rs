@@ -226,15 +226,9 @@ impl Bus {
                 // TODO: account for the fact this takes 160 microseconds
                 // TODO implement DMA
             }
-            0xFF47 => {
-                //TODO Background Colors Setting
-            }
-            0xFF48 => {
-                //TODO: implement object palette color 0
-            }
-            0xFF49 => {
-                //TODO: implement object palette color 1
-            }
+            0xFF47 => self.gpu.set_background_palette(data),
+            0xFF48 => self.gpu.set_object_palette_0(data),
+            0xFF49 => self.gpu.set_object_palette_1(data),
             0xFF4A => self.gpu.set_window_y(data),
             0xFF4B => self.gpu.set_window_x(data),
             0xFF50 => {
