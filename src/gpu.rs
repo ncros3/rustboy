@@ -1,4 +1,4 @@
-use crate::bus::{VRAM_BEGIN, VRAM_SIZE, OAM_SIZE};
+use crate::peripheral::{VRAM_BEGIN, VRAM_SIZE, OAM_SIZE};
 use crate::nvic::{Nvic, InterruptSources};
 
 const OBJECT_X_OFFSET: i16 = -8;

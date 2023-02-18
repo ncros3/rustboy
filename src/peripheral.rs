@@ -1,6 +1,7 @@
 use crate::gpu::Gpu;
-use crate::nvic::{Nvic, InterruptSources};
-use crate::timer::{Timer, Frequency};
+use crate::nvic::Nvic;
+use crate::timer::Timer;
+use crate::bootrom::BootRom;
 
 pub const BOOT_ROM_BEGIN: u16 = 0x0000;
 pub const BOOT_ROM_END: u16 = 0x00FF;
@@ -49,8 +50,8 @@ pub const VBLANK_VECTOR: u16 = 0x40;
 pub const LCDSTAT_VECTOR: u16 = 0x48;
 pub const TIMER_VECTOR: u16 = 0x50;
 
-pub struct Bus {
-    boot_rom: Option<[u8; BOOT_ROM_SIZE as usize]>,
+pub struct Peripheral {
+    boot_rom: BootRom,
     rom_bank_0: [u8; ROM_BANK_0_SIZE as usize],
     rom_bank_n: [u8; ROM_BANK_N_SIZE as usize],
     external_ram: [u8; EXTERNAL_RAM_SIZE as usize],
@@ -61,10 +62,10 @@ pub struct Bus {
     timer: Timer,
 }
 
-impl Bus {
-    pub fn new() -> Bus {
-        Bus {
-            boot_rom: None,
+impl Peripheral {
+    pub fn new() -> Peripheral {
+        Peripheral {
+            boot_rom: BootRom::new(),
             rom_bank_0: [0xFF; ROM_BANK_0_SIZE as usize],
             rom_bank_n: [0xFF; ROM_BANK_N_SIZE as usize],
             external_ram: [0xFF; EXTERNAL_RAM_SIZE as usize],
@@ -76,12 +77,6 @@ impl Bus {
         }
     }
 
-    pub fn load(&mut self, boot_rom: &[u8]){
-        let mut rom_data = [0x00; BOOT_ROM_SIZE as usize];
-        rom_data.copy_from_slice(boot_rom);
-        self.boot_rom = Some(rom_data);
-    }
-
     pub fn run(&mut self, runned_cycles: u8) {
         // run the timer
         self.timer.run(runned_cycles, &mut self.nvic);
@@ -90,13 +85,17 @@ impl Bus {
         self.gpu.run(runned_cycles, &mut self.nvic);
     }
 
-    pub fn read_bus(&self, address: u16) -> u8 {
+    pub fn load_bootrom(&mut self, boot_rom: &[u8]){
+        self.boot_rom.load(boot_rom);
+    }
+
+    pub fn read(&self, address: u16) -> u8 {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
                 match address {
                     BOOT_ROM_BEGIN..=BOOT_ROM_END => 
-                        if let Some(boot_rom) = self.boot_rom {
-                            boot_rom[address as usize]
+                        if self.boot_rom.get_state() {
+                            self.boot_rom.read(address)
                         } else {
                             self.rom_bank_0[address as usize]
                         }
@@ -116,7 +115,7 @@ impl Bus {
         }
     }
 
-    pub fn write_bus(&mut self, address: u16, data: u8) {
+    pub fn write(&mut self, address: u16, data: u8) {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
                 self.rom_bank_0[address as usize] = data;
@@ -212,10 +211,7 @@ impl Bus {
             0xFF49 => self.gpu.set_object_palette_1(data),
             0xFF4A => self.gpu.set_window_y(data),
             0xFF4B => self.gpu.set_window_x(data),
-            0xFF50 => {
-                // Unmap boot ROM
-                self.boot_rom = None;
-            }
+            0xFF50 => self.boot_rom.set_state(false),
             0xFF7f => {
                 // Writing to here does nothing
             }
@@ -228,28 +224,28 @@ impl Bus {
 }
 
 #[cfg(test)]
-mod bus_tests {
+mod peripheral_tests {
     use super::*;
 
     #[test]
-    fn test_read_write_bus() {
-        let mut bus = Bus::new();
-        bus.write_bus(0x0001, 0xAA);
-        bus.write_bus(0x0002, 0x55);
-        bus.write_bus(0x0010, 0xAA);
-        assert_eq!(bus.read_bus(0x0001), 0xAA);
-        assert_eq!(bus.read_bus(0x0002), 0x55);
-        assert_eq!(bus.read_bus(0x0010), 0xAA);
+    fn test_read_write() {
+        let mut peripheral = Peripheral::new();
+        peripheral.write(0x0001, 0xAA);
+        peripheral.write(0x0002, 0x55);
+        peripheral.write(0x0010, 0xAA);
+        assert_eq!(peripheral.read(0x0001), 0xAA);
+        assert_eq!(peripheral.read(0x0002), 0x55);
+        assert_eq!(peripheral.read(0x0010), 0xAA);
     }
 
     #[test]
     fn test_read_write_vram() {
-        let mut bus = Bus::new();
-        bus.write_bus(0x0001 + VRAM_BEGIN, 0xAA);
-        bus.write_bus(0x0002 + VRAM_BEGIN, 0x55);
-        bus.write_bus(0x0010 + VRAM_BEGIN, 0xAA);
-        assert_eq!(bus.read_bus(0x0001 + VRAM_BEGIN), 0xAA);
-        assert_eq!(bus.read_bus(0x0002 + VRAM_BEGIN), 0x55);
-        assert_eq!(bus.read_bus(0x0010 + VRAM_BEGIN), 0xAA);
+        let mut peripheral = Peripheral::new();
+        peripheral.write(0x0001 + VRAM_BEGIN, 0xAA);
+        peripheral.write(0x0002 + VRAM_BEGIN, 0x55);
+        peripheral.write(0x0010 + VRAM_BEGIN, 0xAA);
+        assert_eq!(peripheral.read(0x0001 + VRAM_BEGIN), 0xAA);
+        assert_eq!(peripheral.read(0x0002 + VRAM_BEGIN), 0x55);
+        assert_eq!(peripheral.read(0x0010 + VRAM_BEGIN), 0xAA);
     }
 }
