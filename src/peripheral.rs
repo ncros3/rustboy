@@ -49,7 +49,7 @@ pub const VBLANK_VECTOR: u16 = 0x40;
 pub const LCDSTAT_VECTOR: u16 = 0x48;
 pub const TIMER_VECTOR: u16 = 0x50;
 
-pub struct Bus {
+pub struct Peripheral {
     boot_rom: Option<[u8; BOOT_ROM_SIZE as usize]>,
     rom_bank_0: [u8; ROM_BANK_0_SIZE as usize],
     rom_bank_n: [u8; ROM_BANK_N_SIZE as usize],
@@ -61,9 +61,9 @@ pub struct Bus {
     timer: Timer,
 }
 
-impl Bus {
-    pub fn new() -> Bus {
-        Bus {
+impl Peripheral {
+    pub fn new() -> Peripheral {
+        Peripheral {
             boot_rom: None,
             rom_bank_0: [0xFF; ROM_BANK_0_SIZE as usize],
             rom_bank_n: [0xFF; ROM_BANK_N_SIZE as usize],
@@ -90,7 +90,7 @@ impl Bus {
         self.gpu.run(runned_cycles, &mut self.nvic);
     }
 
-    pub fn read_bus(&self, address: u16) -> u8 {
+    pub fn read_peripheral(&self, address: u16) -> u8 {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
                 match address {
@@ -116,7 +116,7 @@ impl Bus {
         }
     }
 
-    pub fn write_bus(&mut self, address: u16, data: u8) {
+    pub fn write_peripheral(&mut self, address: u16, data: u8) {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
                 self.rom_bank_0[address as usize] = data;
@@ -228,28 +228,28 @@ impl Bus {
 }
 
 #[cfg(test)]
-mod bus_tests {
+mod peripheral_tests {
     use super::*;
 
     #[test]
-    fn test_read_write_bus() {
-        let mut bus = Bus::new();
-        bus.write_bus(0x0001, 0xAA);
-        bus.write_bus(0x0002, 0x55);
-        bus.write_bus(0x0010, 0xAA);
-        assert_eq!(bus.read_bus(0x0001), 0xAA);
-        assert_eq!(bus.read_bus(0x0002), 0x55);
-        assert_eq!(bus.read_bus(0x0010), 0xAA);
+    fn test_read_write_peripheral() {
+        let mut peripheral = Peripheral::new();
+        peripheral.write_peripheral(0x0001, 0xAA);
+        peripheral.write_peripheral(0x0002, 0x55);
+        peripheral.write_peripheral(0x0010, 0xAA);
+        assert_eq!(peripheral.read_peripheral(0x0001), 0xAA);
+        assert_eq!(peripheral.read_peripheral(0x0002), 0x55);
+        assert_eq!(peripheral.read_peripheral(0x0010), 0xAA);
     }
 
     #[test]
     fn test_read_write_vram() {
-        let mut bus = Bus::new();
-        bus.write_bus(0x0001 + VRAM_BEGIN, 0xAA);
-        bus.write_bus(0x0002 + VRAM_BEGIN, 0x55);
-        bus.write_bus(0x0010 + VRAM_BEGIN, 0xAA);
-        assert_eq!(bus.read_bus(0x0001 + VRAM_BEGIN), 0xAA);
-        assert_eq!(bus.read_bus(0x0002 + VRAM_BEGIN), 0x55);
-        assert_eq!(bus.read_bus(0x0010 + VRAM_BEGIN), 0xAA);
+        let mut peripheral = Peripheral::new();
+        peripheral.write_peripheral(0x0001 + VRAM_BEGIN, 0xAA);
+        peripheral.write_peripheral(0x0002 + VRAM_BEGIN, 0x55);
+        peripheral.write_peripheral(0x0010 + VRAM_BEGIN, 0xAA);
+        assert_eq!(peripheral.read_peripheral(0x0001 + VRAM_BEGIN), 0xAA);
+        assert_eq!(peripheral.read_peripheral(0x0002 + VRAM_BEGIN), 0x55);
+        assert_eq!(peripheral.read_peripheral(0x0010 + VRAM_BEGIN), 0xAA);
     }
 }

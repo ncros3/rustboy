@@ -1,4 +1,4 @@
-mod bus;
+mod peripheral;
 mod cpu;
 mod gpu;
 mod nvic;
@@ -216,7 +216,7 @@ fn main() {
 
     // create the emulated system
     let mut cpu = Cpu::new();
-    cpu.bus.load(&BOOTROM);
+    cpu.peripheral.load(&BOOTROM);
     
     // cpu.debug_set_break_point(0x0055);
 
@@ -265,9 +265,9 @@ fn emulator_run(cpu: &mut Cpu) {
                 // copy the current frame from gpu frame buffer
                 for i in 0..SCREEN_HEIGHT * SCREEN_WIDTH {
                     buffer[i] =  255 << 24
-                                | (cpu.bus.gpu.frame_buffer[i] as u32) << 16
-                                | (cpu.bus.gpu.frame_buffer[i] as u32) << 8
-                                | (cpu.bus.gpu.frame_buffer[i] as u32) << 0;
+                                | (cpu.peripheral.gpu.frame_buffer[i] as u32) << 16
+                                | (cpu.peripheral.gpu.frame_buffer[i] as u32) << 8
+                                | (cpu.peripheral.gpu.frame_buffer[i] as u32) << 0;
                 }
                 // display the frame rendered by the gpu
                 window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
