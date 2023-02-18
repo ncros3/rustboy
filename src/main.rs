@@ -12,8 +12,6 @@ use std::time::{Duration, Instant};
 use cpu::Cpu;
 use gpu::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
-use crate::bus::BOOT_ROM_BEGIN;
-
 // Window parameters
 const SCALE_FACTOR: usize = 3;
 const WINDOW_DIMENSIONS: [usize; 2] = [(SCREEN_WIDTH * SCALE_FACTOR), (SCREEN_HEIGHT * SCALE_FACTOR)];
@@ -22,13 +20,8 @@ const WINDOW_DIMENSIONS: [usize; 2] = [(SCREEN_WIDTH * SCALE_FACTOR), (SCREEN_HE
 const ONE_SECOND_IN_MICROS: usize = 1000000000;
 const ONE_SECOND_IN_CYCLES: usize = 4190000;
 const ONE_FRAME_IN_CYCLES: usize = 70224;
-const NUMBER_OF_PIXELS: usize = SCREEN_WIDTH * SCREEN_HEIGHT;
 
-
-
-fn main() {
-
-    const BOOTROM: [u8; 256] = [
+const BOOTROM: [u8; 256] = [
     // init_stack:
     0x31, 0xFE, 0xFF, // LD     SP 0xfffe
     0xAF,             // XOR    A A
@@ -39,6 +32,7 @@ fn main() {
     0xCB, 0x7C,       // BIT    H 7
     0x20, 0xFD,       // JR NZ  clear_vram
 
+    // ***************   INIT AUDIO   ********************
     // init_sound:
     0x21, 0x26, 0xFF, // LD     HL 0xff26
     0x0E, 0x11,       // LD     C 0x11
@@ -52,48 +46,53 @@ fn main() {
     0x3E, 0x77,       // LD     A 0x77
     0x77,             // LD     [HL] A
 
+    // ************   SETUP BG PALETTE   *****************
     // init_palette:
     0x3E, 0xFC,       // LD     A 0xfc
     0xE0, 0x47,       // LD     [0xff00 + #BGP] A
 
-    // init_crc:
-    0x11, 0x04, 0x01, // LD     DE 0x0104
+    // *************   LOAD LOGO DATA   ******************
+    // load logo:
+    0x11, 0xA8, 0x00, // LD     DE 0x00A8 // nintendo logo
     0x21, 0x10, 0x80, // LD     HL 0x8010
-    // crc_loop:
+    // convert logo data:
     0x1A,             // LD     A [DE]
-    0xCD, 0x95, 0x00, // CALL   crc_0
-    0xCD, 0x96, 0x00, // CALL   crc_1
-
+    0xCD, 0x95, 0x00, // CALL   graphic_routine_1
+    0xCD, 0x96, 0x00, // CALL   graphic_routine_2
     0x13,             // INC    DE
     0x7B,             // LD     A E
     0xFE, 0x34,       // CP     A 0x34
-    0x20, 0xFA,       // JR NZ  do_crc
+    0x20, 0xF5,       // JR NZ  convert_logo_data
 
+    // **********   LOAD TRADEMARK DATA   ***************
+    // load trademark data:
     0x11, 0xD8, 0x00, // LD     DE #tile_data
     0x06, 0x08,       // LD     B 8
-    // copy_tile_map:
+    // convert trademark data:
     0x1A,             // LD     A [DE]
     0x13,             // INC    DE
     0x22,             // LDI    [HL] A
     0x23,             // INC    HL
     0x05,             // DEC    B
-    0x20, 0xFA,       // JR NZ  copy_tile_map
+    0x20, 0xFB,       // JR NZ  copy_tile_map
 
-    // init_tile
+    // *************   COPY TILEMAP   ******************
+    // copy tile map
     0x3E, 0x19,       // LD     A 0x19
     0xEA, 0x10, 0x99, // LD     [0x9910] A
     0x21, 0x2F, 0x99, // LD     HL 0x992f
-    // init_tiles_loop
+    // copy 2 lines of 12 tiles
     0x0E, 0x0C,       // LD     C 0x0c
-    // init_tiles_inner:
+    // copy 12 tiles line
     0x3D,             // DEC    A
     0x28, 0x0A,       // JR Z   init_scroll
     0x32,             // LDD    [HL] A
     0x0D,             // DEC    C
-    0x20, 0xFA,       // JR NZ  init_tiles_inner
+    0x20, 0xFB,       // JR NZ  init_tiles_inner
     0x2E, 0x0F,       // LD     L 0x0f
-    0x18, 0xF4,       // JR     init_tiles_loop
+    0x18, 0xF5,       // JR     init_tiles_loop
 
+    // *********   LOGO SCROLL ROUTINE   **************
     // init_scroll:
     0x67,             // LD     H A
     0x3E, 0x64,       // LD     A 0x64
@@ -102,16 +101,13 @@ fn main() {
     0x3E, 0x91,       // LD     A 0x91
     0xE0, 0x40,       // LD     [0xff00 + #LCDC] A
     0x04,             // INC    B
-
     // scroll_loop:
     0x1E, 0x02,       // LD     E 0x02
-
     // wait_next_vblank:
     0x0E, 0x0C,       // LD     C 0x0c
-
     // wait_vblank:
     0xF0, 0x44,       // LD     A [0xff00 + #LY]
-    0xFE, 0x90,       // CP     A 0x90
+    0xFE, 0x91,       // CP     A 0x90
     0x20, 0xFC,       // JR NZ  wait_vblank
 
     0x0D,             // DEC    C
@@ -139,18 +135,18 @@ fn main() {
     0x90,             // SUB    A B
     0xE0, 0x42,       // LD     [0xff00 + #SCY] A
     0x15,             // DEC    D
-    0x20, 0xD5,       // JR NZ  scroll_loop
+    0x20, 0xD4,       // JR NZ  scroll_loop
     0x05,             // DEC    B
     0x20, 0x51,       // JN NZ  validate_cart
     0x16, 0x20,       // LD     D 0x20
-    0x18, 0xCE,       // JR     scroll_loop
+    0x18, 0xCD,       // JR     scroll_loop
 
-
-    // crc_0:
+    // **********   GRAPHIC ROUTINE   ***************
+    // graphic_routine_1:
     0x4F,             // LD     C A
-    // crc_1:
+    // graphic_routine_2:
     0x06, 0x04,       // LD     B 0x04
-    // crc_round:
+    // graphic_sub_routine:
     0xC5,             // PUSH   BC
     0xCB, 0x11,       // RL     C
     0x17,             // RL     A
@@ -158,7 +154,7 @@ fn main() {
     0xCB, 0x11,       // RL     C
     0x17,             // RL     A
     0x05,             // DEC    B
-    0x20, 0xF7,       // JR NZ  crc_round
+    0x20, 0xF7,       // JR NZ  graphic_sub_routine
 
     0x22,             // LDI    [HL] A
     0x23,             // INC    HL
@@ -166,7 +162,7 @@ fn main() {
     0x23,             // INC    HL
     0xC9,             // RET
 
-    // expected_csum: bytes
+    // **********   LOGO DATA BYTES   ***************
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B,
     0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
     0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E,
@@ -174,9 +170,10 @@ fn main() {
     0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC,
     0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E,
 
-    // tile_data: bytes
+    // ********   TRADEMARK DATA BYTES   *************
     0x3C, 0x42, 0xB9, 0xA5, 0xB9, 0xA5, 0x42, 0x3C,
 
+    // *********   VALIDATE CARTRIDGE   **************
     // validate_cart:
     0x21, 0x04, 0x01, // LD     HL, 0x0104
     0x11, 0xA8, 0x00, // LD     DE, #expected_csum
@@ -189,15 +186,15 @@ fn main() {
     0x20, 0xFE,       // JR NZ  .
     0x23,             // INC    HL
     0x7D,             // LD     A L
-    0xFE, 0x34,       // CP     A 0x32
-    0x20, 0xF6,       // JR NZ  checksum_check
+    0xFE, 0x34,       // CP     A 0x34
+    0x20, 0xF7,       // JR NZ  checksum_check
     0x06, 0x19,       // LD     B 0x19
     0x78,             // LD     A B
     // header_sum
     0x86,             // ADD    A [HL]
     0x23,             // INC    HL
     0x05,             // DEC    B
-    0x20, 0xFC,       // JR NZ  header_sum
+    0x20, 0xFD,       // JR NZ  header_sum
     0x86,             // ADD    A [HL]
     // same as above, infinite loop if the sum is bad, replace with
     // NOPs to run anyway.
@@ -206,15 +203,15 @@ fn main() {
     // There shouldn't be anything at that address, I assume that's
     // how you tell the hardware to unmap the bootrom
     0xE0, 0x50,       // LD [0xff00 + 0x50] A
-    ];
+];
 
+fn main() {
     // create the emulated system
     let mut cpu = Cpu::new();
     cpu.bus.load(&BOOTROM);
     
-    cpu.debug_set_break_point(0x00e9);
+    // cpu.debug_set_break_point(0x0055);
 
-    // create a window to render system's output
     let mut window = Window::new(
         "Rustboy",
         WINDOW_DIMENSIONS[0],
@@ -223,10 +220,10 @@ fn main() {
     )
     .unwrap();
 
-    // run the emulated system
-    let mut buffer = [0; NUMBER_OF_PIXELS];
+    let mut buffer = [0; SCREEN_HEIGHT * SCREEN_WIDTH];
     let mut cycles_elapsed_in_frame = 0usize;
     let mut now = Instant::now();
+
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let time_delta = now.elapsed().subsec_nanos();
         now = Instant::now();
@@ -239,19 +236,20 @@ fn main() {
         }
         cycles_elapsed_in_frame += cycles_elapsed;
 
-        // TODO: Consider updating buffer after every line is rendered.
         if cycles_elapsed_in_frame >= ONE_FRAME_IN_CYCLES {
-            for (i, pixel) in cpu.bus.gpu.frame_buffer.chunks(4).enumerate() {
-                buffer[i] = (pixel[3] as u32) << 24
-                    | (pixel[2] as u32) << 16
-                    | (pixel[1] as u32) << 8
-                    | (pixel[0] as u32)
+            // copy this frame from gpu frame buffer
+            for i in 0..SCREEN_HEIGHT * SCREEN_WIDTH {
+                buffer[i] =  255 << 24
+                            | (cpu.bus.gpu.frame_buffer[i] as u32) << 16
+                            | (cpu.bus.gpu.frame_buffer[i] as u32) << 8
+                            | (cpu.bus.gpu.frame_buffer[i] as u32) << 0;
             }
-            // println!("update buffer window");
+
+            // display the frame rendered by the gpu
             window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
             cycles_elapsed_in_frame = 0;
         } else {
-            sleep(Duration::from_nanos(2))
+            sleep(Duration::from_nanos(4))
         }
     }
 }
