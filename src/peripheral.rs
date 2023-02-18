@@ -1,6 +1,7 @@
 use crate::gpu::Gpu;
-use crate::nvic::{Nvic, InterruptSources};
-use crate::timer::{Timer, Frequency};
+use crate::nvic::Nvic;
+use crate::timer::Timer;
+use crate::bootrom::BootRom;
 
 pub const BOOT_ROM_BEGIN: u16 = 0x0000;
 pub const BOOT_ROM_END: u16 = 0x00FF;
@@ -50,7 +51,7 @@ pub const LCDSTAT_VECTOR: u16 = 0x48;
 pub const TIMER_VECTOR: u16 = 0x50;
 
 pub struct Peripheral {
-    boot_rom: Option<[u8; BOOT_ROM_SIZE as usize]>,
+    boot_rom: BootRom,
     rom_bank_0: [u8; ROM_BANK_0_SIZE as usize],
     rom_bank_n: [u8; ROM_BANK_N_SIZE as usize],
     external_ram: [u8; EXTERNAL_RAM_SIZE as usize],
@@ -64,7 +65,7 @@ pub struct Peripheral {
 impl Peripheral {
     pub fn new() -> Peripheral {
         Peripheral {
-            boot_rom: None,
+            boot_rom: BootRom::new(),
             rom_bank_0: [0xFF; ROM_BANK_0_SIZE as usize],
             rom_bank_n: [0xFF; ROM_BANK_N_SIZE as usize],
             external_ram: [0xFF; EXTERNAL_RAM_SIZE as usize],
@@ -76,12 +77,6 @@ impl Peripheral {
         }
     }
 
-    pub fn load(&mut self, boot_rom: &[u8]){
-        let mut rom_data = [0x00; BOOT_ROM_SIZE as usize];
-        rom_data.copy_from_slice(boot_rom);
-        self.boot_rom = Some(rom_data);
-    }
-
     pub fn run(&mut self, runned_cycles: u8) {
         // run the timer
         self.timer.run(runned_cycles, &mut self.nvic);
@@ -90,13 +85,17 @@ impl Peripheral {
         self.gpu.run(runned_cycles, &mut self.nvic);
     }
 
+    pub fn load_bootrom(&mut self, boot_rom: &[u8]){
+        self.boot_rom.load(boot_rom);
+    }
+
     pub fn read(&self, address: u16) -> u8 {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
                 match address {
                     BOOT_ROM_BEGIN..=BOOT_ROM_END => 
-                        if let Some(boot_rom) = self.boot_rom {
-                            boot_rom[address as usize]
+                        if self.boot_rom.get_state() {
+                            self.boot_rom.read(address)
                         } else {
                             self.rom_bank_0[address as usize]
                         }
@@ -212,10 +211,7 @@ impl Peripheral {
             0xFF49 => self.gpu.set_object_palette_1(data),
             0xFF4A => self.gpu.set_window_y(data),
             0xFF4B => self.gpu.set_window_x(data),
-            0xFF50 => {
-                // Unmap boot ROM
-                self.boot_rom = None;
-            }
+            0xFF50 => self.boot_rom.set_state(false),
             0xFF7f => {
                 // Writing to here does nothing
             }

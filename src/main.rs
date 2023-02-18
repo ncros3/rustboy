@@ -3,6 +3,7 @@ mod cpu;
 mod gpu;
 mod nvic;
 mod timer;
+mod bootrom;
 
 use minifb::{Key, Window, WindowOptions};
 use std::io::Read;
@@ -216,7 +217,7 @@ fn main() {
 
     // create the emulated system
     let mut cpu = Cpu::new();
-    cpu.peripheral.load(&BOOTROM);
+    cpu.peripheral.load_bootrom(&BOOTROM);
     
     // cpu.debug_set_break_point(0x0055);
 
