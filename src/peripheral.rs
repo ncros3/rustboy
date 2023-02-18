@@ -90,7 +90,7 @@ impl Peripheral {
         self.gpu.run(runned_cycles, &mut self.nvic);
     }
 
-    pub fn read_peripheral(&self, address: u16) -> u8 {
+    pub fn read(&self, address: u16) -> u8 {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
                 match address {
@@ -116,7 +116,7 @@ impl Peripheral {
         }
     }
 
-    pub fn write_peripheral(&mut self, address: u16, data: u8) {
+    pub fn write(&mut self, address: u16, data: u8) {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
                 self.rom_bank_0[address as usize] = data;
@@ -232,24 +232,24 @@ mod peripheral_tests {
     use super::*;
 
     #[test]
-    fn test_read_write_peripheral() {
+    fn test_read_write() {
         let mut peripheral = Peripheral::new();
-        peripheral.write_peripheral(0x0001, 0xAA);
-        peripheral.write_peripheral(0x0002, 0x55);
-        peripheral.write_peripheral(0x0010, 0xAA);
-        assert_eq!(peripheral.read_peripheral(0x0001), 0xAA);
-        assert_eq!(peripheral.read_peripheral(0x0002), 0x55);
-        assert_eq!(peripheral.read_peripheral(0x0010), 0xAA);
+        peripheral.write(0x0001, 0xAA);
+        peripheral.write(0x0002, 0x55);
+        peripheral.write(0x0010, 0xAA);
+        assert_eq!(peripheral.read(0x0001), 0xAA);
+        assert_eq!(peripheral.read(0x0002), 0x55);
+        assert_eq!(peripheral.read(0x0010), 0xAA);
     }
 
     #[test]
     fn test_read_write_vram() {
         let mut peripheral = Peripheral::new();
-        peripheral.write_peripheral(0x0001 + VRAM_BEGIN, 0xAA);
-        peripheral.write_peripheral(0x0002 + VRAM_BEGIN, 0x55);
-        peripheral.write_peripheral(0x0010 + VRAM_BEGIN, 0xAA);
-        assert_eq!(peripheral.read_peripheral(0x0001 + VRAM_BEGIN), 0xAA);
-        assert_eq!(peripheral.read_peripheral(0x0002 + VRAM_BEGIN), 0x55);
-        assert_eq!(peripheral.read_peripheral(0x0010 + VRAM_BEGIN), 0xAA);
+        peripheral.write(0x0001 + VRAM_BEGIN, 0xAA);
+        peripheral.write(0x0002 + VRAM_BEGIN, 0x55);
+        peripheral.write(0x0010 + VRAM_BEGIN, 0xAA);
+        assert_eq!(peripheral.read(0x0001 + VRAM_BEGIN), 0xAA);
+        assert_eq!(peripheral.read(0x0002 + VRAM_BEGIN), 0x55);
+        assert_eq!(peripheral.read(0x0010 + VRAM_BEGIN), 0xAA);
     }
 }
