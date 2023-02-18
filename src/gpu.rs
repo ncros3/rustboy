@@ -169,7 +169,7 @@ impl Gpu {
             vblank_interrupt_enabled: false,
             hblank_interrupt_enabled: false,
             line_compare_state: false,
-            mode: GpuMode::HorizontalBlank,
+            mode: GpuMode::OAMScan,
 
             viewport_y_offset: 0,
             viewport_x_offset: 0,
@@ -258,9 +258,8 @@ impl Gpu {
                     // we reached the end of the mode
                     if self.cycles >= HORIZONTAL_BLANK_CYCLES {
                         self.cycles = self.cycles % HORIZONTAL_BLANK_CYCLES;
-                    
                         // we detected the end of a line
-                        if self.current_line < SCREEN_HEIGHT as u8 {
+                        if self.current_line < (SCREEN_HEIGHT - 1) as u8 {
                             self.current_line += 1;
                             // run the compare line circuitry
                             self.compare_line(nvic);
@@ -299,7 +298,7 @@ impl Gpu {
                     if self.cycles >= VERTICAL_BLANK_CYCLES {
                         self.cycles = self.cycles % VERTICAL_BLANK_CYCLES;
                         // reset the line counter to draw a new frame
-                        self.current_line = 1;
+                        self.current_line = 0;
                         // reset the vblank line counter
                         self.vblank_line = 0;
                         // reset new mode flag
@@ -336,14 +335,14 @@ impl Gpu {
                 }
             }
         } else {
-            self.mode = GpuMode::HorizontalBlank;
+            self.mode = GpuMode::OAMScan;
         }
     }
 
 
     fn draw_line(&mut self) {
         if self.background_display_enabled {
-            let pixel_y_index: u8 = self.current_line - 1;
+            let pixel_y_index: u8 = self.current_line;
 
             for pixel_x_index in 0..SCREEN_WIDTH {
                 // compute the tile index in tile map
@@ -592,7 +591,7 @@ mod gpu_tests {
         gpu.background_display_enabled = true;
         gpu.background_tile_data_area = true;
         gpu.background_tile_map_area = TileMapArea::X9800;
-        gpu.current_line = 9; // first line of the second tile row
+        gpu.current_line = 8; // first line of the second tile row
 
         // init VRAM
         // here we're looking for tile at index 32 and 33
@@ -648,10 +647,10 @@ mod gpu_tests {
         gpu.write_vram(0x1A01, 0x81);
 
         // draw the line in the frame buffer
-        gpu.current_line = 9; // first line of the second tile row -> line 9
+        gpu.current_line = 8; // first line of the second tile row -> line 9
         gpu.draw_line();
 
-        gpu.current_line = 129; // first line of the 16th tile row -> line 129
+        gpu.current_line = 128; // first line of the 16th tile row -> line 129
         gpu.draw_line();
 
         // check frame buffer
@@ -671,7 +670,7 @@ mod gpu_tests {
         gpu.background_display_enabled = true;
         gpu.background_tile_data_area = true;
         gpu.background_tile_map_area = TileMapArea::X9800;
-        gpu.current_line = 9; // first line of the second tile row
+        gpu.current_line = 8; // first line of the second tile row
 
         // init VRAM
         // here we're looking for tile at index 32 and 33
@@ -718,7 +717,7 @@ mod gpu_tests {
         // scroll on y axis and draw the line
         gpu.viewport_y_offset = 1;
         gpu.viewport_x_offset = 0;
-        gpu.current_line = 8; // line 8 now corresponds to line 9
+        gpu.current_line = 7; // line 8 now corresponds to line 9
         gpu.draw_line();
 
         // check frame buffer
@@ -729,7 +728,7 @@ mod gpu_tests {
         // scroll on x axis and draw the line
         gpu.viewport_y_offset = 0;
         gpu.viewport_x_offset = 1;
-        gpu.current_line = 9;
+        gpu.current_line = 8;
         gpu.draw_line();
 
         // check frame buffer
@@ -765,7 +764,7 @@ mod gpu_tests {
         gpu.write_vram(0x1A01, 0x20);
 
         // draw the line in the frame buffer
-        while gpu.current_line < (SCREEN_HEIGHT - 1) as u8 {
+        while gpu.current_line < SCREEN_HEIGHT as u8 {
             gpu.run(1, &mut nvic);
         }
 
@@ -794,7 +793,7 @@ mod gpu_tests {
         let mut runned_cycles: u32 = 0;
 
         // run GPU
-        while runned_cycles < ((SCREEN_HEIGHT + 1) * (ONE_LINE_CYCLES as usize)) as u32 {
+        while runned_cycles < (SCREEN_HEIGHT * (ONE_LINE_CYCLES as usize) + 1) as u32 {
             gpu.run(1, &mut nvic);
             runned_cycles += 1;
         }
@@ -819,7 +818,18 @@ mod gpu_tests {
         let mut runned_cycles: u32 = 0;
 
         // run GPU
-        while runned_cycles < HORIZONTAL_BLANK_CYCLES as u32 {
+        while runned_cycles < (OAM_SCAN_CYCLES + DRAW_PIXEL_CYCLES + 1) as u32 {
+            gpu.run(1, &mut nvic);
+            runned_cycles += 1;
+        }
+
+        // check that we are in vblank mode and vblank interrupt has been asserted
+        assert_eq!(gpu.mode, GpuMode::HorizontalBlank);
+        assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
+
+        // run GPU
+        runned_cycles = 0;
+        while runned_cycles < (HORIZONTAL_BLANK_CYCLES) as u32 {
             gpu.run(1, &mut nvic);
             runned_cycles += 1;
         }
@@ -828,17 +838,6 @@ mod gpu_tests {
         assert_eq!(gpu.mode, GpuMode::OAMScan);
         assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
         assert_eq!(nvic.get_interrupt(), None);
-
-        // run GPU
-        runned_cycles = 0;
-        while runned_cycles < (OAM_SCAN_CYCLES + DRAW_PIXEL_CYCLES) as u32 {
-            gpu.run(1, &mut nvic);
-            runned_cycles += 1;
-        }
-
-        // check that we are in vblank mode and vblank interrupt has been asserted
-        assert_eq!(gpu.mode, GpuMode::HorizontalBlank);
-        assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
     }
 
     #[test]
@@ -874,7 +873,7 @@ mod gpu_tests {
         nvic.master_enable(true);
         nvic.enable_interrupt(InterruptSources::STAT, true);
         gpu.line_compare_it_enable = true;
-        gpu.compare_line = 3;
+        gpu.compare_line = 2;
         gpu.lcd_display_enabled = true;
 
         assert_eq!(gpu.line_compare_state, false);
@@ -888,7 +887,7 @@ mod gpu_tests {
         }
 
         // check that we are in vblank mode and vblank interrupt has been asserted
-        assert_eq!(gpu.current_line, 3);
+        assert_eq!(gpu.current_line, 2);
         assert_eq!(gpu.line_compare_state, true);
         assert_eq!(nvic.get_interrupt().unwrap(), InterruptSources::STAT);
     }

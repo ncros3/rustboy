@@ -795,15 +795,16 @@ impl Cpu {
                 // fetch instruction
                 let instruction_byte = self.bus.read_bus(self.pc);
                 // decode instruction
-                let (next_pc, runned_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
+                let (next_pc, add_cpu_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
                     // execute instruction
                     self.execute(instruction)
                 } else {
                     panic!("Unknown instruction found for 0x{:x}", instruction_byte);
                 };
-    
-                // update PC value
+                
+                // update PC value & cycles value
                 self.pc = next_pc;
+                runned_cycles = add_cpu_cycles;
     
                 // run the bus subsystem
                 self.bus.run(runned_cycles);
