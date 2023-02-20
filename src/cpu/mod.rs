@@ -1185,10 +1185,10 @@ impl Cpu {
         if flag {
             // manage signed value to add to PC
             if immediate >= 0 {
-                (self.pc.wrapping_add(immediate as u16), RUN_3_CYCLES)
+                (self.pc.wrapping_add(2).wrapping_add(immediate as u16), RUN_3_CYCLES)
             } else {
                 // using wrapping_sub() implies to convert immediate to absolute value
-                (self.pc.wrapping_sub(immediate.abs() as u16), RUN_3_CYCLES)
+                (self.pc.wrapping_add(2).wrapping_sub(immediate.abs() as u16), RUN_3_CYCLES)
             }
         } else {
             (self.pc.wrapping_add(2), RUN_2_CYCLES)
@@ -1868,7 +1868,7 @@ mod cpu_tests {
         cpu.run();
         assert_eq!(
             cpu.peripheral.read(cpu.pc),
-            cpu.peripheral.read(base_address + (jump as u16))
+            cpu.peripheral.read(base_address + (jump as u16) + 2)
         );
 
         // reset CPU and run it with the flag, we don't do the jump
@@ -1900,7 +1900,7 @@ mod cpu_tests {
         cpu.run();
         assert_eq!(
             cpu.peripheral.read(cpu.pc),
-            cpu.peripheral.read(base_address + (jump as u16))
+            cpu.peripheral.read(base_address + (jump as u16) + 2)
         );
 
         // reset CPU and run it with the flag, we don't do the jump
@@ -1931,7 +1931,7 @@ mod cpu_tests {
         cpu.run();
         assert_eq!(
             cpu.peripheral.read(cpu.pc),
-            cpu.peripheral.read(base_address + (jump as u16))
+            cpu.peripheral.read(base_address + (jump as u16) + 2)
         );
     }
 
