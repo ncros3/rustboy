@@ -228,8 +228,7 @@ fn main() {
 fn emulator_run(cpu: &mut Cpu) {
     let mut buffer = [0; SCREEN_HEIGHT * SCREEN_WIDTH];
     let mut cycles_elapsed_in_frame = 0usize;
-    let mut emulator_time_start = Instant::now();
-    let mut emulator_time_elapsed_in_frame = 0;
+    let mut emulator_frame_tick = Instant::now();
     let mut emulator_state = EmulatorState::GetTime;
 
     let mut window = Window::new(
@@ -243,7 +242,7 @@ fn emulator_run(cpu: &mut Cpu) {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         match emulator_state {
             EmulatorState::GetTime => {
-                emulator_time_start = Instant::now();
+                emulator_frame_tick = Instant::now();
 
                 emulator_state = EmulatorState::RunMachine;
             }
@@ -256,9 +255,8 @@ fn emulator_run(cpu: &mut Cpu) {
                 }
             }
             EmulatorState::WaitNextFrame => {
-                emulator_time_elapsed_in_frame = emulator_time_start.elapsed().as_nanos();
                 // check if 16,742706 ms have passed during this frame
-                if emulator_time_elapsed_in_frame >= ONE_FRAME_IN_NS as u128{
+                if emulator_frame_tick.elapsed().as_nanos() >= ONE_FRAME_IN_NS as u128{
                     emulator_state = EmulatorState::DisplayFrame;
                 }
             }

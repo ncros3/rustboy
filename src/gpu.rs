@@ -217,7 +217,7 @@ impl Gpu {
         }
     }
 
-    fn read_oam(&self, address: usize) -> u8 {
+    pub fn read_oam(&self, address: usize) -> u8 {
         self.oam[address]
     }
 
@@ -230,15 +230,15 @@ impl Gpu {
         }
     }
 
-    fn write_oam(&mut self, index: usize, data: u8) {
-        self.oam[index] = data;
+    pub fn write_oam(&mut self, address: usize, data: u8) {         
+        self.oam[address] = data;
     }
 
-    pub fn write_oam_ext(&mut self, index: usize, data: u8) {
+    pub fn write_oam_ext(&mut self, address: usize, data: u8) {
         if (self.mode == GpuMode::DrawPixel) ||  (self.mode == GpuMode::OAMScan) {
             // ignore write command
         } else {
-            self.write_oam(index, data);
+            self.write_oam(address, data);
         }
     }
 

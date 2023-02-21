@@ -50,6 +50,8 @@ pub const VBLANK_VECTOR: u16 = 0x40;
 pub const LCDSTAT_VECTOR: u16 = 0x48;
 pub const TIMER_VECTOR: u16 = 0x50;
 
+const DMA_CYCLES: u8 = 160;
+
 pub struct Peripheral {
     boot_rom: BootRom,
     rom_bank_0: [u8; ROM_BANK_0_SIZE as usize],
@@ -60,6 +62,10 @@ pub struct Peripheral {
     pub gpu: Gpu,
     pub nvic: Nvic,
     timer: Timer,
+    // dma
+    dma_cycles: u8,
+    dma_start_adress: u16,
+    dma_enabled: bool,
 }
 
 impl Peripheral {
@@ -74,12 +80,31 @@ impl Peripheral {
             gpu: Gpu::new(),
             nvic: Nvic::new(),
             timer: Timer::new(),
+            dma_cycles: 0,
+            dma_start_adress: 0xFFFF,
+            dma_enabled: false,
         }
     }
 
     pub fn run(&mut self, runned_cycles: u8) {
         // run the timer
         self.timer.run(runned_cycles, &mut self.nvic);
+
+        // run the DMA
+        if self.dma_enabled {
+            self.dma_cycles += runned_cycles;
+
+            if self.dma_cycles >= DMA_CYCLES {
+                // copy data to memory
+                for mem_index in 0..OAM_SIZE {
+                    let data = self.read(self.dma_start_adress + mem_index);
+                    self.gpu.write_oam(mem_index as usize, data);
+                }
+                // disable dma
+                self.dma_enabled = false;
+                self.dma_cycles = 0;
+            }
+        }
 
         // run the GPU 
         self.gpu.run(runned_cycles, &mut self.nvic);
@@ -203,8 +228,8 @@ impl Peripheral {
             0xFF43 => self.gpu.set_scx(data),
             0xFF45 => self.gpu.set_compare_line(data),
             0xFF46 => {
-                // TODO: account for the fact this takes 160 microseconds
-                // TODO implement DMA
+                self.dma_start_adress = (data as u16) << 8;
+                self.dma_enabled = true;
             }
             0xFF47 => self.gpu.set_background_palette(data),
             0xFF48 => self.gpu.set_object_palette_0(data),
@@ -247,5 +272,28 @@ mod peripheral_tests {
         assert_eq!(peripheral.read(0x0001 + VRAM_BEGIN), 0xAA);
         assert_eq!(peripheral.read(0x0002 + VRAM_BEGIN), 0x55);
         assert_eq!(peripheral.read(0x0010 + VRAM_BEGIN), 0xAA);
+    }
+
+    #[test]
+    fn test_oam_dma() {
+        let mut peripheral = Peripheral::new();
+        let address = 0x1000;
+        // init data
+        peripheral.write(address, 0xAA);
+        peripheral.write(address + 0x007F, 0xAA);
+        peripheral.write(address + 0x009F, 0x55);
+
+        // set dma
+        peripheral.write(0xFF46, (0x1000 >> 8) as u8);
+
+        // run peripheral for 160 cycles
+        for _ in 0..DMA_CYCLES {
+            peripheral.run(1);
+        }
+
+        // check oam memory
+        assert_eq!(peripheral.gpu.read_oam(0x00), 0xAA);
+        assert_eq!(peripheral.gpu.read_oam(0x7F), 0xAA);
+        assert_eq!(peripheral.gpu.read_oam(0x9F), 0x55);
     }
 }
