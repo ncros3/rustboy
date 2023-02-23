@@ -334,8 +334,6 @@ impl Gpu {
                     }
                 }
             }
-        } else {
-            self.mode = GpuMode::OAMScan;
         }
     }
 
