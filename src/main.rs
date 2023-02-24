@@ -12,6 +12,8 @@ use std::time::Instant;
 use cpu::Cpu;
 use gpu::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
+use crate::peripheral::Peripheral;
+
 // Window parameters
 const SCALE_FACTOR: usize = 3;
 const WINDOW_DIMENSIONS: [usize; 2] = [(SCREEN_WIDTH * SCALE_FACTOR), (SCREEN_HEIGHT * SCALE_FACTOR)];
@@ -216,6 +218,7 @@ const BOOTROM: [u8; 256] = [
 fn main() {
     // create the emulated system
     let mut cpu = Cpu::new();
+    let mut peripheral = Peripheral::new();
 
     // let mut file = File::open("../gb-test-roms/cpu_instrs/cpu_instrs.gb").unwrap();
     let mut file = File::open("../dmg_boot.bin").unwrap();
@@ -227,15 +230,15 @@ fn main() {
     rom_file.read_exact(&mut rom_data);
     println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
 
-    cpu.peripheral.load_bootrom(&bin_data);
-    cpu.peripheral.load_rom(&rom_data);
+    peripheral.load_bootrom(&bin_data);
+    peripheral.load_rom(&rom_data);
 
 
     // run the emulator
-    emulator_run(&mut cpu);
+    emulator_run(&mut cpu, &mut peripheral);
 }
 
-fn emulator_run(cpu: &mut Cpu) {
+fn emulator_run(cpu: &mut Cpu, peripheral: &mut Peripheral) {
     let mut buffer = [0; SCREEN_HEIGHT * SCREEN_WIDTH];
     let mut cycles_elapsed_in_frame = 0usize;
     let mut emulator_frame_tick = Instant::now();
@@ -257,7 +260,8 @@ fn emulator_run(cpu: &mut Cpu) {
                 emulator_state = EmulatorState::RunMachine;
             }
             EmulatorState::RunMachine => {
-                cycles_elapsed_in_frame += cpu.run() as usize;
+                let cycles = cpu.run(peripheral);
+                cycles_elapsed_in_frame += cycles as usize;
 
                 if cycles_elapsed_in_frame >= ONE_FRAME_IN_CYCLES {
                     cycles_elapsed_in_frame = 0;
@@ -274,9 +278,9 @@ fn emulator_run(cpu: &mut Cpu) {
                 // copy the current frame from gpu frame buffer
                 for i in 0..SCREEN_HEIGHT * SCREEN_WIDTH {
                     buffer[i] =  255 << 24
-                                | (cpu.peripheral.gpu.frame_buffer[i] as u32) << 16
-                                | (cpu.peripheral.gpu.frame_buffer[i] as u32) << 8
-                                | (cpu.peripheral.gpu.frame_buffer[i] as u32) << 0;
+                                | (peripheral.gpu.frame_buffer[i] as u32) << 16
+                                | (peripheral.gpu.frame_buffer[i] as u32) << 8
+                                | (peripheral.gpu.frame_buffer[i] as u32) << 0;
                 }
                 // display the frame rendered by the gpu
                 window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
