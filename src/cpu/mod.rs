@@ -1159,11 +1159,9 @@ impl Cpu {
 
     fn jump_immediate(&mut self, flag: bool) -> (u16, u8) {
         // get the immediate from memory
-        let first_immediate_address = self.pc.wrapping_add(1);
-        let low_immediate = self.peripheral.read(first_immediate_address);
-        let second_immediate_address = self.pc.wrapping_add(2);
-        let high_immediate = self.peripheral.read(second_immediate_address);
-        let immediate = ((high_immediate as u16) << 8) | (low_immediate as u16);
+        let low_immediate = self.peripheral.read(self.pc.wrapping_add(1)) as u16;
+        let high_immediate = self.peripheral.read(self.pc.wrapping_add(2)) as u16;
+        let immediate = (high_immediate << 8) | low_immediate;
 
         // do the jump following the flag value
         if flag {
