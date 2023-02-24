@@ -885,15 +885,9 @@ impl Cpu {
 
             // Rotate, Shift & Swap instructions
             Instruction::RCA(direction) => (rotate_register!(a, self.rotate, direction, false), RUN_1_CYCLE),
-            Instruction::RA(direction) => ({
-                rotate_register!(a, self.rotate_through_carry, direction, false)
-            }, RUN_1_CYCLE),
-            Instruction::RC(direction, target) => {
-                rotate_from_register!(target, self.rotate, direction)
-            }
-            Instruction::R(direction, target) => {
-                rotate_from_register!(target, self.rotate_through_carry, direction)
-            }
+            Instruction::RA(direction) => (rotate_register!(a, self.rotate_through_carry, direction, false), RUN_1_CYCLE),
+            Instruction::RC(direction, target) => rotate_from_register!(target, self.rotate, direction),
+            Instruction::R(direction, target) => rotate_from_register!(target, self.rotate_through_carry, direction),
             Instruction::SLA(target) => shift!(target, self.shift_left_and_reset),
             Instruction::SRA(target) => shift!(target, self.shift_right),
             Instruction::SRL(target) => shift!(target, self.shift_right_and_reset),
