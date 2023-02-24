@@ -749,8 +749,6 @@ impl Cpu {
     }
 
     pub fn run(&mut self) -> u8 {
-        let mut runned_cycles: u8  = 0;
-    
         // catch interrupt as soon as possible
         if self.peripheral.nvic.is_an_interrupt_to_run() {
             self.mode = CpuMode::INTERRUPT;
@@ -763,7 +761,7 @@ impl Cpu {
                 // fetch instruction
                 let instruction_byte = self.peripheral.read(self.pc);
                 // decode instruction
-                let (next_pc, add_cpu_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
+                let (next_pc, cpu_cycles) = if let Some(instruction) = self.decode(instruction_byte) {
                     // execute instruction
                     self.execute(instruction)
                 } else {
@@ -772,10 +770,11 @@ impl Cpu {
 
                 // update PC value & cycles value
                 self.pc = next_pc;
-                runned_cycles = add_cpu_cycles;
     
                 // run the peripheral subsystem
-                self.peripheral.run(runned_cycles);
+                self.peripheral.run(cpu_cycles);
+
+                cpu_cycles
             }
     
             CpuMode::INTERRUPT => {
@@ -788,34 +787,34 @@ impl Cpu {
                     // jump to interrupt routine
                     self.jump_to_interrupt_routine(interrupt_source);
                     // 2 NOP (2 cycles) + PUSH (2 cycles) + set PC (1 cycle)
-                    runned_cycles = RUN_5_CYCLES;
 
                     // run the peripheral subsystem
-                    self.peripheral.run(runned_cycles);
+                    self.peripheral.run(RUN_5_CYCLES);
+
+                    RUN_5_CYCLES
                 } else {
                     panic!("An interrupt has been triggered but no interrupt source has been found !")
                 }
             }
     
             CpuMode::HALT => {
-                // oscillator and LCD controller are not stopped in HALT mode
-                runned_cycles = RUN_1_CYCLE;
                 // exit HALT mode if an interrupt is pending
                 if self.peripheral.nvic.is_an_interrupt_pending() {
                     self.mode = CpuMode::RUN
                 }
     
+                // oscillator and LCD controller are not stopped in HALT mode
                 // run the peripheral subsystem
-                self.peripheral.run(runned_cycles);
+                self.peripheral.run(RUN_1_CYCLE);
+
+                RUN_1_CYCLE
             }
     
             CpuMode::STOP => {
                 // all system is stopped
+                0
             }
         }
-    
-        // return runned cycles
-        runned_cycles
     }
 
     fn jump_to_interrupt_routine(&mut self, interrupt_source: InterruptSources) {
