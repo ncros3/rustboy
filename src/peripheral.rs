@@ -115,6 +115,17 @@ impl Peripheral {
         self.boot_rom.load(boot_rom);
     }
 
+    pub fn load_rom(&mut self, rom: &[u8]){
+        // copy bank 0 data
+        for rom_index in 0..ROM_BANK_0_SIZE {
+            self.rom_bank_0[rom_index as usize] = rom[rom_index as usize];
+        }
+        // copy bank n data
+        for rom_index in 0..ROM_BANK_N_SIZE {
+            self.rom_bank_n[rom_index as usize] = rom[(ROM_BANK_N_BEGIN + rom_index) as usize];
+        }
+    }
+
     pub fn read(&self, address: u16) -> u8 {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
