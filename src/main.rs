@@ -5,7 +5,7 @@ use std::{fs::File, io::Read};
 use std::time::Instant;
 
 use soc::Soc;
-use soc::gpu::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use soc::peripheral::gpu::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // Window parameters
 const SCALE_FACTOR: usize = 3;

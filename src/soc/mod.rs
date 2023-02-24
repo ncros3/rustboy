@@ -1,9 +1,5 @@
-mod peripheral;
+pub mod peripheral;
 mod cpu;
-pub mod gpu;
-mod nvic;
-mod timer;
-mod bootrom;
 
 use cpu::Cpu;
 use peripheral::Peripheral;

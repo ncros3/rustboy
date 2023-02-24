@@ -1,5 +1,5 @@
 use crate::soc::peripheral::{VRAM_BEGIN, VRAM_SIZE, OAM_SIZE};
-use crate::soc::nvic::{Nvic, InterruptSources};
+use crate::soc::peripheral::nvic::{Nvic, InterruptSources};
 
 const OBJECT_X_OFFSET: i16 = -8;
 const OBJECT_Y_OFFSET: i16 = -16;
