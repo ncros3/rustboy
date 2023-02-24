@@ -50,8 +50,6 @@ pub const VBLANK_VECTOR: u16 = 0x40;
 pub const LCDSTAT_VECTOR: u16 = 0x48;
 pub const TIMER_VECTOR: u16 = 0x50;
 
-const DMA_CYCLES: u8 = 160;
-
 pub struct Peripheral {
     boot_rom: BootRom,
     rom_bank_0: [u8; ROM_BANK_0_SIZE as usize],
@@ -92,14 +90,17 @@ impl Peripheral {
 
         // run the DMA
         if self.dma_enabled {
-            self.dma_cycles += runned_cycles;
-
-            if self.dma_cycles >= DMA_CYCLES {
-                // copy data to memory
-                for mem_index in 0..OAM_SIZE {
-                    let data = self.read(self.dma_start_adress + mem_index);
-                    self.gpu.write_oam(mem_index as usize, data);
+            // copy data
+            for mem_index in 0..runned_cycles {
+                if self.dma_cycles < OAM_SIZE as u8 {
+                    let data = self.read(self.dma_start_adress + (self.dma_cycles + mem_index) as u16);
+                    self.gpu.write_oam((mem_index + self.dma_cycles) as usize, data);
                 }
+            }
+            // update internal timer
+            self.dma_cycles += runned_cycles;
+            // check if we reached the end of the dma transfert
+            if self.dma_cycles >= OAM_SIZE as u8{
                 // disable dma
                 self.dma_enabled = false;
                 self.dma_cycles = 0;
@@ -112,6 +113,17 @@ impl Peripheral {
 
     pub fn load_bootrom(&mut self, boot_rom: &[u8]){
         self.boot_rom.load(boot_rom);
+    }
+
+    pub fn load_rom(&mut self, rom: &[u8]){
+        // copy bank 0 data
+        for rom_index in 0..ROM_BANK_0_SIZE {
+            self.rom_bank_0[rom_index as usize] = rom[rom_index as usize];
+        }
+        // copy bank n data
+        for rom_index in 0..ROM_BANK_N_SIZE {
+            self.rom_bank_n[rom_index as usize] = rom[(ROM_BANK_N_BEGIN + rom_index) as usize];
+        }
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -287,7 +299,7 @@ mod peripheral_tests {
         peripheral.write(0xFF46, (0x1000 >> 8) as u8);
 
         // run peripheral for 160 cycles
-        for _ in 0..DMA_CYCLES {
+        for _ in 0..OAM_SIZE {
             peripheral.run(1);
         }
 

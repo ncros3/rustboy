@@ -6,7 +6,7 @@ mod timer;
 mod bootrom;
 
 use minifb::{Key, Window, WindowOptions};
-use std::io::Read;
+use std::{fs::File, io::Read};
 use std::time::Instant;
 
 use cpu::Cpu;
@@ -214,12 +214,22 @@ const BOOTROM: [u8; 256] = [
 ];
 
 fn main() {
-
     // create the emulated system
     let mut cpu = Cpu::new();
-    cpu.peripheral.load_bootrom(&BOOTROM);
-    
-    // cpu.debug_set_break_point(0x0055);
+
+    // let mut file = File::open("../gb-test-roms/cpu_instrs/cpu_instrs.gb").unwrap();
+    let mut file = File::open("../dmg_boot.bin").unwrap();
+    let mut bin_data = [0xFF as u8; 256];
+    file.read_exact(&mut bin_data);
+
+    let mut rom_file = File::open("../gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb").unwrap();
+    let mut rom_data = [0xFF as u8; 32768];
+    rom_file.read_exact(&mut rom_data);
+    println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
+
+    cpu.peripheral.load_bootrom(&bin_data);
+    cpu.peripheral.load_rom(&rom_data);
+
 
     // run the emulator
     emulator_run(&mut cpu);
