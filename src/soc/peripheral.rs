@@ -1,7 +1,7 @@
-use crate::gpu::Gpu;
-use crate::nvic::Nvic;
-use crate::timer::Timer;
-use crate::bootrom::BootRom;
+use crate::soc::gpu::Gpu;
+use crate::soc::nvic::Nvic;
+use crate::soc::timer::Timer;
+use crate::soc::bootrom::BootRom;
 
 pub const BOOT_ROM_BEGIN: u16 = 0x0000;
 pub const BOOT_ROM_END: u16 = 0x00FF;

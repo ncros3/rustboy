@@ -7,8 +7,8 @@ use instruction::{
 };
 use register::Registers;
 
-use crate::peripheral::{Peripheral, VBLANK_VECTOR, LCDSTAT_VECTOR, TIMER_VECTOR, self};
-use crate::nvic::InterruptSources;
+use crate::soc::peripheral::{Peripheral, VBLANK_VECTOR, LCDSTAT_VECTOR, TIMER_VECTOR, self};
+use crate::soc::nvic::InterruptSources;
 
 const RUN_0_CYCLE: u8 = 0;
 const RUN_1_CYCLE: u8 = 1;
@@ -1471,12 +1471,12 @@ impl Cpu {
 #[cfg(test)]
 mod cpu_tests {
     use super::*;
-    use crate::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
-    use crate::cpu::instruction::Instruction::{
+    use crate::soc::cpu::instruction::ArithmeticTarget::{B, C, D, D8, E, H, HL};
+    use crate::soc::cpu::instruction::Instruction::{
         ADD, ADD16, ADDC, AND, CP, DEC, DEC16, DI, EI, INC, INC16, LOAD, LOAD_IMMEDIATE,
         LOAD_INDIRECT, LOAD_SP, OR, POP, PUSH, RESET, RETI, RETURN, SBC, STORE_INDIRECT, SUB, XOR,
     };
-    use crate::cpu::instruction::{
+    use crate::soc::cpu::instruction::{
         IncDecTarget, JumpTarget, Load16Target, PopPushTarget, ResetTarget, SPTarget, U16Target,
     };
 

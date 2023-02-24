@@ -1,4 +1,4 @@
-use crate::peripheral::BOOT_ROM_SIZE;
+use crate::soc::peripheral::BOOT_ROM_SIZE;
 
 pub struct BootRom {
     rom: [u8; BOOT_ROM_SIZE as usize],
