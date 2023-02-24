@@ -1187,7 +1187,7 @@ impl Cpu {
         // read data from RAM memory
         let low_byte = self.peripheral.read(low_stack_address) as u16;
         let high_byte = self.peripheral.read(high_stack_address) as u16;
-        low_byte + (high_byte << 8)
+        low_byte | (high_byte << 8)
     }
 
     fn push(&mut self, push_data: u16) {
@@ -1232,16 +1232,18 @@ impl Cpu {
     }
 
     fn call(&mut self, flag: bool) -> (u16, u8) {
-        // save the return address on the stack
-        self.push(self.pc.wrapping_add(3));
-        // get the call address
-        let low_byte_address = self.peripheral.read(self.pc.wrapping_add(1));
-        let high_byte_address = self.peripheral.read(self.pc.wrapping_add(2));
-        let call_address = (low_byte_address as u16) + ((high_byte_address as u16) << 8);
         // do the call following the flag value
         if flag {
+            // save the return address on the stack
+            self.push(self.pc.wrapping_add(3));
+            // get the call address
+            let low_byte_address = self.peripheral.read(self.pc.wrapping_add(1)) as u16;
+            let high_byte_address = self.peripheral.read(self.pc.wrapping_add(2)) as u16;
+            let call_address = low_byte_address | (high_byte_address << 8);
+            // return the call address
             (call_address, RUN_6_CYCLES)
         } else {
+            // go to the next instruction
             (self.pc.wrapping_add(3), RUN_3_CYCLES)
         }
     }
