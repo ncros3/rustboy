@@ -7,7 +7,7 @@ use instruction::{
 };
 use register::Registers;
 
-use crate::soc::peripheral::{Peripheral, VBLANK_VECTOR, LCDSTAT_VECTOR, TIMER_VECTOR, self};
+use crate::soc::peripheral::{Peripheral, VBLANK_VECTOR, LCDSTAT_VECTOR, TIMER_VECTOR};
 use crate::soc::peripheral::nvic::InterruptSources;
 
 const RUN_0_CYCLE: u8 = 0;
