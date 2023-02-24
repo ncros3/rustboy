@@ -726,8 +726,6 @@ pub struct Cpu {
     sp: u16,
     pub peripheral: Peripheral,
     mode: CpuMode,
-    debug: bool,
-    break_point: Option<u16>,
 }
 
 impl Cpu {
@@ -738,32 +736,6 @@ impl Cpu {
             sp: 0x0000,
             peripheral: Peripheral::new(),
             mode: CpuMode::RUN,
-            debug: false,
-            break_point: None,
-        }
-    }
-
-    fn debug_active(&self) -> bool {
-        self.debug
-    }
-
-    pub fn debug_set_break_point(&mut self, break_point: u16) {
-        self.debug = true;
-        self.break_point = Some(break_point);
-    }
-
-    fn debug_run(&self) {
-        // panic if break point is set on this address
-        if let Some(break_point) = self.break_point {
-            if break_point == self.pc {
-                println!("Cpu stopped at break point 0x{:06x}", self.pc);
-
-                println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", self.peripheral.read(self.pc), self.pc, self.sp);
-                println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", self.registers.read_bc(), self.registers.read_af(), self.registers.read_de(), self.registers.read_hl());
-                println!();
-
-                panic!("break point reached");
-            }
         }
     }
 
@@ -778,10 +750,6 @@ impl Cpu {
 
     pub fn run(&mut self) -> u8 {
         let mut runned_cycles: u8  = 0;
-        // manage debug 
-        if self.debug_active() {
-            self.debug_run();
-        }
     
         // catch interrupt as soon as possible
         if self.peripheral.nvic.is_an_interrupt_to_run() {
