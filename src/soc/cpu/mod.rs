@@ -770,8 +770,6 @@ impl Cpu {
                 self.pc = next_pc;
     
                 // run the peripheral subsystem
-                peripheral.run(cpu_cycles);
-
                 cpu_cycles
             }
     
@@ -787,8 +785,6 @@ impl Cpu {
                     // 2 NOP (2 cycles) + PUSH (2 cycles) + set PC (1 cycle)
 
                     // run the peripheral subsystem
-                    peripheral.run(RUN_5_CYCLES);
-
                     RUN_5_CYCLES
                 } else {
                     panic!("An interrupt has been triggered but no interrupt source has been found !")
@@ -803,8 +799,6 @@ impl Cpu {
     
                 // oscillator and LCD controller are not stopped in HALT mode
                 // run the peripheral subsystem
-                peripheral.run(RUN_1_CYCLE);
-
                 RUN_1_CYCLE
             }
     
