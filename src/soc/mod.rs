@@ -24,4 +24,9 @@ impl Soc {
 
         cycles
     }
+
+    pub fn load(&mut self, boot_rom: &[u8], rom: &[u8]) {
+        self.peripheral.load_bootrom(boot_rom);
+        self.peripheral.load_rom(rom);
+    }
 }

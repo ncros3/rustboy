@@ -25,9 +25,6 @@ enum EmulatorState {
 }
 
 fn main() {
-    // create the emulated system
-    let mut soc = Soc::new();
-
     // let mut file = File::open("../gb-test-roms/cpu_instrs/cpu_instrs.gb").unwrap();
     let mut file = File::open("../dmg_boot.bin").unwrap();
     let mut bin_data = [0xFF as u8; 256];
@@ -38,9 +35,9 @@ fn main() {
     rom_file.read_exact(&mut rom_data);
     println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
 
-    soc.peripheral.load_bootrom(&bin_data);
-    soc.peripheral.load_rom(&rom_data);
-
+    // create the emulated system
+    let mut soc = Soc::new();
+    soc.load(&bin_data, &rom_data);
 
     // run the emulator
     emulator_run(&mut soc);
