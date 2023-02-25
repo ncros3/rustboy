@@ -1,4 +1,4 @@
-use crate::nvic::{Nvic, InterruptSources};
+use crate::soc::peripheral::nvic::{Nvic, InterruptSources};
 
 pub enum Frequency {
     F4096,
