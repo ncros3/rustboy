@@ -1,4 +1,4 @@
-pub mod peripheral;
+mod peripheral;
 mod cpu;
 
 use cpu::Cpu;
@@ -28,5 +28,9 @@ impl Soc {
     pub fn load(&mut self, boot_rom: &[u8], rom: &[u8]) {
         self.peripheral.load_bootrom(boot_rom);
         self.peripheral.load_rom(rom);
+    }
+
+    pub fn get_frame_buffer(&self, pixel_index: usize) -> u8 {
+        self.peripheral.gpu.frame_buffer[pixel_index]
     }
 }

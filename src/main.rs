@@ -5,10 +5,11 @@ use std::{fs::File, io::Read};
 use std::time::Instant;
 
 use soc::Soc;
-use soc::peripheral::gpu::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // Window parameters
 const SCALE_FACTOR: usize = 3;
+const SCREEN_HEIGHT: usize = 144;
+const SCREEN_WIDTH: usize = 160;
 const WINDOW_DIMENSIONS: [usize; 2] = [(SCREEN_WIDTH * SCALE_FACTOR), (SCREEN_HEIGHT * SCALE_FACTOR)];
 
 // system parameters
@@ -82,9 +83,9 @@ fn emulator_run(soc: &mut Soc) {
                 // copy the current frame from gpu frame buffer
                 for i in 0..SCREEN_HEIGHT * SCREEN_WIDTH {
                     buffer[i] =  255 << 24
-                                | (soc.peripheral.gpu.frame_buffer[i] as u32) << 16
-                                | (soc.peripheral.gpu.frame_buffer[i] as u32) << 8
-                                | (soc.peripheral.gpu.frame_buffer[i] as u32) << 0;
+                                | (soc.get_frame_buffer(i) as u32) << 16
+                                | (soc.get_frame_buffer(i) as u32) << 8
+                                | (soc.get_frame_buffer(i) as u32) << 0;
                 }
                 // display the frame rendered by the gpu
                 window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
