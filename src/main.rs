@@ -1,29 +1,14 @@
+mod emulator;
 mod soc;
 
 use minifb::{Key, Window, WindowOptions};
 use std::{fs::File, io::Read};
-use std::time::Instant;
 
-use soc::Soc;
+use crate::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // Window parameters
 const SCALE_FACTOR: usize = 3;
-const SCREEN_HEIGHT: usize = 144;
-const SCREEN_WIDTH: usize = 160;
 const WINDOW_DIMENSIONS: [usize; 2] = [(SCREEN_WIDTH * SCALE_FACTOR), (SCREEN_HEIGHT * SCALE_FACTOR)];
-
-// system parameters
-const ONE_SECOND_IN_MICROS: usize = 1000000000;
-const ONE_SECOND_IN_CYCLES: usize = 4194304;
-const ONE_FRAME_IN_CYCLES: usize = 70224;
-const ONE_FRAME_IN_NS: usize = ONE_FRAME_IN_CYCLES * ONE_SECOND_IN_MICROS / ONE_SECOND_IN_CYCLES;
-
-enum EmulatorState {
-    GetTime,
-    RunMachine,
-    WaitNextFrame,
-    DisplayFrame
-}
 
 fn main() {
     // let mut file = File::open("../gb-test-roms/cpu_instrs/cpu_instrs.gb").unwrap();
@@ -37,18 +22,14 @@ fn main() {
     println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
 
     // create the emulated system
-    let mut soc = Soc::new();
-    soc.load(&bin_data, &rom_data);
+    let mut emulator = Emulator::new(&bin_data, &rom_data);
 
     // run the emulator
-    emulator_run(&mut soc);
+    manage_window(&mut emulator);
 }
 
-fn emulator_run(soc: &mut Soc) {
+fn manage_window(emulator: &mut Emulator) {
     let mut buffer = [0; SCREEN_HEIGHT * SCREEN_WIDTH];
-    let mut cycles_elapsed_in_frame = 0usize;
-    let mut emulator_frame_tick = Instant::now();
-    let mut emulator_state = EmulatorState::GetTime;
 
     let mut window = Window::new(
         "Rustboy",
@@ -59,39 +40,19 @@ fn emulator_run(soc: &mut Soc) {
     .unwrap();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        match emulator_state {
-            EmulatorState::GetTime => {
-                emulator_frame_tick = Instant::now();
+        // run emulator until a new frame is ready
+        emulator.run();
 
-                emulator_state = EmulatorState::RunMachine;
+        if emulator.frame_ready() {
+            // copy the current frame from gpu frame buffer
+            for i in 0..SCREEN_HEIGHT * SCREEN_WIDTH {
+                buffer[i] =  255 << 24
+                            | (emulator.get_frame_buffer(i) as u32) << 16
+                            | (emulator.get_frame_buffer(i) as u32) << 8
+                            | (emulator.get_frame_buffer(i) as u32) << 0;
             }
-            EmulatorState::RunMachine => {
-                cycles_elapsed_in_frame += soc.run() as usize;
-
-                if cycles_elapsed_in_frame >= ONE_FRAME_IN_CYCLES {
-                    cycles_elapsed_in_frame = 0;
-                    emulator_state = EmulatorState::WaitNextFrame;
-                }
-            }
-            EmulatorState::WaitNextFrame => {
-                // check if 16,742706 ms have passed during this frame
-                if emulator_frame_tick.elapsed().as_nanos() >= ONE_FRAME_IN_NS as u128{
-                    emulator_state = EmulatorState::DisplayFrame;
-                }
-            }
-            EmulatorState::DisplayFrame => {
-                // copy the current frame from gpu frame buffer
-                for i in 0..SCREEN_HEIGHT * SCREEN_WIDTH {
-                    buffer[i] =  255 << 24
-                                | (soc.get_frame_buffer(i) as u32) << 16
-                                | (soc.get_frame_buffer(i) as u32) << 8
-                                | (soc.get_frame_buffer(i) as u32) << 0;
-                }
-                // display the frame rendered by the gpu
-                window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
-
-                emulator_state = EmulatorState::GetTime;
-            }
+            // display the frame rendered by the gpu
+            window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
         }
     }
 }
