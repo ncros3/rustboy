@@ -15,42 +15,94 @@ pub enum EmulatorState {
     GetTime,
     RunMachine,
     WaitNextFrame,
-    DisplayFrame
+    DisplayFrame,
+}
+
+#[derive(Clone, Copy)]
+pub enum DebuggerCommand {
+    HALT,
+    RUN,
+    STEP,
+}
+
+enum DebuggerState {
+    HALT,
+    RUN,
+    STEP,
 }
 
 pub struct Emulator {
+    // gameboy emulated hardware
     soc: Soc,
+    // emulator internal parameters
     state: EmulatorState,
     cycles_elapsed_in_frame: usize,
     emulator_frame_tick: Instant,
+    // debugger parameters
+    debugger_enabled: bool,
+    debugger_state: DebuggerState,
 }
 
 impl Emulator {
-    pub fn new(boot_rom: &[u8], rom: &[u8]) -> Emulator {
+    pub fn new(boot_rom: &[u8], rom: &[u8], debug_on: bool) -> Emulator {
         let mut soc = Soc::new();
         soc.load(boot_rom, rom);
 
         Emulator {
+            // gameboy emulated hardware
             soc: soc,
+            // emulator internal parameters
             state: EmulatorState::GetTime,
             cycles_elapsed_in_frame: 0 as usize,
             emulator_frame_tick: Instant::now(),
+            // debugger parameters
+            debugger_enabled: debug_on,
+            debugger_state: DebuggerState::HALT,
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, dbg_cmd: DebuggerCommand) {
+        if self.debugger_enabled {
+            self.run_debugger_mode(dbg_cmd);
+        } else {
+            self.run_normal_mode();
+        }
+    }
+
+    fn run_debugger_mode(&mut self, dbg_cmd: DebuggerCommand) {
         match self.state {
             EmulatorState::GetTime => {
                 self.emulator_frame_tick = Instant::now();
-
+    
                 self.state = EmulatorState::RunMachine;
             }
             EmulatorState::RunMachine => {
-                self.cycles_elapsed_in_frame += self.soc.run() as usize;
+                match self.debugger_state {
+                    DebuggerState::HALT => {
+                        // do nothing 
+                        // wait until a new debug command is entered
+                        match dbg_cmd {
+                            DebuggerCommand::HALT => self.debugger_state = DebuggerState::HALT,
+                            DebuggerCommand::RUN => self.debugger_state = DebuggerState::RUN,
+                            DebuggerCommand::STEP => self.debugger_state = DebuggerState::STEP,
+                        }
+                    }
+                    DebuggerState::RUN => {
+                        // run the emulator as in normal mode
+                        self.step();
 
-                if self.cycles_elapsed_in_frame >= ONE_FRAME_IN_CYCLES {
-                    self.cycles_elapsed_in_frame = 0;
-                    self.state = EmulatorState::WaitNextFrame;
+                        match dbg_cmd {
+                            DebuggerCommand::HALT => self.debugger_state = DebuggerState::HALT,
+                            DebuggerCommand::RUN => self.debugger_state = DebuggerState::RUN,
+                            DebuggerCommand::STEP => self.debugger_state = DebuggerState::STEP,
+                        }
+                    }
+                    DebuggerState::STEP => {
+                        // run the emulator once then go to halt state
+                        self.step();
+
+                        self.debugger_state = DebuggerState::HALT;
+                    }
                 }
             }
             EmulatorState::WaitNextFrame => {
@@ -62,6 +114,37 @@ impl Emulator {
             EmulatorState::DisplayFrame => {
                 self.state = EmulatorState::GetTime;
             }
+        }
+    }
+    
+    fn run_normal_mode(&mut self) {
+        match self.state {
+            EmulatorState::GetTime => {
+                self.emulator_frame_tick = Instant::now();
+    
+                self.state = EmulatorState::RunMachine;
+            }
+            EmulatorState::RunMachine => {
+                self.step();
+            }
+            EmulatorState::WaitNextFrame => {
+                // check if 16,742706 ms have passed during this frame
+                if self.emulator_frame_tick.elapsed().as_nanos() >= ONE_FRAME_IN_NS as u128{
+                    self.state = EmulatorState::DisplayFrame;
+                }
+            }
+            EmulatorState::DisplayFrame => {
+                self.state = EmulatorState::GetTime;
+            }
+        }
+    }
+
+    pub fn step(&mut self) {
+        self.cycles_elapsed_in_frame += self.soc.run() as usize;
+    
+        if self.cycles_elapsed_in_frame >= ONE_FRAME_IN_CYCLES {
+            self.cycles_elapsed_in_frame = 0;
+            self.state = EmulatorState::WaitNextFrame;
         }
     }
 

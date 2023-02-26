@@ -4,7 +4,11 @@ mod soc;
 use minifb::{Key, Window, WindowOptions};
 use std::{fs::File, io::Read, env};
 
-use crate::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
+use std::io::{stdin, stdout, Write};
+use std::thread;
+use std::sync::{Arc, Mutex};
+
+use crate::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH, DebuggerCommand};
 
 // Window parameters
 const SCALE_FACTOR: usize = 3;
@@ -12,55 +16,64 @@ const WINDOW_DIMENSIONS: [usize; 2] = [(SCREEN_WIDTH * SCALE_FACTOR), (SCREEN_HE
 
 fn main() {
     // get arguments from the command line   
-    let mut boot_rom_path = String::new();
-    let mut rom_path = String::new();
-    let mut debug_opt = false;
+    let (boot_rom_path, game_rom_path, debug_mode) = parse_args();
 
-    for (index, argument) in env::args().enumerate() {
-        match index {
-            1 => {
-                boot_rom_path = argument.clone();
-                println!("boot_rom: {}", boot_rom_path);
-            }
-            2 => {
-                rom_path = argument.clone();
-                println!("game_rom: {}", rom_path);
-            }
-            3 => if argument.eq("--debug") {
-                    debug_opt = true;
-            }
-            _ => {} // nothing to do
-        }
-    }
-
-    if debug_opt {
-        println!("emulator mode: debug");
-    } else {
-        println!("emulator mode: normal");
-    }
-
-    // let mut file = File::open("../gb-test-roms/cpu_instrs/cpu_instrs.gb").unwrap();
     let mut file = File::open(boot_rom_path).unwrap();
     let mut bin_data = [0xFF as u8; 256];
     if let Err(message) = file.read_exact(&mut bin_data) {
         panic!("Cannot read file with error message: {}", message);
     }
 
-    let mut rom_file = File::open(rom_path).unwrap();
+    let mut rom_file = File::open(game_rom_path).unwrap();
     let mut rom_data = [0xFF as u8; 32768];
     if let Err(message) = rom_file.read_exact(&mut rom_data) {
         panic!("Cannot read file with error message: {}", message);
     }
     println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
 
+    // launch the debugger cli
+    let debug_cmd = Arc::new(Mutex::new(DebuggerCommand::HALT));
+    if debug_mode {
+        let debug_cmd_ref = Arc::clone(&debug_cmd);
+        thread::spawn(move || {
+            println!("Rustboy debugger CLI");
+
+            loop {
+                // get next instruction from console
+                let mut command = String::new();
+                command.clear();
+                print!("> ");
+                stdout().flush().unwrap();
+                stdin().read_line(&mut command).expect("Incorrect string is read.");
+
+                // process command
+                if command.trim().eq("break") {
+                    println!("break command");
+                }
+
+                if command.trim().eq("run") {
+                    *debug_cmd_ref.lock().unwrap() = DebuggerCommand::RUN;
+                }
+
+                if command.trim().eq("halt") {
+                    *debug_cmd_ref.lock().unwrap() = DebuggerCommand::HALT;
+                }
+
+                if command.trim().eq("step") {
+                    *debug_cmd_ref.lock().unwrap() = DebuggerCommand::STEP;
+                }
+
+                if command.trim().eq("help") {
+                    println!("supported commands: break <addr>, run, halt, step");
+                }
+            }
+        });
+    }
+
     // create the emulated system
-    let mut emulator = Emulator::new(&bin_data, &rom_data);
+    let mut emulator = Emulator::new(&bin_data, &rom_data, debug_mode);
 
     // run the emulator
-    manage_window(&mut emulator);
-}
-
-fn manage_window(emulator: &mut Emulator) {
     let mut buffer = [0; SCREEN_HEIGHT * SCREEN_WIDTH];
 
     let mut window = Window::new(
@@ -73,7 +86,7 @@ fn manage_window(emulator: &mut Emulator) {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // run emulator until a new frame is ready
-        emulator.run();
+        emulator.run(*debug_cmd.lock().unwrap());
 
         if emulator.frame_ready() {
             // copy the current frame from gpu frame buffer
@@ -87,4 +100,29 @@ fn manage_window(emulator: &mut Emulator) {
             window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
         }
     }
+}
+
+fn parse_args() -> (String, String, bool) {
+    let mut boot_rom_path = String::new();
+    let mut game_rom_path = String::new();
+    let mut debug_opt = false;
+
+    for (index, argument) in env::args().enumerate() {
+        match index {
+            1 => {
+                boot_rom_path = argument.clone();
+                println!("boot_rom: {}", boot_rom_path);
+            }
+            2 => {
+                game_rom_path = argument.clone();
+                println!("game_rom: {}", game_rom_path);
+            }
+            3 => if argument.eq("--debug") {
+                    debug_opt = true;
+            }
+            _ => {} // nothing to do
+        }
+    }
+
+    (boot_rom_path, game_rom_path, debug_opt)
 }
