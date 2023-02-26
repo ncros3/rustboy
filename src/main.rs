@@ -1,14 +1,13 @@
 mod emulator;
 mod soc;
+mod debug;
 
 use minifb::{Key, Window, WindowOptions};
 use std::{fs::File, io::Read, env};
-
-use std::io::{stdin, stdout, Write};
-use std::thread;
 use std::sync::{Arc, Mutex};
 
-use crate::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH, DebuggerCommand};
+use crate::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::debug::debug_cli;
 
 // Window parameters
 const SCALE_FACTOR: usize = 3;
@@ -32,42 +31,9 @@ fn main() {
     println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
 
     // launch the debugger cli
-    let debug_cmd = Arc::new(Mutex::new(DebuggerCommand::HALT));
+    let cmd_list = Arc::new(Mutex::new(Vec::new()));
     if debug_mode {
-        let debug_cmd_ref = Arc::clone(&debug_cmd);
-        thread::spawn(move || {
-            println!("Rustboy debugger CLI");
-
-            loop {
-                // get next instruction from console
-                let mut command = String::new();
-                command.clear();
-                print!("> ");
-                stdout().flush().unwrap();
-                stdin().read_line(&mut command).expect("Incorrect string is read.");
-
-                // process command
-                if command.trim().eq("break") {
-                    println!("break command");
-                }
-
-                if command.trim().eq("run") {
-                    *debug_cmd_ref.lock().unwrap() = DebuggerCommand::RUN;
-                }
-
-                if command.trim().eq("halt") {
-                    *debug_cmd_ref.lock().unwrap() = DebuggerCommand::HALT;
-                }
-
-                if command.trim().eq("step") {
-                    *debug_cmd_ref.lock().unwrap() = DebuggerCommand::STEP;
-                }
-
-                if command.trim().eq("help") {
-                    println!("supported commands: break <addr>, run, halt, step");
-                }
-            }
-        });
+        debug_cli(&cmd_list);
     }
 
     // create the emulated system
@@ -86,7 +52,7 @@ fn main() {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // run emulator until a new frame is ready
-        emulator.run(*debug_cmd.lock().unwrap());
+        emulator.run(&mut *cmd_list.lock().unwrap());
 
         if emulator.frame_ready() {
             // copy the current frame from gpu frame buffer
