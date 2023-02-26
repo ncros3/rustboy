@@ -1,6 +1,10 @@
 use crate::emulator::{Emulator, EmulatorState, ONE_FRAME_IN_NS};
 use std::time::Instant;
 
+use std::io::{stdin, stdout, Write};
+use std::thread;
+use std::sync::{Arc, Mutex};
+
 #[derive(Clone, Copy)]
 pub enum DebuggerCommand {
     HALT,
@@ -75,4 +79,40 @@ fn display_cpu_reg(emulator: &mut Emulator) {
         println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", emulator.soc.peripheral.read(emulator.soc.cpu.pc), emulator.soc.cpu.pc, emulator.soc.cpu.sp);
         println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", emulator.soc.cpu.registers.read_bc(), emulator.soc.cpu.registers.read_af(), emulator.soc.cpu.registers.read_de(), emulator.soc.cpu.registers.read_hl());
     }
+}
+
+pub fn debug_cli(debug_cmd: &Arc<Mutex<Vec<DebuggerCommand>>>) {
+    let debug_cmd_ref = Arc::clone(&debug_cmd);
+    thread::spawn(move || {
+        println!("Rustboy debugger CLI");
+
+        loop {
+            // get next instruction from console
+            let mut command = String::new();
+            command.clear();
+            stdout().flush().unwrap();
+            stdin().read_line(&mut command).expect("Incorrect string is read.");
+
+            // process command
+            if command.trim().eq("break") {
+                println!("break command");
+            }
+
+            if command.trim().eq("run") {
+                (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::RUN);
+            }
+
+            if command.trim().eq("halt") {
+                (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::HALT);
+            }
+
+            if command.trim().eq("step") {
+                (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::STEP);
+            }
+
+            if command.trim().eq("help") {
+                println!("supported commands: break <addr>, run, halt, step");
+            }
+        }
+    });
 }
