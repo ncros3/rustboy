@@ -37,11 +37,11 @@ pub struct Emulator {
     // emulator internal parameters
     state: EmulatorState,
     cycles_elapsed_in_frame: usize,
-    emulator_frame_tick: Instant,
+    frame_tick: Instant,
     // debugger parameters
-    debugger_enabled: bool,
     debugger_state: DebuggerState,
     display_cpu_reg: bool,
+    run_routine: fn(&mut Emulator, &mut Vec<DebuggerCommand>),
 }
 
 impl Emulator {
@@ -49,111 +49,28 @@ impl Emulator {
         let mut soc = Soc::new();
         soc.load(boot_rom, rom);
 
+        let run_routine = if debug_on {
+            run_debug_mode
+        } else {
+            run_normal_mode
+        };
+
         Emulator {
             // gameboy emulated hardware
             soc: soc,
             // emulator internal parameters
             state: EmulatorState::GetTime,
             cycles_elapsed_in_frame: 0 as usize,
-            emulator_frame_tick: Instant::now(),
+            frame_tick: Instant::now(),
             // debugger parameters
-            debugger_enabled: debug_on,
             debugger_state: DebuggerState::HALT,
             display_cpu_reg: true,
+            run_routine: run_routine,
         }
     }
 
     pub fn run(&mut self, dbg_cmd: &mut Vec<DebuggerCommand>) {
-        if self.debugger_enabled {
-            self.run_debug_mode(dbg_cmd); 
-        } else {
-            self.run_normal_mode();
-        }
-    }
-
-    fn run_debug_mode(&mut self, dbg_cmd: &mut Vec<DebuggerCommand>) {
-        match self.state {
-            EmulatorState::GetTime => {
-                self.emulator_frame_tick = Instant::now();
-    
-                self.state = EmulatorState::RunMachine;
-            }
-            EmulatorState::RunMachine => {
-                match self.debugger_state {
-                    DebuggerState::HALT => {
-                        // display cpu internal registers
-                        self.display_cpu_reg();
-
-                        // wait until a new debug command is entered
-                        let cmd = dbg_cmd.pop();
-                        if let Some(DebuggerCommand::RUN) = cmd {
-                            self.display_cpu_reg = true;
-                            self.debugger_state = DebuggerState::RUN;
-                        }
-
-                        if let Some(DebuggerCommand::STEP) = cmd {
-                            self.display_cpu_reg = true;
-                            self.debugger_state = DebuggerState::STEP;
-                        }
-                    }
-                    DebuggerState::RUN => {
-                        // run the emulator as in normal mode
-                        self.step();
-
-                        // wait until a new debug command is entered
-                        if let Some(DebuggerCommand::HALT) = dbg_cmd.pop() {
-                            self.display_cpu_reg = true;
-                            self.debugger_state = DebuggerState::HALT;
-                        }
-                    }
-                    DebuggerState::STEP => {
-                        // run the emulator once then go to halt state
-                        self.step();
-
-                        self.debugger_state = DebuggerState::HALT;
-                    }
-                }
-            }
-            EmulatorState::WaitNextFrame => {
-                // check if 16,742706 ms have passed during this frame
-                if self.emulator_frame_tick.elapsed().as_nanos() >= ONE_FRAME_IN_NS as u128{
-                    self.state = EmulatorState::DisplayFrame;
-                }
-            }
-            EmulatorState::DisplayFrame => {
-                self.state = EmulatorState::GetTime;
-            }
-        }
-    }
-
-    fn display_cpu_reg(&mut self) {
-        if self.display_cpu_reg {
-            self.display_cpu_reg = false;
-            println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", self.soc.peripheral.read(self.soc.cpu.pc), self.soc.cpu.pc, self.soc.cpu.sp);
-            println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", self.soc.cpu.registers.read_bc(), self.soc.cpu.registers.read_af(), self.soc.cpu.registers.read_de(), self.soc.cpu.registers.read_hl());
-        }
-    }
-    
-    fn run_normal_mode(&mut self) {
-        match self.state {
-            EmulatorState::GetTime => {
-                self.emulator_frame_tick = Instant::now();
-    
-                self.state = EmulatorState::RunMachine;
-            }
-            EmulatorState::RunMachine => {
-                self.step();
-            }
-            EmulatorState::WaitNextFrame => {
-                // check if 16,742706 ms have passed during this frame
-                if self.emulator_frame_tick.elapsed().as_nanos() >= ONE_FRAME_IN_NS as u128{
-                    self.state = EmulatorState::DisplayFrame;
-                }
-            }
-            EmulatorState::DisplayFrame => {
-                self.state = EmulatorState::GetTime;
-            }
-        }
+        (self.run_routine)(self, dbg_cmd);
     }
 
     pub fn step(&mut self) {
@@ -175,5 +92,90 @@ impl Emulator {
 
     pub fn get_frame_buffer(&self, pixel_index: usize) -> u8 {
         self.soc.get_frame_buffer(pixel_index)
+    }
+}
+
+fn run_normal_mode(emulator: &mut Emulator, cmd: &mut Vec<DebuggerCommand>) {
+    match emulator.state {
+        EmulatorState::GetTime => {
+            emulator.frame_tick = Instant::now();
+
+            emulator.state = EmulatorState::RunMachine;
+        }
+        EmulatorState::RunMachine => {
+            emulator.step();
+        }
+        EmulatorState::WaitNextFrame => {
+            // check if 16,742706 ms have passed during this frame
+            if emulator.frame_tick.elapsed().as_nanos() >= ONE_FRAME_IN_NS as u128{
+                emulator.state = EmulatorState::DisplayFrame;
+            }
+        }
+        EmulatorState::DisplayFrame => {
+            emulator.state = EmulatorState::GetTime;
+        }
+    }
+}
+
+fn run_debug_mode(emulator: &mut Emulator, dbg_cmd: &mut Vec<DebuggerCommand>) {
+    match emulator.state {
+        EmulatorState::GetTime => {
+            emulator.frame_tick = Instant::now();
+
+            emulator.state = EmulatorState::RunMachine;
+        }
+        EmulatorState::RunMachine => {
+            match emulator.debugger_state {
+                DebuggerState::HALT => {
+                    // display cpu internal registers
+                    display_cpu_reg(emulator);
+
+                    // wait until a new debug command is entered
+                    let cmd = dbg_cmd.pop();
+                    if let Some(DebuggerCommand::RUN) = cmd {
+                        emulator.display_cpu_reg = true;
+                        emulator.debugger_state = DebuggerState::RUN;
+                    }
+
+                    if let Some(DebuggerCommand::STEP) = cmd {
+                        emulator.display_cpu_reg = true;
+                        emulator.debugger_state = DebuggerState::STEP;
+                    }
+                }
+                DebuggerState::RUN => {
+                    // run the emulator as in normal mode
+                    emulator.step();
+
+                    // wait until a new debug command is entered
+                    if let Some(DebuggerCommand::HALT) = dbg_cmd.pop() {
+                        emulator.display_cpu_reg = true;
+                        emulator.debugger_state = DebuggerState::HALT;
+                    }
+                }
+                DebuggerState::STEP => {
+                    // run the emulator once then go to halt state
+                    emulator.step();
+
+                    emulator.debugger_state = DebuggerState::HALT;
+                }
+            }
+        }
+        EmulatorState::WaitNextFrame => {
+            // check if 16,742706 ms have passed during this frame
+            if emulator.frame_tick.elapsed().as_nanos() >= ONE_FRAME_IN_NS as u128{
+                emulator.state = EmulatorState::DisplayFrame;
+            }
+        }
+        EmulatorState::DisplayFrame => {
+            emulator.state = EmulatorState::GetTime;
+        }
+    }
+}
+
+fn display_cpu_reg(emulator: &mut Emulator) {
+    if emulator.display_cpu_reg {
+        emulator.display_cpu_reg = false;
+        println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", emulator.soc.peripheral.read(emulator.soc.cpu.pc), emulator.soc.cpu.pc, emulator.soc.cpu.sp);
+        println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", emulator.soc.cpu.registers.read_bc(), emulator.soc.cpu.registers.read_af(), emulator.soc.cpu.registers.read_de(), emulator.soc.cpu.registers.read_hl());
     }
 }
