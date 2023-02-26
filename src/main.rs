@@ -32,7 +32,7 @@ fn main() {
     println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
 
     // launch the debugger cli
-    let debug_cmd = Arc::new(Mutex::new(DebuggerCommand::HALT));
+    let debug_cmd = Arc::new(Mutex::new(Vec::new()));
     if debug_mode {
         let debug_cmd_ref = Arc::clone(&debug_cmd);
         thread::spawn(move || {
@@ -42,7 +42,6 @@ fn main() {
                 // get next instruction from console
                 let mut command = String::new();
                 command.clear();
-                print!("> ");
                 stdout().flush().unwrap();
                 stdin().read_line(&mut command).expect("Incorrect string is read.");
 
@@ -52,15 +51,15 @@ fn main() {
                 }
 
                 if command.trim().eq("run") {
-                    *debug_cmd_ref.lock().unwrap() = DebuggerCommand::RUN;
+                    (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::RUN);
                 }
 
                 if command.trim().eq("halt") {
-                    *debug_cmd_ref.lock().unwrap() = DebuggerCommand::HALT;
+                    (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::HALT);
                 }
 
                 if command.trim().eq("step") {
-                    *debug_cmd_ref.lock().unwrap() = DebuggerCommand::STEP;
+                    (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::STEP);
                 }
 
                 if command.trim().eq("help") {
@@ -86,7 +85,7 @@ fn main() {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // run emulator until a new frame is ready
-        emulator.run(*debug_cmd.lock().unwrap());
+        emulator.run(&mut *debug_cmd.lock().unwrap());
 
         if emulator.frame_ready() {
             // copy the current frame from gpu frame buffer

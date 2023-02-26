@@ -721,9 +721,9 @@ pub enum CarryOp {
 }
 
 pub struct Cpu {
-    registers: Registers,
-    pc: u16,
-    sp: u16,
+    pub registers: Registers,
+    pub pc: u16,
+    pub sp: u16,
     mode: CpuMode,
 }
 

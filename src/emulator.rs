@@ -41,6 +41,7 @@ pub struct Emulator {
     // debugger parameters
     debugger_enabled: bool,
     debugger_state: DebuggerState,
+    display_cpu_reg: bool,
 }
 
 impl Emulator {
@@ -58,18 +59,19 @@ impl Emulator {
             // debugger parameters
             debugger_enabled: debug_on,
             debugger_state: DebuggerState::HALT,
+            display_cpu_reg: true,
         }
     }
 
-    pub fn run(&mut self, dbg_cmd: DebuggerCommand) {
+    pub fn run(&mut self, dbg_cmd: &mut Vec<DebuggerCommand>) {
         if self.debugger_enabled {
-            self.run_debugger_mode(dbg_cmd);
+            self.run_debug_mode(dbg_cmd); 
         } else {
             self.run_normal_mode();
         }
     }
 
-    fn run_debugger_mode(&mut self, dbg_cmd: DebuggerCommand) {
+    fn run_debug_mode(&mut self, dbg_cmd: &mut Vec<DebuggerCommand>) {
         match self.state {
             EmulatorState::GetTime => {
                 self.emulator_frame_tick = Instant::now();
@@ -79,22 +81,29 @@ impl Emulator {
             EmulatorState::RunMachine => {
                 match self.debugger_state {
                     DebuggerState::HALT => {
-                        // do nothing 
+                        // display cpu internal registers
+                        self.display_cpu_reg();
+
                         // wait until a new debug command is entered
-                        match dbg_cmd {
-                            DebuggerCommand::HALT => self.debugger_state = DebuggerState::HALT,
-                            DebuggerCommand::RUN => self.debugger_state = DebuggerState::RUN,
-                            DebuggerCommand::STEP => self.debugger_state = DebuggerState::STEP,
+                        let cmd = dbg_cmd.pop();
+                        if let Some(DebuggerCommand::RUN) = cmd {
+                            self.display_cpu_reg = true;
+                            self.debugger_state = DebuggerState::RUN;
+                        }
+
+                        if let Some(DebuggerCommand::STEP) = cmd {
+                            self.display_cpu_reg = true;
+                            self.debugger_state = DebuggerState::STEP;
                         }
                     }
                     DebuggerState::RUN => {
                         // run the emulator as in normal mode
                         self.step();
 
-                        match dbg_cmd {
-                            DebuggerCommand::HALT => self.debugger_state = DebuggerState::HALT,
-                            DebuggerCommand::RUN => self.debugger_state = DebuggerState::RUN,
-                            DebuggerCommand::STEP => self.debugger_state = DebuggerState::STEP,
+                        // wait until a new debug command is entered
+                        if let Some(DebuggerCommand::HALT) = dbg_cmd.pop() {
+                            self.display_cpu_reg = true;
+                            self.debugger_state = DebuggerState::HALT;
                         }
                     }
                     DebuggerState::STEP => {
@@ -114,6 +123,14 @@ impl Emulator {
             EmulatorState::DisplayFrame => {
                 self.state = EmulatorState::GetTime;
             }
+        }
+    }
+
+    fn display_cpu_reg(&mut self) {
+        if self.display_cpu_reg {
+            self.display_cpu_reg = false;
+            println!("instruction byte : {:#04x} / pc : {:#06x} / sp : {:#04x}", self.soc.peripheral.read(self.soc.cpu.pc), self.soc.cpu.pc, self.soc.cpu.sp);
+            println!("BC : {:#06x} / AF : {:#06x} / DE : {:#06x} / HL : {:#06x}", self.soc.cpu.registers.read_bc(), self.soc.cpu.registers.read_af(), self.soc.cpu.registers.read_de(), self.soc.cpu.registers.read_hl());
         }
     }
     
