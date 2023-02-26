@@ -28,10 +28,10 @@ fn main() {
     println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
 
     // create the emulated system
-    let mut emulator = Emulator::new(&bin_data, &rom_data);
+    let mut emulator = Emulator::new(&bin_data, &rom_data, debug_mode);
 
     // run the emulator
-    manage_window(&mut emulator);
+    run_window(&mut emulator);
 }
 
 fn parse_args() -> (String, String, bool) {
@@ -65,7 +65,7 @@ fn parse_args() -> (String, String, bool) {
     (boot_rom_path, game_rom_path, debug_opt)
 }
 
-fn manage_window(emulator: &mut Emulator) {
+fn run_window(emulator: &mut Emulator) {
     let mut buffer = [0; SCREEN_HEIGHT * SCREEN_WIDTH];
 
     let mut window = Window::new(
