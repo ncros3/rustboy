@@ -1,5 +1,6 @@
 mod emulator;
 mod soc;
+mod debug;
 
 use minifb::{Key, Window, WindowOptions};
 use std::{fs::File, io::Read, env};
@@ -8,7 +9,8 @@ use std::io::{stdin, stdout, Write};
 use std::thread;
 use std::sync::{Arc, Mutex};
 
-use crate::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH, DebuggerCommand};
+use crate::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::debug::DebuggerCommand;
 
 // Window parameters
 const SCALE_FACTOR: usize = 3;
