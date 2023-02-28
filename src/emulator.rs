@@ -1,6 +1,6 @@
 use crate::soc::Soc;
 use std::time::Instant;
-use crate::debug::{DebuggerCommand, DebuggerState, run_debug_mode};
+use crate::debug::{DebugCtx, DebuggerState, run_debug_mode};
 
 pub const SCREEN_HEIGHT: usize = 144;
 pub const SCREEN_WIDTH: usize = 160;
@@ -29,7 +29,7 @@ pub struct Emulator {
     // debugger parameters
     pub debugger_state: DebuggerState,
     pub display_cpu_reg: bool,
-    run_routine: fn(&mut Emulator, &mut Vec<DebuggerCommand>),
+    run_routine: fn(&mut Emulator, &mut DebugCtx),
 }
 
 impl Emulator {
@@ -57,7 +57,7 @@ impl Emulator {
         }
     }
 
-    pub fn run(&mut self, dbg_cmd: &mut Vec<DebuggerCommand>) {
+    pub fn run(&mut self, dbg_cmd: &mut DebugCtx) {
         (self.run_routine)(self, dbg_cmd);
     }
 
@@ -83,7 +83,7 @@ impl Emulator {
     }
 }
 
-fn run_normal_mode(emulator: &mut Emulator, cmd: &mut Vec<DebuggerCommand>) {
+fn run_normal_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
     match emulator.state {
         EmulatorState::GetTime => {
             emulator.frame_tick = Instant::now();

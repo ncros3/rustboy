@@ -18,7 +18,21 @@ pub enum DebuggerState {
     STEP,
 }
 
-pub fn run_debug_mode(emulator: &mut Emulator, dbg_cmd: &mut Vec<DebuggerCommand>) {
+pub struct DebugCtx {
+    cmd: Vec<DebuggerCommand>,
+    breakpoint: u16,
+}
+
+impl DebugCtx {
+    pub fn new() -> DebugCtx {
+        DebugCtx {
+            cmd: Vec::new(),
+            breakpoint: 0,
+        }
+    }
+}
+
+pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
     match emulator.state {
         EmulatorState::GetTime => {
             emulator.frame_tick = Instant::now();
@@ -32,7 +46,7 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_cmd: &mut Vec<DebuggerCommand
                     display_cpu_reg(emulator);
 
                     // wait until a new debug command is entered
-                    let cmd = dbg_cmd.pop();
+                    let cmd = dbg_ctx.cmd.pop();
                     if let Some(DebuggerCommand::RUN) = cmd {
                         emulator.display_cpu_reg = true;
                         emulator.debugger_state = DebuggerState::RUN;
@@ -48,7 +62,7 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_cmd: &mut Vec<DebuggerCommand
                     emulator.step();
 
                     // wait until a new debug command is entered
-                    if let Some(DebuggerCommand::HALT) = dbg_cmd.pop() {
+                    if let Some(DebuggerCommand::HALT) = dbg_ctx.cmd.pop() {
                         emulator.display_cpu_reg = true;
                         emulator.debugger_state = DebuggerState::HALT;
                     }
@@ -81,8 +95,8 @@ fn display_cpu_reg(emulator: &mut Emulator) {
     }
 }
 
-pub fn debug_cli(debug_cmd: &Arc<Mutex<Vec<DebuggerCommand>>>) {
-    let debug_cmd_ref = Arc::clone(&debug_cmd);
+pub fn debug_cli(debug_ctx: &Arc<Mutex<DebugCtx>>) {
+    let debug_ctx_ref = Arc::clone(&debug_ctx);
     thread::spawn(move || {
         println!("Rustboy debugger CLI");
 
@@ -99,15 +113,15 @@ pub fn debug_cli(debug_cmd: &Arc<Mutex<Vec<DebuggerCommand>>>) {
             }
 
             if command.trim().eq("run") {
-                (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::RUN);
+                (*debug_ctx_ref.lock().unwrap()).cmd.push(DebuggerCommand::RUN);
             }
 
             if command.trim().eq("halt") {
-                (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::HALT);
+                (*debug_ctx_ref.lock().unwrap()).cmd.push(DebuggerCommand::HALT);
             }
 
             if command.trim().eq("step") {
-                (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::STEP);
+                (*debug_ctx_ref.lock().unwrap()).cmd.push(DebuggerCommand::STEP);
             }
 
             if command.trim().eq("help") {

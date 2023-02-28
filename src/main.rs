@@ -7,7 +7,7 @@ use std::{fs::File, io::Read, env};
 use std::sync::{Arc, Mutex};
 
 use crate::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
-use crate::debug::debug_cli;
+use crate::debug::{DebugCtx, debug_cli};
 
 // Window parameters
 const SCALE_FACTOR: usize = 3;
@@ -31,9 +31,9 @@ fn main() {
     println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
 
     // launch the debugger cli
-    let cmd_list = Arc::new(Mutex::new(Vec::new()));
+    let dbg_ctx = Arc::new(Mutex::new(DebugCtx::new()));
     if debug_mode {
-        debug_cli(&cmd_list);
+        debug_cli(&dbg_ctx);
     }
 
     // create the emulated system
@@ -52,7 +52,7 @@ fn main() {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // run emulator until a new frame is ready
-        emulator.run(&mut *cmd_list.lock().unwrap());
+        emulator.run(&mut *dbg_ctx.lock().unwrap());
 
         if emulator.frame_ready() {
             // copy the current frame from gpu frame buffer
