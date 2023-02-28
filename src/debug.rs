@@ -18,7 +18,23 @@ pub enum DebuggerState {
     STEP,
 }
 
-pub fn run_debug_mode(emulator: &mut Emulator, dbg_cmd: &mut Vec<DebuggerCommand>) {
+pub struct DebugCtx {
+    cmd: Vec<DebuggerCommand>,
+    breakpoint: u16,
+    break_enabled: bool,
+}
+
+impl DebugCtx {
+    pub fn new() -> DebugCtx {
+        DebugCtx {
+            cmd: Vec::new(),
+            breakpoint: 0,
+            break_enabled: false,
+        }
+    }
+}
+
+pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
     match emulator.state {
         EmulatorState::GetTime => {
             emulator.frame_tick = Instant::now();
@@ -32,7 +48,7 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_cmd: &mut Vec<DebuggerCommand
                     display_cpu_reg(emulator);
 
                     // wait until a new debug command is entered
-                    let cmd = dbg_cmd.pop();
+                    let cmd = dbg_ctx.cmd.pop();
                     if let Some(DebuggerCommand::RUN) = cmd {
                         emulator.display_cpu_reg = true;
                         emulator.debugger_state = DebuggerState::RUN;
@@ -47,8 +63,14 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_cmd: &mut Vec<DebuggerCommand
                     // run the emulator as in normal mode
                     emulator.step();
 
+                    // check if we have to break
+                    if dbg_ctx.break_enabled && (dbg_ctx.breakpoint == emulator.soc.cpu.pc) {
+                        // check pc
+                        emulator.debugger_state = DebuggerState::HALT;
+                    }
+
                     // wait until a new debug command is entered
-                    if let Some(DebuggerCommand::HALT) = dbg_cmd.pop() {
+                    if let Some(DebuggerCommand::HALT) = dbg_ctx.cmd.pop() {
                         emulator.display_cpu_reg = true;
                         emulator.debugger_state = DebuggerState::HALT;
                     }
@@ -81,8 +103,8 @@ fn display_cpu_reg(emulator: &mut Emulator) {
     }
 }
 
-pub fn debug_cli(debug_cmd: &Arc<Mutex<Vec<DebuggerCommand>>>) {
-    let debug_cmd_ref = Arc::clone(&debug_cmd);
+pub fn debug_cli(debug_ctx: &Arc<Mutex<DebugCtx>>) {
+    let debug_ctx_ref = Arc::clone(&debug_ctx);
     thread::spawn(move || {
         println!("Rustboy debugger CLI");
 
@@ -94,23 +116,30 @@ pub fn debug_cli(debug_cmd: &Arc<Mutex<Vec<DebuggerCommand>>>) {
             stdin().read_line(&mut command).expect("Incorrect string is read.");
 
             // process command
-            if command.trim().eq("break") {
-                println!("break command");
+            if command.trim().contains("break_set") {
+                let split: Vec<&str> = command.trim().split(" ").collect();
+                let brk_addr = u16::from_str_radix(split[1], 16).unwrap();
+                (*debug_ctx_ref.lock().unwrap()).breakpoint = brk_addr;
+                (*debug_ctx_ref.lock().unwrap()).break_enabled = true;
             }
 
-            if command.trim().eq("run") {
-                (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::RUN);
+            if command.trim().contains("break_reset") {
+                (*debug_ctx_ref.lock().unwrap()).break_enabled = false;
             }
 
-            if command.trim().eq("halt") {
-                (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::HALT);
+            if command.trim().contains("run") {
+                (*debug_ctx_ref.lock().unwrap()).cmd.push(DebuggerCommand::RUN);
             }
 
-            if command.trim().eq("step") {
-                (*debug_cmd_ref.lock().unwrap()).push(DebuggerCommand::STEP);
+            if command.trim().contains("halt") {
+                (*debug_ctx_ref.lock().unwrap()).cmd.push(DebuggerCommand::HALT);
             }
 
-            if command.trim().eq("help") {
+            if command.trim().contains("step") {
+                (*debug_ctx_ref.lock().unwrap()).cmd.push(DebuggerCommand::STEP);
+            }
+
+            if command.trim().contains("help") {
                 println!("supported commands: break <addr>, run, halt, step");
             }
         }
