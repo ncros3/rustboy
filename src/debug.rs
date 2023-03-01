@@ -66,6 +66,7 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
                     // check if we have to break
                     if dbg_ctx.break_enabled && (dbg_ctx.breakpoint == emulator.soc.cpu.pc) {
                         // check pc
+                        emulator.display_cpu_reg = true;
                         emulator.debugger_state = DebuggerState::HALT;
                     }
 
