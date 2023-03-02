@@ -153,7 +153,7 @@ impl Peripheral {
             IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.read_io_register(address as usize),
             UNUSED_BEGIN..=UNUSED_END => 0, // unused memory
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => self.zero_page[(address - ZERO_PAGE_BEGIN) as usize],
-            INTERRUPT_ENABLE_REGISTER => self.nvic.to_byte(),
+            INTERRUPT_ENABLE_REGISTER => self.nvic.get_it_enable(),
         }
     }
 
@@ -175,7 +175,7 @@ impl Peripheral {
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => {
                 self.zero_page[(address - ZERO_PAGE_BEGIN) as usize] = data;
             }
-            INTERRUPT_ENABLE_REGISTER => self.nvic.from_byte(data),
+            INTERRUPT_ENABLE_REGISTER => self.nvic.set_it_enable(data),
             _ => {
                 panic!(
                     "Writing to an unkown part of memory at address 0x{:x}",
@@ -193,7 +193,7 @@ impl Peripheral {
             0xFF04 => self.timer.get_divider(),
             0xFF05 => self.timer.get_value(),
             0xFF06 => self.timer.get_modulo(),
-            0xFF0F => self.nvic.to_byte(),
+            0xFF0F => self.nvic.get_it_flag(),
             0xFF40 => self.gpu.control_to_byte(),
             0xFF41 => self.gpu.status_to_byte(),
             0xFF42 => self.gpu.get_scy(),
@@ -213,7 +213,7 @@ impl Peripheral {
             0xFF05 => self.timer.set_value(data),
             0xFF06 => self.timer.set_modulo(data),
             0xFF07 => self.timer.settings_from_byte(data),
-            0xFF0F => self.nvic.from_byte(data),
+            0xFF0F => self.nvic.set_it_flag(data),
             0xFF10 => { /* Channel 1 Sweep register */ }
             0xFF11 => { /* Channel 1 Sound Length and Wave */ }
             0xFF12 => { /* Channel 1 Sound Control */ }
