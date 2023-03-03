@@ -49,12 +49,12 @@ impl Nvic {
                 self.interrupt_flag &= !(1 << interrupt_index);
 
                 // high priority interrupt found
-                let interrupt_source = match 1 << interrupt_index {
-                    1 => InterruptSources::VBLANK,
-                    2 => InterruptSources::STAT,
-                    4 => InterruptSources::TIMER,
-                    8 => InterruptSources::SERIAL,
-                    16 => InterruptSources::JOYPAD,
+                let interrupt_source = match interrupt_index {
+                    0 => InterruptSources::VBLANK,
+                    1 => InterruptSources::STAT,
+                    2 => InterruptSources::TIMER,
+                    3 => InterruptSources::SERIAL,
+                    4 => InterruptSources::JOYPAD,
                     _ => panic!("Interrupt index exceeded interrupt max number")
                 };
 
@@ -86,12 +86,20 @@ impl Nvic {
         }
     }
 
-    pub fn from_byte(&mut self, data: u8) {
+    pub fn set_it_enable(&mut self, data: u8) {
         self.interrupt_enable = data;
     }
 
-    pub fn to_byte(&self) -> u8 {
+    pub fn get_it_enable(&self) -> u8 {
         0b11100000 | self.interrupt_enable
+    }
+
+    pub fn set_it_flag(&mut self, data: u8) {
+        self.interrupt_flag = data;
+    }
+
+    pub fn get_it_flag(&self) -> u8 {
+        0b11100000 | self.interrupt_flag
     }
 }
 
@@ -246,7 +254,7 @@ mod nvic_tests {
     fn test_enable_it_from_byte() {
         let mut nvic = Nvic::new();
 
-        nvic.from_byte(0b00001100);
-        assert_eq!(nvic.to_byte(), 0b11101100);
+        nvic.set_it_enable(0b00001100);
+        assert_eq!(nvic.get_it_enable(), 0b11101100);
     }
 }

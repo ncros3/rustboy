@@ -4,6 +4,8 @@ mod cpu;
 use cpu::Cpu;
 use peripheral::Peripheral;
 
+const CLOCK_TICK_PER_MACHINE_CYCLE: u8 = 4;
+
 pub struct Soc {
     pub cpu: Cpu,
     pub peripheral: Peripheral,
@@ -20,7 +22,7 @@ impl Soc {
     pub fn run(&mut self) -> u8 {
         let cycles = self.cpu.run(&mut self.peripheral);
 
-        self.peripheral.run(cycles);
+        self.peripheral.run(cycles * CLOCK_TICK_PER_MACHINE_CYCLE);
 
         cycles
     }

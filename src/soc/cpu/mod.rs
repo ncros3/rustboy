@@ -804,7 +804,7 @@ impl Cpu {
     
             CpuMode::STOP => {
                 // all system is stopped
-                0
+                RUN_0_CYCLE
             }
         }
     }
@@ -943,8 +943,8 @@ impl Cpu {
 
     fn subc(&mut self, value: u8) -> u8 {
         let carry = self.registers.f.carry as u8;
-        let (intermediate_value, first_overflow) = value.overflowing_sub(carry);
-        let (new_value, second_overflow) = self.registers.a.overflowing_sub(intermediate_value);
+        let (intermediate_value, first_overflow) = self.registers.a.overflowing_sub(value);
+        let (new_value, second_overflow) = intermediate_value.overflowing_sub(carry);
         self.registers.f.zero = new_value == 0;
         self.registers.f.substraction = true;
         self.registers.f.carry = first_overflow || second_overflow;
@@ -1048,16 +1048,20 @@ impl Cpu {
                 self.pc.wrapping_add(3)
             }, RUN_4_CYCLES),
             SPTarget::TO_HL => ({
-                let address = self.pc.wrapping_add(1);
-                let value = peripheral.read(address) as i8 as i16 as u16;
-                let data_to_store = self.pc.wrapping_add(value);
-                self.registers.write_hl(data_to_store as u16);
+                let immediate = peripheral.read(self.pc.wrapping_add(1)) as i8;
+                let stack_addr = if immediate >= 0 {
+                    self.sp.wrapping_add(immediate as u16)
+                } else {
+                    // using wrapping_sub() implies to convert immediate to absolute value
+                    self.sp.wrapping_sub(immediate.abs() as u16)
+                };
+                self.registers.write_hl(stack_addr);
 
                 // update flags
                 self.registers.f.zero = false;
                 self.registers.f.substraction = false;
-                self.registers.f.half_carry = (self.sp & 0xF) + (value & 0xF) > 0xF;
-                self.registers.f.carry = (self.sp & 0xFF) + (value & 0xFF) > 0xFF;
+                self.registers.f.half_carry = (self.sp & 0xF) + (immediate as i8 as i16 as u16 & 0xF) > 0xF;
+                self.registers.f.carry = (self.sp & 0xFF) + (immediate as i8 as i16 as u16 & 0xFF) > 0xFF;
 
                 // return next program counter value
                 self.pc.wrapping_add(2)
@@ -1986,9 +1990,12 @@ mod cpu_tests {
         let mut cpu = Cpu::new();
         let mut peripheral = Peripheral::new();
 
+        cpu.sp = 0x0010;
+        let offset: u8 = 0x02;
+
         // first, fill memory with program
         let jump_inst: u8 = 0xF8;
-        let program: [u8; 2] = [jump_inst, 0x05];
+        let program: [u8; 2] = [jump_inst, offset];
         let mut index = 0;
         for data in program {
             peripheral.write(index, data);
@@ -1996,7 +2003,7 @@ mod cpu_tests {
         }
 
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.registers.read_hl(), 0x05);
+        assert_eq!(cpu.registers.read_hl(), cpu.sp + offset as u16);
     }
 
     #[test]
