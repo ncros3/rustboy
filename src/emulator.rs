@@ -1,6 +1,6 @@
 use crate::soc::Soc;
 use std::time::Instant;
-use crate::debug::{DebugCtx, DebuggerState, run_debug_mode};
+use crate::debug::{DebugCtx, run_debug_mode};
 
 pub const SCREEN_HEIGHT: usize = 144;
 pub const SCREEN_WIDTH: usize = 160;
