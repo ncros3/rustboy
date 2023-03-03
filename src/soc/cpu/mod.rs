@@ -804,7 +804,7 @@ impl Cpu {
     
             CpuMode::STOP => {
                 // all system is stopped
-                0
+                RUN_0_CYCLE
             }
         }
     }
