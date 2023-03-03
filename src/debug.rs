@@ -1,4 +1,4 @@
-use crate::emulator::{Emulator, EmulatorState, ONE_FRAME_IN_NS};
+use crate::emulator::{Emulator, EmulatorState, ONE_FRAME_IN_NS, ONE_FRAME_IN_CYCLES};
 use std::time::Instant;
 
 use std::io::{stdin, stdout, Write};
@@ -69,7 +69,12 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
                 }
                 DebuggerState::RUN => {
                     // run the emulator as in normal mode
-                    emulator.step();
+                    emulator.cycles_elapsed_in_frame += emulator.soc.run() as usize;
+
+                    if emulator.cycles_elapsed_in_frame >= ONE_FRAME_IN_CYCLES {
+                        emulator.cycles_elapsed_in_frame = 0;
+                        emulator.state = EmulatorState::WaitNextFrame;
+                    }
 
                     // check if we have to break
                     if dbg_ctx.break_enabled && (dbg_ctx.breakpoint == emulator.soc.cpu.pc) {
@@ -86,7 +91,12 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
                 }
                 DebuggerState::STEP => {
                     // run the emulator once then go to halt state
-                    emulator.step();
+                    emulator.cycles_elapsed_in_frame += emulator.soc.run() as usize;
+
+                    if emulator.cycles_elapsed_in_frame >= ONE_FRAME_IN_CYCLES {
+                        emulator.cycles_elapsed_in_frame = 0;
+                        emulator.state = EmulatorState::WaitNextFrame;
+                    }
 
                     dbg_ctx.debugger_state = DebuggerState::HALT;
                 }
