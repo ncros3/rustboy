@@ -26,9 +26,6 @@ pub struct Emulator {
     pub state: EmulatorState,
     pub cycles_elapsed_in_frame: usize,
     pub frame_tick: Instant,
-    // debugger parameters
-    pub debugger_state: DebuggerState,
-    pub display_cpu_reg: bool,
     run_routine: fn(&mut Emulator, &mut DebugCtx),
 }
 
@@ -51,8 +48,6 @@ impl Emulator {
             cycles_elapsed_in_frame: 0 as usize,
             frame_tick: Instant::now(),
             // debugger parameters
-            debugger_state: DebuggerState::HALT,
-            display_cpu_reg: true,
             run_routine: run_routine,
         }
     }
