@@ -943,8 +943,8 @@ impl Cpu {
 
     fn subc(&mut self, value: u8) -> u8 {
         let carry = self.registers.f.carry as u8;
-        let (intermediate_value, first_overflow) = value.overflowing_sub(carry);
-        let (new_value, second_overflow) = self.registers.a.overflowing_sub(intermediate_value);
+        let (intermediate_value, first_overflow) = self.registers.a.overflowing_sub(value);
+        let (new_value, second_overflow) = intermediate_value.overflowing_sub(carry);
         self.registers.f.zero = new_value == 0;
         self.registers.f.substraction = true;
         self.registers.f.carry = first_overflow || second_overflow;
