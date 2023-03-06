@@ -831,7 +831,7 @@ impl Cpu {
             Instruction::XOR(target) => arithmetic_instruction!(target, self.xor, peripheral),
             Instruction::OR(target) => arithmetic_instruction!(target, self.or, peripheral),
             Instruction::CP(target) => arithmetic_instruction!(target, self.cp, peripheral),
-            Instruction::AddSp => (self.add_sp(peripheral), 4),
+            Instruction::AddSp => (self.add_sp(peripheral), RUN_4_CYCLES),
 
             // Increment & decrement instructions
             Instruction::INC(target) => inc_dec_instruction!(target, self.inc, peripheral),
@@ -1199,14 +1199,20 @@ impl Cpu {
 
     fn add_sp(&mut self, peripheral: &mut Peripheral) -> u16 {
         let address = self.pc.wrapping_add(1);
-        let value = peripheral.read(address) as i8 as i16 as u16;
-        self.sp = self.sp.wrapping_add(value);
+        let immediate = peripheral.read(address) as i8;
+
+        if immediate >= 0 {
+            self.sp = self.sp.wrapping_add(immediate as u16);
+        } else {
+            // using wrapping_sub() implies to convert immediate to absolute value
+            self.sp = self.sp.wrapping_sub(immediate.abs() as u16);
+        }
 
         // update flags
         self.registers.f.zero = false;
         self.registers.f.substraction = false;
-        self.registers.f.half_carry = (self.sp & 0xF) + (value & 0xF) > 0xF;
-        self.registers.f.carry = (self.sp & 0xFF) + (value & 0xFF) > 0xFF;
+        self.registers.f.half_carry = (self.sp & 0xF) + (immediate as u16 & 0xF) > 0xF;
+        self.registers.f.carry = (self.sp & 0xFF) + (immediate as u16 & 0xFF) > 0xFF;
 
         // return next program counter value
         self.pc.wrapping_add(2)
