@@ -33,6 +33,7 @@ pub enum U16Target {
     SP,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq)]
 pub enum Load16Target {
     BC,
@@ -50,6 +51,7 @@ pub enum JumpTarget {
     C,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq)]
 pub enum SPTarget {
     FROM_SP,
@@ -72,6 +74,7 @@ pub enum PopPushTarget {
     AF,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq)]
 pub enum ResetTarget {
     FLASH_0,
@@ -90,6 +93,7 @@ pub enum Direction {
     RIGHT,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq)]
 pub enum BitTarget {
     BIT_0,
@@ -102,6 +106,7 @@ pub enum BitTarget {
     BIT_7,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq)]
 pub enum Instruction {
     ADD(ArithmeticTarget),
@@ -778,8 +783,6 @@ impl Instruction {
             0xFD => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::L)),
             0xFE => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::HL)),
             0xFF => Some(Instruction::SET_BIT(BitTarget::BIT_7, IncDecTarget::A)),
-
-            _ => None,
         }
     }
 }

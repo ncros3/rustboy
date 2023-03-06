@@ -76,7 +76,7 @@ impl Timer {
                 self.divider_timer_cycles = self.divider_timer_cycles % divider_cycles_per_tick;
 
                 // check if the main timer reached its maximum value
-                let (new_divider, overflow) = self.divider.overflowing_add(1);
+                let (new_divider, _overflow) = self.divider.overflowing_add(1);
                 self.divider = new_divider;
             } 
         }
