@@ -1136,17 +1136,12 @@ impl Cpu {
     fn jump_relative(&mut self, flag: bool, peripheral: &mut Peripheral) -> (u16, u8) {
         // get the immediate from memory
         let immediate_address = self.pc.wrapping_add(1);
-        let immediate = peripheral.read(immediate_address) as i8;
+        let immediate = peripheral.read(immediate_address) as i8 as u16;
 
         // do the jump following the flag value
         if flag {
             // manage signed value to add to PC
-            if immediate >= 0 {
-                (self.pc.wrapping_add(2).wrapping_add(immediate as u16), RUN_3_CYCLES)
-            } else {
-                // using wrapping_sub() implies to convert immediate to absolute value
-                (self.pc.wrapping_add(2).wrapping_sub(immediate.abs() as u16), RUN_3_CYCLES)
-            }
+            (self.pc.wrapping_add(2).wrapping_add(immediate), RUN_3_CYCLES)
         } else {
             (self.pc.wrapping_add(2), RUN_2_CYCLES)
         }
