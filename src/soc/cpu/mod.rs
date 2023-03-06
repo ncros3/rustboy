@@ -1048,20 +1048,15 @@ impl Cpu {
                 self.pc.wrapping_add(3)
             }, RUN_4_CYCLES),
             SPTarget::TO_HL => ({
-                let immediate = peripheral.read(self.pc.wrapping_add(1)) as i8;
-                let stack_addr = if immediate >= 0 {
-                    self.sp.wrapping_add(immediate as u16)
-                } else {
-                    // using wrapping_sub() implies to convert immediate to absolute value
-                    self.sp.wrapping_sub(immediate.abs() as u16)
-                };
+                let immediate = peripheral.read(self.pc.wrapping_add(1)) as i8 as u16;
+                let stack_addr = self.sp.wrapping_add(immediate);
                 self.registers.write_hl(stack_addr);
 
                 // update flags
                 self.registers.f.zero = false;
                 self.registers.f.substraction = false;
-                self.registers.f.half_carry = (self.sp & 0xF) + (immediate as u16 & 0xF) > 0xF;
-                self.registers.f.carry = (self.sp & 0xFF) + (immediate as u16 & 0xFF) > 0xFF;
+                self.registers.f.half_carry = (self.sp & 0xF) + (immediate & 0xF) > 0xF;
+                self.registers.f.carry = (self.sp & 0xFF) + (immediate & 0xFF) > 0xFF;
 
                 // return next program counter value
                 self.pc.wrapping_add(2)
