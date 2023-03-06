@@ -1060,8 +1060,8 @@ impl Cpu {
                 // update flags
                 self.registers.f.zero = false;
                 self.registers.f.substraction = false;
-                self.registers.f.half_carry = (self.sp & 0xF) + (immediate as i8 as i16 as u16 & 0xF) > 0xF;
-                self.registers.f.carry = (self.sp & 0xFF) + (immediate as i8 as i16 as u16 & 0xFF) > 0xFF;
+                self.registers.f.half_carry = (self.sp & 0xF) + (immediate as u16 & 0xF) > 0xF;
+                self.registers.f.carry = (self.sp & 0xFF) + (immediate as u16 & 0xFF) > 0xFF;
 
                 // return next program counter value
                 self.pc.wrapping_add(2)
@@ -1198,21 +1198,16 @@ impl Cpu {
     }
 
     fn add_sp(&mut self, peripheral: &mut Peripheral) -> u16 {
-        let address = self.pc.wrapping_add(1);
-        let immediate = peripheral.read(address) as i8;
-
-        if immediate >= 0 {
-            self.sp = self.sp.wrapping_add(immediate as u16);
-        } else {
-            // using wrapping_sub() implies to convert immediate to absolute value
-            self.sp = self.sp.wrapping_sub(immediate.abs() as u16);
-        }
+        let immediate = peripheral.read(self.pc.wrapping_add(1)) as i8 as u16;
+        let result = self.sp.wrapping_add(immediate);
 
         // update flags
         self.registers.f.zero = false;
         self.registers.f.substraction = false;
-        self.registers.f.half_carry = (self.sp & 0xF) + (immediate as u16 & 0xF) > 0xF;
-        self.registers.f.carry = (self.sp & 0xFF) + (immediate as u16 & 0xFF) > 0xFF;
+        self.registers.f.half_carry = (self.sp & 0x000F) + (immediate  & 0x000F) > 0x000F;
+        self.registers.f.carry = (self.sp & 0x00FF) + (immediate & 0xFF) > 0x00FF;
+
+        self.sp = result;
 
         // return next program counter value
         self.pc.wrapping_add(2)
@@ -1988,7 +1983,7 @@ mod cpu_tests {
         let data: u16 = 0xA7D8;
         cpu.registers.write_hl(data);
         cpu.execute(LOAD_SP(SPTarget::TO_SP), &mut peripheral);
-        assert_eq!(cpu.pc, data);
+        assert_eq!(cpu.sp, data);
     }
 
     #[test]
