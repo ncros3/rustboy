@@ -1257,7 +1257,7 @@ impl Cpu {
         }
 
         // update flags
-        self.registers.f.zero = false;
+        self.registers.f.substraction = false;
         self.registers.f.half_carry = false;
 
         // return next pc value
