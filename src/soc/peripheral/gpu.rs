@@ -1,4 +1,4 @@
-use crate::soc::peripheral::{VRAM_BEGIN, VRAM_SIZE, OAM_SIZE};
+use crate::soc::peripheral::{VRAM_SIZE, OAM_SIZE};
 use crate::soc::peripheral::nvic::{Nvic, InterruptSources};
 
 const OBJECT_X_OFFSET: i16 = -8;
@@ -19,6 +19,7 @@ const TILE_MAP_SIZE: u8 = 32;
 
 const BYTES_PER_TILE_ROM: u8 = 2;
 
+#[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PixelColor {
     WHITE = 255,

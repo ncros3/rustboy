@@ -69,7 +69,7 @@ impl Emulator {
     }
 }
 
-fn run_normal_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
+fn run_normal_mode(emulator: &mut Emulator, _dbg_ctx: &mut DebugCtx) {
     match emulator.state {
         EmulatorState::GetTime => {
             emulator.frame_tick = Instant::now();
