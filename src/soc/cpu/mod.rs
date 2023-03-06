@@ -1595,7 +1595,7 @@ mod cpu_tests {
         cpu.registers.write_bc(0xAABB);
         cpu.registers.write_af(0xFF10);
         cpu.execute(SBC(C), &mut peripheral);
-        assert_eq!(cpu.registers.read_af(), 0x4540);
+        assert_eq!(cpu.registers.read_af(), 0x4340);
     }
 
     #[test]
