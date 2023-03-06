@@ -1068,7 +1068,7 @@ impl Cpu {
             }, RUN_3_CYCLES),
             SPTarget::TO_SP => ({
                 let value = self.registers.read_hl();
-                self.pc = value;
+                self.sp = value;
 
                 // return next program counter value
                 self.pc.wrapping_add(1)
