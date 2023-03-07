@@ -370,6 +370,7 @@ impl Instruction {
             0x7C => Some(Instruction::LOAD(IncDecTarget::A, ArithmeticTarget::H)),
             0x7D => Some(Instruction::LOAD(IncDecTarget::A, ArithmeticTarget::L)),
             0x7E => Some(Instruction::LOAD(IncDecTarget::A, ArithmeticTarget::HL)),
+            0x7F => Some(Instruction::LOAD(IncDecTarget::A, ArithmeticTarget::A)),
             0x3E => Some(Instruction::LOAD(IncDecTarget::A, ArithmeticTarget::D8)),
 
             0x0A => Some(Instruction::LOAD_INDIRECT(Load16Target::BC)),
