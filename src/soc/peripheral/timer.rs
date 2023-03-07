@@ -131,7 +131,7 @@ mod timer_tests {
 
         timer.enabled = true;
 
-        for cycles in 0..=1024 {
+        for _ in 0..=1024 {
             timer.run(1, &mut nvic);
         }
 
@@ -148,7 +148,7 @@ mod timer_tests {
         timer.enabled = true;
         timer.value = 0xFF;
 
-        for cycles in 0..=1024 {
+        for _ in 0..=1024 {
             timer.run(1, &mut nvic);
         }
 
@@ -158,7 +158,7 @@ mod timer_tests {
         timer.modulo = 0xF5;
         timer.value = 0xFF;
 
-        for cycles in 0..=1024 {
+        for _ in 0..=1024 {
             timer.run(1, &mut nvic);
         }
 
