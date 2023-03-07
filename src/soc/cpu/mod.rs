@@ -616,7 +616,7 @@ macro_rules! long_inst_from_reg {
                 $self.$instruction($bit, value);
                 // return next pc
                 $self.pc.wrapping_add(2)
-            },  RUN_4_CYCLES),
+            },  RUN_3_CYCLES),
         }
     }};
 
@@ -1046,7 +1046,7 @@ impl Cpu {
 
                 // return next program counter value
                 self.pc.wrapping_add(3)
-            }, RUN_4_CYCLES),
+            }, RUN_5_CYCLES),
             SPTarget::TO_HL => ({
                 let immediate = peripheral.read(self.pc.wrapping_add(1)) as i8 as u16;
                 let stack_addr = self.sp.wrapping_add(immediate);
