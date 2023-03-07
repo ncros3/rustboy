@@ -194,6 +194,28 @@ impl Peripheral {
             0xFF05 => self.timer.get_value(),
             0xFF06 => self.timer.get_modulo(),
             0xFF0F => self.nvic.get_it_flag(),
+            0xFF10 => 0xFF, // Channel 1 Sweep register 
+            0xFF11 => 0xFF, /* Channel 1 Sound Length and Wave */ 
+            0xFF12 => 0xFF, /* Channel 1 Sound Control */ 
+            0xFF13 => 0xFF, /* Channel 1 Frequency lo */ 
+            0xFF14 => 0xFF, /* Channel 1 Control */ 
+            0xFF16 => 0xFF, /* Channel 2 Sound Control */ 
+            0xFF17 => 0xFF, /* Channel 2 Sound Control */ 
+            0xFF18 => 0xFF, /* Channel 2 Sound Control */ 
+            0xFF19 => 0xFF, /* Channel 2 Frequency hi data*/ 
+            0xFF1A => 0xFF, /* Channel 3 Sound on/off */ 
+            0xFF1B => 0xFF, /* Channel 3 Sound on/off */ 
+            0xFF1C => 0xFF, /* Channel 3 Sound on/off */ 
+            0xFF1D => 0xFF, /* Channel 3 Sound on/off */ 
+            0xFF1E => 0xFF, /* Channel 3 Sound on/off */ 
+            0xFF20 => 0xFF, /* Channel 4 Volumn */ 
+            0xFF21 => 0xFF, /* Channel 4 Volumn */ 
+            0xFF22 => 0xFF, /* Channel 4 Volumn */ 
+            0xFF23 => 0xFF, /* Channel 4 Counter/consecutive */ 
+            0xFF24 => 0xFF, /* Sound  Volume */ 
+            0xFF25 => 0xFF, /* Sound output terminal selection */ 
+            0xFF26 => 0xFF, /* Sound on/off */ 
+            0xff30..=0xff3f => 0xFF, //Wave Pattern RAM
             0xFF40 => self.gpu.control_to_byte(),
             0xFF41 => self.gpu.status_to_byte(),
             0xFF42 => self.gpu.get_scy(),
@@ -235,10 +257,7 @@ impl Peripheral {
             0xFF24 => { /* Sound  Volume */ }
             0xFF25 => { /* Sound output terminal selection */ }
             0xFF26 => { /* Sound on/off */ }
-            0xff30 | 0xff31 | 0xff32 | 0xff33 | 0xff34 | 0xff35 | 0xff36 | 0xff37 | 0xff38
-            | 0xff39 | 0xff3a | 0xff3b | 0xff3c | 0xff3d | 0xff3e | 0xff3f => {
-                //Wave Pattern RAM
-            }
+            0xff30..=0xff3f => { /* Wave Pattern RAM */ }
             0xFF40 => self.gpu.control_from_byte(data),
             0xFF41 => self.gpu.status_from_byte(data),
             0xFF42 => self.gpu.set_scy(data),
