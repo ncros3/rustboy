@@ -496,7 +496,7 @@ macro_rules! rotate_register {
         $self.registers.f.substraction = false;
         $self.registers.f.half_carry = false;
         // rotate register
-        let new_value = $self.$instruction($self.registers.$register, $direction, false);
+        let new_value = $self.$instruction($self.registers.$register, $direction, $zero);
         $self.registers.$register = new_value;
         // return next pc
         $self.pc.wrapping_add(1)
