@@ -71,10 +71,11 @@ impl Timer {
             // divide the main cpu clock
             let main_cycles_per_tick = self.main_timer_frequency.cycles_per_tick();
             if self.main_timer_cycles > main_cycles_per_tick {
+                let add_timer = (self.main_timer_cycles / main_cycles_per_tick) as u8;
                 self.main_timer_cycles = self.main_timer_cycles % main_cycles_per_tick;
 
                 // check if the main timer reached its maximum value
-                let (new_value, overflow) = self.value.overflowing_add(1);
+                let (new_value, overflow) = self.value.overflowing_add(add_timer);
                 self.value = new_value;
 
                 // register overflow for next cycle if any
@@ -95,10 +96,11 @@ impl Timer {
             // check if the divider timer reached its maximum value
             let divider_cycles_per_tick = self.divider_timer_frequency.cycles_per_tick();
             if self.divider_timer_cycles > divider_cycles_per_tick {
+                let add_divider = (self.divider_timer_cycles / divider_cycles_per_tick) as u8;
                 self.divider_timer_cycles = self.divider_timer_cycles % divider_cycles_per_tick;
 
                 // check if the main timer reached its maximum value
-                let (new_divider, _overflow) = self.divider.overflowing_add(1);
+                let (new_divider, _overflow) = self.divider.overflowing_add(add_divider);
                 self.divider = new_divider;
             } 
         }
