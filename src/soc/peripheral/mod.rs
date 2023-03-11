@@ -8,6 +8,8 @@ use nvic::Nvic;
 use timer::Timer;
 use bootrom::BootRom;
 
+use crate::cartridge::Cartridge;
+
 pub const BOOT_ROM_BEGIN: u16 = 0x0000;
 pub const BOOT_ROM_END: u16 = 0x00FF;
 pub const BOOT_ROM_SIZE: u16 = BOOT_ROM_END - BOOT_ROM_BEGIN + 1;
@@ -57,9 +59,7 @@ pub const TIMER_VECTOR: u16 = 0x50;
 
 pub struct Peripheral {
     boot_rom: BootRom,
-    rom_bank_0: [u8; ROM_BANK_0_SIZE as usize],
-    rom_bank_n: [u8; ROM_BANK_N_SIZE as usize],
-    external_ram: [u8; EXTERNAL_RAM_SIZE as usize],
+    cartridge: Cartridge,
     working_ram: [u8; WORKING_RAM_SIZE as usize],
     zero_page: [u8; ZERO_PAGE_SIZE as usize],
     pub gpu: Gpu,
@@ -72,12 +72,10 @@ pub struct Peripheral {
 }
 
 impl Peripheral {
-    pub fn new() -> Peripheral {
+    pub fn new(cartridge: Cartridge) -> Peripheral {
         Peripheral {
             boot_rom: BootRom::new(),
-            rom_bank_0: [0xFF; ROM_BANK_0_SIZE as usize],
-            rom_bank_n: [0xFF; ROM_BANK_N_SIZE as usize],
-            external_ram: [0xFF; EXTERNAL_RAM_SIZE as usize],
+            cartridge: cartridge,
             working_ram: [0xFF; WORKING_RAM_SIZE as usize],
             zero_page: [0xFF; ZERO_PAGE_SIZE as usize],
             gpu: Gpu::new(),
@@ -120,17 +118,6 @@ impl Peripheral {
         self.boot_rom.load(boot_rom);
     }
 
-    pub fn load_rom(&mut self, rom: &[u8]){
-        // copy bank 0 data
-        for rom_index in 0..ROM_BANK_0_SIZE {
-            self.rom_bank_0[rom_index as usize] = rom[rom_index as usize];
-        }
-        // copy bank n data
-        for rom_index in 0..ROM_BANK_N_SIZE {
-            self.rom_bank_n[rom_index as usize] = rom[(ROM_BANK_N_BEGIN + rom_index) as usize];
-        }
-    }
-
     pub fn read(&self, address: u16) -> u8 {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
@@ -139,14 +126,14 @@ impl Peripheral {
                         if self.boot_rom.get_state() {
                             self.boot_rom.read(address)
                         } else {
-                            self.rom_bank_0[address as usize]
+                            self.cartridge.read_bank_0(address as usize)
                         }
-                    _ => self.rom_bank_0[address as usize]
+                    _ => self.cartridge.read_bank_0(address as usize)
                 }
             }
-            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.rom_bank_n[(address - ROM_BANK_N_BEGIN) as usize],
+            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.read_bank_n((address - ROM_BANK_N_BEGIN) as usize),
             VRAM_BEGIN..=VRAM_END => self.gpu.read_vram_ext(address - VRAM_BEGIN),
-            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.external_ram[(address - EXTERNAL_RAM_BEGIN) as usize],
+            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.read_ram((address - EXTERNAL_RAM_BEGIN) as usize),
             WORKING_RAM_BEGIN..=WORKING_RAM_END => self.working_ram[(address - WORKING_RAM_BEGIN) as usize],
             ECHO_RAM_BEGIN..=ECHO_RAM_END => self.working_ram[(address - ECHO_RAM_BEGIN) as usize],
             OAM_BEGIN..=OAM_END => self.gpu.read_oam_ext((address - OAM_BEGIN) as usize),
@@ -160,11 +147,14 @@ impl Peripheral {
     pub fn write(&mut self, address: u16, data: u8) {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
-                self.rom_bank_0[address as usize] = data;
+                self.cartridge.write_bank_0(address as usize, data);
+            }
+            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => {
+                self.cartridge.write_bank_n(address as usize, data);
             }
             VRAM_BEGIN..=VRAM_END => self.gpu.write_vram_ext(address - VRAM_BEGIN, data),
             EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => {
-                self.external_ram[(address - EXTERNAL_RAM_BEGIN) as usize] = data;
+                self.cartridge.write_ram((address - EXTERNAL_RAM_BEGIN) as usize, data)
             }
             WORKING_RAM_BEGIN..=WORKING_RAM_END => {
                 self.working_ram[(address - WORKING_RAM_BEGIN) as usize] = data;
@@ -290,7 +280,7 @@ mod peripheral_tests {
 
     #[test]
     fn test_read_write() {
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0x00]));
         peripheral.write(0x0001, 0xAA);
         peripheral.write(0x0002, 0x55);
         peripheral.write(0x0010, 0xAA);
@@ -301,7 +291,7 @@ mod peripheral_tests {
 
     #[test]
     fn test_read_write_vram() {
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0x00]));
         peripheral.write(0x0001 + VRAM_BEGIN, 0xAA);
         peripheral.write(0x0002 + VRAM_BEGIN, 0x55);
         peripheral.write(0x0010 + VRAM_BEGIN, 0xAA);
@@ -312,7 +302,7 @@ mod peripheral_tests {
 
     #[test]
     fn test_oam_dma() {
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0x00]));
         let address = 0x1000;
         // init data
         peripheral.write(address, 0xAA);
