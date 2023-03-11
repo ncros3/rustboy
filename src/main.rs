@@ -1,6 +1,7 @@
 mod emulator;
 mod soc;
 mod debug;
+mod cartridge;
 
 use minifb::{Key, Window, WindowOptions};
 use std::{fs::File, io::Read, env};

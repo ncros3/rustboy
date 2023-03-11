@@ -1468,11 +1468,12 @@ mod cpu_tests {
     use crate::soc::cpu::instruction::{
         IncDecTarget, JumpTarget, Load16Target, PopPushTarget, ResetTarget, SPTarget, U16Target,
     };
+    use crate::cartridge::Cartridge;
 
     #[test]
     fn test_add_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         cpu.registers.write_bc(0xAABB);
         cpu.execute(ADD(B), &mut peripheral);
         assert_eq!(cpu.registers.read_af(), 0xAA00);
@@ -1481,7 +1482,7 @@ mod cpu_tests {
     #[test]
     fn test_add_memory() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         let address = 0x1234;
         let data = 0xAA;
 
@@ -1494,7 +1495,7 @@ mod cpu_tests {
     #[test]
     fn test_add_immediate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         let address = 0x0001;
         let data = 0x23;
 
@@ -1506,7 +1507,7 @@ mod cpu_tests {
     #[test]
     fn test_add16_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         cpu.registers.write_bc(0x2200);
         cpu.registers.write_hl(0x0125);
         cpu.execute(ADD16(U16Target::BC), &mut peripheral);
@@ -1530,7 +1531,7 @@ mod cpu_tests {
     #[test]
     fn test_addc_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.write_af(0x0110);
         cpu.registers.write_bc(0xAABB);
@@ -1546,7 +1547,7 @@ mod cpu_tests {
     #[test]
     fn test_addc_memory() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         let address = 0x1234;
         let data = 0xAA;
 
@@ -1559,7 +1560,7 @@ mod cpu_tests {
     #[test]
     fn test_addc_immediate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         let address = 0x0001;
         let data = 0x23;
 
@@ -1572,7 +1573,7 @@ mod cpu_tests {
     #[test]
     fn test_sub_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         cpu.registers.write_bc(0xAABB);
         cpu.registers.write_af(0xFF00);
         cpu.execute(SUB(C), &mut peripheral);
@@ -1582,7 +1583,7 @@ mod cpu_tests {
     #[test]
     fn test_subc_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         cpu.registers.write_bc(0xAABB);
         cpu.registers.write_af(0xFF10);
         cpu.execute(SBC(C), &mut peripheral);
@@ -1592,7 +1593,7 @@ mod cpu_tests {
     #[test]
     fn test_and_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         cpu.registers.write_bc(0xAABB);
         cpu.registers.write_af(0xAA00);
         cpu.execute(AND(B), &mut peripheral);
@@ -1602,7 +1603,7 @@ mod cpu_tests {
     #[test]
     fn test_xor_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         cpu.registers.write_bc(0x0022);
         cpu.registers.write_af(0x2100);
         cpu.execute(XOR(C), &mut peripheral);
@@ -1612,7 +1613,7 @@ mod cpu_tests {
     #[test]
     fn test_or_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         cpu.registers.write_bc(0x0022);
         cpu.registers.write_af(0x2100);
         cpu.execute(OR(C), &mut peripheral);
@@ -1622,7 +1623,7 @@ mod cpu_tests {
     #[test]
     fn test_cp_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.write_bc(0x0022);
         cpu.registers.write_af(0x2200);
@@ -1638,7 +1639,7 @@ mod cpu_tests {
     #[test]
     fn test_inc_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.write_bc(0x2200);
         cpu.execute(INC(IncDecTarget::B), &mut peripheral);
@@ -1659,7 +1660,7 @@ mod cpu_tests {
     #[test]
     fn test_inc16_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.write_bc(0x2200);
         cpu.execute(INC16(U16Target::BC), &mut peripheral);
@@ -1681,7 +1682,7 @@ mod cpu_tests {
     #[test]
     fn test_dec_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.write_bc(0x2200);
         cpu.execute(DEC(IncDecTarget::B), &mut peripheral);
@@ -1702,7 +1703,7 @@ mod cpu_tests {
     #[test]
     fn test_dec16_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.write_bc(0x2200);
         cpu.execute(DEC16(U16Target::BC), &mut peripheral);
@@ -1724,7 +1725,7 @@ mod cpu_tests {
     #[test]
     fn test_load_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.write_de(0x0057);
         cpu.execute(LOAD(IncDecTarget::B, E), &mut peripheral);
@@ -1766,7 +1767,7 @@ mod cpu_tests {
     #[test]
     fn test_load_indirect() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         let mem_address = 0x00D8;
         let mut data = 0x56;
@@ -1786,7 +1787,7 @@ mod cpu_tests {
     #[test]
     fn test_load_immediate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         let low_data = 0x4C;
         let high_data = 0xB7;
@@ -1803,7 +1804,7 @@ mod cpu_tests {
     #[test]
     fn test_store_indirect() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         let mem_address = 0x00D8;
         let mut data = 0x5600;
@@ -1823,7 +1824,7 @@ mod cpu_tests {
     #[test]
     fn test_jump_relative_nzero() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // first, fill memory with program
         let base_address: u16 = 0x0000;
@@ -1855,7 +1856,7 @@ mod cpu_tests {
     #[test]
     fn test_jump_relative_carry() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // first, fill memory with program
         let base_address: u16 = 0x0000;
@@ -1888,7 +1889,7 @@ mod cpu_tests {
     #[test]
     fn test_jump_relative_immediate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // first, fill memory with program
         let base_address: u16 = 0x0000;
@@ -1914,7 +1915,7 @@ mod cpu_tests {
     #[test]
     fn test_jump_immediate_zero() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // first, fill memory with program
         let base_address: u16 = 0x0000;
@@ -1947,7 +1948,7 @@ mod cpu_tests {
     #[test]
     fn test_jump_indirect() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // first, fill memory with program
         let jump_inst: u8 = 0xE9;
@@ -1968,7 +1969,7 @@ mod cpu_tests {
     #[test]
     fn test_load_from_hl_to_sp() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         let data: u16 = 0xA7D8;
         cpu.registers.write_hl(data);
@@ -1979,7 +1980,7 @@ mod cpu_tests {
     #[test]
     fn test_load_from_sp_to_hl() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.sp = 0x0010;
         let offset: u8 = 0x02;
@@ -2000,13 +2001,13 @@ mod cpu_tests {
     #[test]
     fn test_load_from_sp_to_mem() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // first, fill memory with program
         let base_address = 0x24C8;
         let jump_inst: u8 = 0x08;
         let low_address = 0x05;
-        let high_address = 0xA1;
+        let high_address = 0xC1;
         let address = (low_address as u16) + ((high_address as u16) << 8);
         let program: [u8; 3] = [jump_inst, low_address, high_address];
         let mut index = 0;
@@ -2029,7 +2030,7 @@ mod cpu_tests {
     #[test]
     fn test_load_ram_from_one_byte() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
@@ -2055,7 +2056,7 @@ mod cpu_tests {
     #[test]
     fn test_load_ram_from_two_bytes() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
@@ -2085,7 +2086,7 @@ mod cpu_tests {
     #[test]
     fn test_load_ram_from_register() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
@@ -2112,7 +2113,7 @@ mod cpu_tests {
     #[test]
     fn test_store_ram_from_one_byte() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
@@ -2138,7 +2139,7 @@ mod cpu_tests {
     #[test]
     fn test_push_and_pop() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // initialize RAM memory parameters
         let ram_address = 0xFFA5;
@@ -2165,7 +2166,7 @@ mod cpu_tests {
     #[test]
     fn test_add_sp() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // init parameters
         let data_to_add = 0x88;
@@ -2194,7 +2195,7 @@ mod cpu_tests {
     #[test]
     fn test_return() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // initialize RAM memory parameters
         let ram_address = 0xFFA5;
@@ -2211,7 +2212,7 @@ mod cpu_tests {
     #[test]
     fn test_reset() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // test push instruction
         cpu.sp = 0xFFAF;
@@ -2222,7 +2223,7 @@ mod cpu_tests {
     #[test]
     fn test_interrupt() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.execute(EI, &mut peripheral);
         assert_eq!(peripheral.nvic.interrupt_master_enable, true);
@@ -2246,7 +2247,7 @@ mod cpu_tests {
     #[test]
     fn test_call() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // first, fill memory with program
         let inst: u8 = 0xC4;
@@ -2267,7 +2268,7 @@ mod cpu_tests {
     #[test]
     fn test_nop_stop_halt() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // first, fill memory with program
         let nop_inst: u8 = 0x00;
@@ -2307,7 +2308,7 @@ mod cpu_tests {
     #[test]
     fn test_jump_to_interrupt() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         // init stack pointer
         cpu.sp = 0xFFA5;
@@ -2356,7 +2357,7 @@ mod cpu_tests {
     #[test]
     fn test_complement() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.a = 0x55;
         cpu.execute(Instruction::CPL, &mut peripheral);
@@ -2366,7 +2367,7 @@ mod cpu_tests {
     #[test]
     fn test_set_carry() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.execute(Instruction::SCF, &mut peripheral);
         assert_eq!(cpu.registers.f.carry, true);
@@ -2379,7 +2380,7 @@ mod cpu_tests {
     #[test]
     fn test_decimal_adjust() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.a = 0x0B;
         cpu.execute(Instruction::DAA, &mut peripheral);
@@ -2389,7 +2390,7 @@ mod cpu_tests {
     #[test]
     fn test_rotate_left() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.a = 0xB5;
         cpu.execute(Instruction::RCA(Direction::LEFT), &mut peripheral);
@@ -2400,7 +2401,7 @@ mod cpu_tests {
     #[test]
     fn test_rotate_through_carry_right() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.a = 0xB5;
         cpu.registers.f.carry = true;
@@ -2412,7 +2413,7 @@ mod cpu_tests {
     #[test]
     fn test_decode_long_instruction() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         let program: [u8; 2] = [0xCB, 0x19];
         let mut index = 0;
@@ -2434,7 +2435,7 @@ mod cpu_tests {
     #[test]
     fn test_long_rotate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.b = 0xB5;
         cpu.execute(Instruction::RC(Direction::LEFT, IncDecTarget::B), &mut peripheral);
@@ -2445,7 +2446,7 @@ mod cpu_tests {
     #[test]
     fn test_long_rotate_hl() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         let address = 0x1234;
         let data = 0xB5;
@@ -2458,7 +2459,7 @@ mod cpu_tests {
     #[test]
     fn test_long_rotate_through_carry_right() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.e = 0xB5;
         cpu.registers.f.carry = true;
@@ -2470,7 +2471,7 @@ mod cpu_tests {
     #[test]
     fn test_shift_left_and_reset() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.d = 0xB5;
         cpu.execute(Instruction::SLA(IncDecTarget::D), &mut peripheral);
@@ -2481,7 +2482,7 @@ mod cpu_tests {
     #[test]
     fn test_shift_right_and_reset() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.h = 0xB5;
         cpu.execute(Instruction::SRL(IncDecTarget::H), &mut peripheral);
@@ -2492,7 +2493,7 @@ mod cpu_tests {
     #[test]
     fn test_shift_right_and_reset_hl() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         let address = 0x1234;
         let data = 0xB5;
@@ -2505,7 +2506,7 @@ mod cpu_tests {
     #[test]
     fn test_shift_right() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.c = 0xB5;
         cpu.execute(Instruction::SRA(IncDecTarget::C), &mut peripheral);
@@ -2516,7 +2517,7 @@ mod cpu_tests {
     #[test]
     fn test_swap() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.l = 0xB5;
         cpu.execute(Instruction::SWAP(IncDecTarget::L), &mut peripheral);
@@ -2526,7 +2527,7 @@ mod cpu_tests {
     #[test]
     fn test_complement_bit() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.h = 0xB5;
         cpu.execute(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::H), &mut peripheral);
@@ -2548,7 +2549,7 @@ mod cpu_tests {
     #[test]
     fn test_set_reset_bit() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         cpu.registers.b = 0xB5;
         cpu.execute(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::B), &mut peripheral);
@@ -2562,7 +2563,7 @@ mod cpu_tests {
     #[test]
     fn test_set_reset_bit_hl() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new();
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
 
         let address = 0x1234;
         let data = 0xB5;

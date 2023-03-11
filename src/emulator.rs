@@ -1,4 +1,4 @@
-use crate::soc::Soc;
+use crate::{soc::Soc, cartridge::Cartridge};
 use std::time::Instant;
 use crate::debug::{DebugCtx, run_debug_mode};
 
@@ -31,8 +31,10 @@ pub struct Emulator {
 
 impl Emulator {
     pub fn new(boot_rom: &[u8], rom: &[u8], debug_on: bool) -> Emulator {
-        let mut soc = Soc::new();
-        soc.load(boot_rom, rom);
+        let cartridge = Cartridge::new(rom);
+
+        let mut soc = Soc::new(cartridge);
+        soc.load(boot_rom);
 
         let run_routine = if debug_on {
             run_debug_mode
