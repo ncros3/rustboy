@@ -280,7 +280,7 @@ mod peripheral_tests {
 
     #[test]
     fn test_read_write() {
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0x00]));
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         peripheral.write(0x0001, 0xAA);
         peripheral.write(0x0002, 0x55);
         peripheral.write(0x0010, 0xAA);
@@ -291,7 +291,7 @@ mod peripheral_tests {
 
     #[test]
     fn test_read_write_vram() {
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0x00]));
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         peripheral.write(0x0001 + VRAM_BEGIN, 0xAA);
         peripheral.write(0x0002 + VRAM_BEGIN, 0x55);
         peripheral.write(0x0010 + VRAM_BEGIN, 0xAA);
@@ -302,7 +302,7 @@ mod peripheral_tests {
 
     #[test]
     fn test_oam_dma() {
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0x00]));
+        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
         let address = 0x1000;
         // init data
         peripheral.write(address, 0xAA);

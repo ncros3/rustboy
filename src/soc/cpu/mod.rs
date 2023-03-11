@@ -2007,7 +2007,7 @@ mod cpu_tests {
         let base_address = 0x24C8;
         let jump_inst: u8 = 0x08;
         let low_address = 0x05;
-        let high_address = 0xA1;
+        let high_address = 0xC1;
         let address = (low_address as u16) + ((high_address as u16) << 8);
         let program: [u8; 3] = [jump_inst, low_address, high_address];
         let mut index = 0;
