@@ -13,10 +13,13 @@ pub struct Soc {
 }
 
 impl Soc {
-    pub fn new(cartridge: Cartridge) -> Soc {
+    pub fn new(boot_rom: &[u8], cartridge: Cartridge) -> Soc {
+        let mut peripheral = Peripheral::new(cartridge);
+        peripheral.load_bootrom(boot_rom);
+
         Soc {
             cpu: Cpu::new(),
-            peripheral: Peripheral::new(cartridge),
+            peripheral: peripheral,
         }
     }
 
@@ -26,10 +29,6 @@ impl Soc {
         self.peripheral.run(cycles * CLOCK_TICK_PER_MACHINE_CYCLE);
 
         cycles
-    }
-
-    pub fn load(&mut self, boot_rom: &[u8]) {
-        self.peripheral.load_bootrom(boot_rom);
     }
 
     pub fn get_frame_buffer(&self, pixel_index: usize) -> u8 {
