@@ -206,6 +206,7 @@ impl Peripheral {
             0xFF43 => self.gpu.get_scx(),
             0xFF44 => self.gpu.get_current_line(),
             0xFF45 => self.gpu.get_compare_line(),
+            0xFF4D => 0xFF, // CGB SPEED SWITCH register, not supported
             _ => panic!("Reading from an unknown I/O register {:x}", address),
         }
     }

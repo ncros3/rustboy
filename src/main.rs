@@ -25,11 +25,12 @@ fn main() {
     }
 
     let mut rom_file = File::open(game_rom_path).unwrap();
-    let mut rom_data = [0xFF as u8; 32768];
+    let rom_len = rom_file.metadata().unwrap().len();
+    let mut rom_data = vec![0xFF as u8; rom_len as usize];
     if let Err(message) = rom_file.read_exact(&mut rom_data) {
         panic!("Cannot read file with error message: {}", message);
     }
-    println!("rom file len: {:#06x}", rom_file.metadata().unwrap().len());
+    println!("rom file len: {:x}", rom_len);
 
     // launch the debugger cli
     let dbg_ctx = Arc::new(Mutex::new(DebugCtx::new()));
