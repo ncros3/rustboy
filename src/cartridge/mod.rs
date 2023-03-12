@@ -106,11 +106,11 @@ impl std::fmt::Display for RomSize {
 
 #[allow(non_camel_case_types)]
 pub enum RamSize {
-    NO_RAM = 0x00,
-    SIZE_8_KB = 0x02,
-    SIZE_32_KB = 0x03,
-    SIZE_128_KB = 0x04,
-    SIZE_64_KB = 0x05,
+    NO_RAM,
+    SIZE_8_KB,
+    SIZE_32_KB,
+    SIZE_128_KB,
+    SIZE_64_KB,
 }
 
 impl std::fmt::Display for RamSize {
