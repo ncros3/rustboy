@@ -131,9 +131,9 @@ impl Peripheral {
                     _ => self.cartridge.read_bank_0(address as usize)
                 }
             }
-            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.read_bank_n((address - ROM_BANK_N_BEGIN) as usize),
+            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.read_bank_n(address as usize),
             VRAM_BEGIN..=VRAM_END => self.gpu.read_vram_ext(address - VRAM_BEGIN),
-            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.read_ram((address - EXTERNAL_RAM_BEGIN) as usize),
+            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.read_ram(address as usize),
             WORKING_RAM_BEGIN..=WORKING_RAM_END => self.working_ram[(address - WORKING_RAM_BEGIN) as usize],
             ECHO_RAM_BEGIN..=ECHO_RAM_END => self.working_ram[(address - ECHO_RAM_BEGIN) as usize],
             OAM_BEGIN..=OAM_END => self.gpu.read_oam_ext((address - OAM_BEGIN) as usize),
@@ -146,16 +146,10 @@ impl Peripheral {
 
     pub fn write(&mut self, address: u16, data: u8) {
         match address {
-            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
-                self.cartridge.write_bank_0(address as usize, data);
-            }
-            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => {
-                self.cartridge.write_bank_n(address as usize, data);
-            }
+            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => self.cartridge.write_bank_0(address as usize, data),
+            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.write_bank_n(address as usize, data),
             VRAM_BEGIN..=VRAM_END => self.gpu.write_vram_ext(address - VRAM_BEGIN, data),
-            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => {
-                self.cartridge.write_ram((address - EXTERNAL_RAM_BEGIN) as usize, data)
-            }
+            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.write_ram(address as usize, data),
             WORKING_RAM_BEGIN..=WORKING_RAM_END => {
                 self.working_ram[(address - WORKING_RAM_BEGIN) as usize] = data;
             }
@@ -212,6 +206,7 @@ impl Peripheral {
             0xFF43 => self.gpu.get_scx(),
             0xFF44 => self.gpu.get_current_line(),
             0xFF45 => self.gpu.get_compare_line(),
+            0xFF4D => 0xFF, // CGB SPEED SWITCH register, not supported
             _ => panic!("Reading from an unknown I/O register {:x}", address),
         }
     }
@@ -277,10 +272,15 @@ impl Peripheral {
 #[cfg(test)]
 mod peripheral_tests {
     use super::*;
+    use crate::cartridge::{Cartridge, CARTRIDGE_TYPE_OFFSET, CARTRIDGE_RAM_SIZE_OFFSET, CARTRIDGE_ROM_SIZE_OFFSET};
 
     #[test]
     fn test_read_write() {
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         peripheral.write(0x0001, 0xAA);
         peripheral.write(0x0002, 0x55);
         peripheral.write(0x0010, 0xAA);
@@ -291,7 +291,11 @@ mod peripheral_tests {
 
     #[test]
     fn test_read_write_vram() {
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         peripheral.write(0x0001 + VRAM_BEGIN, 0xAA);
         peripheral.write(0x0002 + VRAM_BEGIN, 0x55);
         peripheral.write(0x0010 + VRAM_BEGIN, 0xAA);
@@ -302,7 +306,11 @@ mod peripheral_tests {
 
     #[test]
     fn test_oam_dma() {
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         let address = 0x1000;
         // init data
         peripheral.write(address, 0xAA);

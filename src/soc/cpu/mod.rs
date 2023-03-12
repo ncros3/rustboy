@@ -1468,12 +1468,16 @@ mod cpu_tests {
     use crate::soc::cpu::instruction::{
         IncDecTarget, JumpTarget, Load16Target, PopPushTarget, ResetTarget, SPTarget, U16Target,
     };
-    use crate::cartridge::Cartridge;
+    use crate::cartridge::{Cartridge, CARTRIDGE_TYPE_OFFSET, CARTRIDGE_RAM_SIZE_OFFSET, CARTRIDGE_ROM_SIZE_OFFSET};
 
     #[test]
     fn test_add_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         cpu.registers.write_bc(0xAABB);
         cpu.execute(ADD(B), &mut peripheral);
         assert_eq!(cpu.registers.read_af(), 0xAA00);
@@ -1482,7 +1486,11 @@ mod cpu_tests {
     #[test]
     fn test_add_memory() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         let address = 0x1234;
         let data = 0xAA;
 
@@ -1495,7 +1503,11 @@ mod cpu_tests {
     #[test]
     fn test_add_immediate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         let address = 0x0001;
         let data = 0x23;
 
@@ -1507,7 +1519,11 @@ mod cpu_tests {
     #[test]
     fn test_add16_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         cpu.registers.write_bc(0x2200);
         cpu.registers.write_hl(0x0125);
         cpu.execute(ADD16(U16Target::BC), &mut peripheral);
@@ -1531,8 +1547,12 @@ mod cpu_tests {
     #[test]
     fn test_addc_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.write_af(0x0110);
         cpu.registers.write_bc(0xAABB);
         cpu.execute(ADDC(B), &mut peripheral);
@@ -1547,7 +1567,11 @@ mod cpu_tests {
     #[test]
     fn test_addc_memory() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         let address = 0x1234;
         let data = 0xAA;
 
@@ -1560,7 +1584,11 @@ mod cpu_tests {
     #[test]
     fn test_addc_immediate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         let address = 0x0001;
         let data = 0x23;
 
@@ -1573,7 +1601,11 @@ mod cpu_tests {
     #[test]
     fn test_sub_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         cpu.registers.write_bc(0xAABB);
         cpu.registers.write_af(0xFF00);
         cpu.execute(SUB(C), &mut peripheral);
@@ -1583,7 +1615,11 @@ mod cpu_tests {
     #[test]
     fn test_subc_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         cpu.registers.write_bc(0xAABB);
         cpu.registers.write_af(0xFF10);
         cpu.execute(SBC(C), &mut peripheral);
@@ -1593,7 +1629,11 @@ mod cpu_tests {
     #[test]
     fn test_and_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         cpu.registers.write_bc(0xAABB);
         cpu.registers.write_af(0xAA00);
         cpu.execute(AND(B), &mut peripheral);
@@ -1603,7 +1643,11 @@ mod cpu_tests {
     #[test]
     fn test_xor_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         cpu.registers.write_bc(0x0022);
         cpu.registers.write_af(0x2100);
         cpu.execute(XOR(C), &mut peripheral);
@@ -1613,7 +1657,11 @@ mod cpu_tests {
     #[test]
     fn test_or_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         cpu.registers.write_bc(0x0022);
         cpu.registers.write_af(0x2100);
         cpu.execute(OR(C), &mut peripheral);
@@ -1623,8 +1671,12 @@ mod cpu_tests {
     #[test]
     fn test_cp_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.write_bc(0x0022);
         cpu.registers.write_af(0x2200);
         cpu.execute(CP(C), &mut peripheral);
@@ -1639,8 +1691,12 @@ mod cpu_tests {
     #[test]
     fn test_inc_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.write_bc(0x2200);
         cpu.execute(INC(IncDecTarget::B), &mut peripheral);
         assert_eq!(cpu.registers.read_bc(), 0x2300);
@@ -1660,8 +1716,12 @@ mod cpu_tests {
     #[test]
     fn test_inc16_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.write_bc(0x2200);
         cpu.execute(INC16(U16Target::BC), &mut peripheral);
         assert_eq!(cpu.registers.read_bc(), 0x2201);
@@ -1682,8 +1742,12 @@ mod cpu_tests {
     #[test]
     fn test_dec_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.write_bc(0x2200);
         cpu.execute(DEC(IncDecTarget::B), &mut peripheral);
         assert_eq!(cpu.registers.read_bc(), 0x2100);
@@ -1703,8 +1767,12 @@ mod cpu_tests {
     #[test]
     fn test_dec16_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.write_bc(0x2200);
         cpu.execute(DEC16(U16Target::BC), &mut peripheral);
         assert_eq!(cpu.registers.read_bc(), 0x21FF);
@@ -1725,8 +1793,12 @@ mod cpu_tests {
     #[test]
     fn test_load_registers() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.write_de(0x0057);
         cpu.execute(LOAD(IncDecTarget::B, E), &mut peripheral);
         assert_eq!(cpu.registers.read_bc(), 0x5700);
@@ -1767,8 +1839,12 @@ mod cpu_tests {
     #[test]
     fn test_load_indirect() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         let mem_address = 0x00D8;
         let mut data = 0x56;
         peripheral.write(mem_address, data);
@@ -1787,8 +1863,12 @@ mod cpu_tests {
     #[test]
     fn test_load_immediate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         let low_data = 0x4C;
         let high_data = 0xB7;
         let value = ((high_data as u16) << 8) + low_data as u16;
@@ -1804,8 +1884,12 @@ mod cpu_tests {
     #[test]
     fn test_store_indirect() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         let mem_address = 0x00D8;
         let mut data = 0x5600;
         cpu.registers.write_af(data);
@@ -1824,8 +1908,12 @@ mod cpu_tests {
     #[test]
     fn test_jump_relative_nzero() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // first, fill memory with program
         let base_address: u16 = 0x0000;
         let jump: u8 = 0x05;
@@ -1856,8 +1944,12 @@ mod cpu_tests {
     #[test]
     fn test_jump_relative_carry() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // first, fill memory with program
         let base_address: u16 = 0x0000;
         let jump: u8 = 0x05;
@@ -1889,8 +1981,12 @@ mod cpu_tests {
     #[test]
     fn test_jump_relative_immediate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // first, fill memory with program
         let base_address: u16 = 0x0000;
         let jump: u8 = 0x06;
@@ -1915,8 +2011,12 @@ mod cpu_tests {
     #[test]
     fn test_jump_immediate_zero() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // first, fill memory with program
         let base_address: u16 = 0x0000;
         let jump: u8 = 0x05;
@@ -1948,8 +2048,12 @@ mod cpu_tests {
     #[test]
     fn test_jump_indirect() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // first, fill memory with program
         let jump_inst: u8 = 0xE9;
         let program: [u8; 8] = [jump_inst, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
@@ -1969,8 +2073,12 @@ mod cpu_tests {
     #[test]
     fn test_load_from_hl_to_sp() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         let data: u16 = 0xA7D8;
         cpu.registers.write_hl(data);
         cpu.execute(LOAD_SP(SPTarget::TO_SP), &mut peripheral);
@@ -1980,8 +2088,12 @@ mod cpu_tests {
     #[test]
     fn test_load_from_sp_to_hl() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.sp = 0x0010;
         let offset: u8 = 0x02;
 
@@ -2001,8 +2113,12 @@ mod cpu_tests {
     #[test]
     fn test_load_from_sp_to_mem() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // first, fill memory with program
         let base_address = 0x24C8;
         let jump_inst: u8 = 0x08;
@@ -2030,8 +2146,12 @@ mod cpu_tests {
     #[test]
     fn test_load_ram_from_one_byte() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
         let data = 0xF8;
@@ -2056,8 +2176,12 @@ mod cpu_tests {
     #[test]
     fn test_load_ram_from_two_bytes() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
         let data = 0xF8;
@@ -2086,8 +2210,12 @@ mod cpu_tests {
     #[test]
     fn test_load_ram_from_register() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
         let data = 0xF8;
@@ -2113,8 +2241,12 @@ mod cpu_tests {
     #[test]
     fn test_store_ram_from_one_byte() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // initialize RAM memory
         let ram_data_address = 0xFFA5;
         let data = 0xF8;
@@ -2139,8 +2271,12 @@ mod cpu_tests {
     #[test]
     fn test_push_and_pop() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // initialize RAM memory parameters
         let ram_address = 0xFFA5;
         let push_data = 0xD7F8;
@@ -2166,8 +2302,12 @@ mod cpu_tests {
     #[test]
     fn test_add_sp() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // init parameters
         let data_to_add = 0x88;
         let sp_init = 0xF147;
@@ -2195,8 +2335,12 @@ mod cpu_tests {
     #[test]
     fn test_return() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // initialize RAM memory parameters
         let ram_address = 0xFFA5;
         let push_data = 0xD7F8;
@@ -2205,26 +2349,34 @@ mod cpu_tests {
         cpu.sp = ram_address;
         cpu.registers.write_de(push_data);
         cpu.execute(PUSH(PopPushTarget::DE), &mut peripheral);
-        let (next_pc, cycles) = cpu.execute(RETURN(JumpTarget::IMMEDIATE), &mut peripheral);
+        let (next_pc, _) = cpu.execute(RETURN(JumpTarget::IMMEDIATE), &mut peripheral);
         assert_eq!(next_pc, push_data);
     }
 
     #[test]
     fn test_reset() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // test push instruction
         cpu.sp = 0xFFAF;
-        let (next_pc, cycles) = cpu.execute(RESET(ResetTarget::FLASH_1), &mut peripheral);
+        let (next_pc, _) = cpu.execute(RESET(ResetTarget::FLASH_1), &mut peripheral);
         assert_eq!(next_pc, 0x08);
     }
 
     #[test]
     fn test_interrupt() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.execute(EI, &mut peripheral);
         assert_eq!(peripheral.nvic.interrupt_master_enable, true);
 
@@ -2239,7 +2391,7 @@ mod cpu_tests {
         cpu.sp = ram_address;
         cpu.registers.write_de(push_data);
         cpu.execute(PUSH(PopPushTarget::DE), &mut peripheral);
-        let (next_pc, cycles) = cpu.execute(RETI, &mut peripheral);
+        let (next_pc, _) = cpu.execute(RETI, &mut peripheral);
         assert_eq!(next_pc, push_data);
         assert_eq!(peripheral.nvic.interrupt_master_enable, true);
     }
@@ -2247,8 +2399,12 @@ mod cpu_tests {
     #[test]
     fn test_call() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // first, fill memory with program
         let inst: u8 = 0xC4;
         let program: [u8; 8] = [inst, 0x00, 0x05, 0x44, 0x55, 0x66, 0x77, 0x88];
@@ -2268,8 +2424,12 @@ mod cpu_tests {
     #[test]
     fn test_nop_stop_halt() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // first, fill memory with program
         let nop_inst: u8 = 0x00;
         let stop_inst: u8 = 0x10;
@@ -2308,8 +2468,12 @@ mod cpu_tests {
     #[test]
     fn test_jump_to_interrupt() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         // init stack pointer
         cpu.sp = 0xFFA5;
 
@@ -2357,8 +2521,12 @@ mod cpu_tests {
     #[test]
     fn test_complement() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.a = 0x55;
         cpu.execute(Instruction::CPL, &mut peripheral);
         assert_eq!(cpu.registers.a, 0xAA);
@@ -2367,8 +2535,12 @@ mod cpu_tests {
     #[test]
     fn test_set_carry() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.execute(Instruction::SCF, &mut peripheral);
         assert_eq!(cpu.registers.f.carry, true);
         cpu.execute(Instruction::CCF, &mut peripheral);
@@ -2380,8 +2552,12 @@ mod cpu_tests {
     #[test]
     fn test_decimal_adjust() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.a = 0x0B;
         cpu.execute(Instruction::DAA, &mut peripheral);
         assert_eq!(cpu.registers.a, 0x11);
@@ -2390,8 +2566,12 @@ mod cpu_tests {
     #[test]
     fn test_rotate_left() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.a = 0xB5;
         cpu.execute(Instruction::RCA(Direction::LEFT), &mut peripheral);
         assert_eq!(cpu.registers.f.carry, true);
@@ -2401,8 +2581,12 @@ mod cpu_tests {
     #[test]
     fn test_rotate_through_carry_right() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.a = 0xB5;
         cpu.registers.f.carry = true;
         cpu.execute(Instruction::RA(Direction::RIGHT), &mut peripheral);
@@ -2413,8 +2597,12 @@ mod cpu_tests {
     #[test]
     fn test_decode_long_instruction() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         let program: [u8; 2] = [0xCB, 0x19];
         let mut index = 0;
         for data in program {
@@ -2435,8 +2623,12 @@ mod cpu_tests {
     #[test]
     fn test_long_rotate() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.b = 0xB5;
         cpu.execute(Instruction::RC(Direction::LEFT, IncDecTarget::B), &mut peripheral);
         assert_eq!(cpu.registers.f.carry, true);
@@ -2446,8 +2638,12 @@ mod cpu_tests {
     #[test]
     fn test_long_rotate_hl() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         let address = 0x1234;
         let data = 0xB5;
         peripheral.write(address, data);
@@ -2459,8 +2655,12 @@ mod cpu_tests {
     #[test]
     fn test_long_rotate_through_carry_right() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.e = 0xB5;
         cpu.registers.f.carry = true;
         cpu.execute(Instruction::R(Direction::RIGHT, IncDecTarget::E), &mut peripheral);
@@ -2471,8 +2671,12 @@ mod cpu_tests {
     #[test]
     fn test_shift_left_and_reset() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.d = 0xB5;
         cpu.execute(Instruction::SLA(IncDecTarget::D), &mut peripheral);
         assert_eq!(cpu.registers.f.carry, true);
@@ -2482,8 +2686,12 @@ mod cpu_tests {
     #[test]
     fn test_shift_right_and_reset() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.h = 0xB5;
         cpu.execute(Instruction::SRL(IncDecTarget::H), &mut peripheral);
         assert_eq!(cpu.registers.f.carry, true);
@@ -2493,8 +2701,12 @@ mod cpu_tests {
     #[test]
     fn test_shift_right_and_reset_hl() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         let address = 0x1234;
         let data = 0xB5;
         peripheral.write(address, data);
@@ -2506,8 +2718,12 @@ mod cpu_tests {
     #[test]
     fn test_shift_right() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.c = 0xB5;
         cpu.execute(Instruction::SRA(IncDecTarget::C), &mut peripheral);
         assert_eq!(cpu.registers.f.carry, true);
@@ -2517,8 +2733,12 @@ mod cpu_tests {
     #[test]
     fn test_swap() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.l = 0xB5;
         cpu.execute(Instruction::SWAP(IncDecTarget::L), &mut peripheral);
         assert_eq!(cpu.registers.l, 0x5B);
@@ -2527,8 +2747,12 @@ mod cpu_tests {
     #[test]
     fn test_complement_bit() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.h = 0xB5;
         cpu.execute(Instruction::BIT(BitTarget::BIT_1, IncDecTarget::H), &mut peripheral);
         assert_eq!(cpu.registers.f.zero, true);
@@ -2549,8 +2773,12 @@ mod cpu_tests {
     #[test]
     fn test_set_reset_bit() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         cpu.registers.b = 0xB5;
         cpu.execute(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::B), &mut peripheral);
         assert_eq!(cpu.registers.b, 0xB1);
@@ -2563,8 +2791,12 @@ mod cpu_tests {
     #[test]
     fn test_set_reset_bit_hl() {
         let mut cpu = Cpu::new();
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
-
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
+        
         let address = 0x1234;
         let data = 0xB5;
         peripheral.write(address, data);
