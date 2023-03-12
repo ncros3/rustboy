@@ -19,6 +19,7 @@ const GB_ADDR_BIT_MASK: usize = 0x3FFF;
 const ROM_BANK_BIT_OFFSET: usize = 14;
 const RAM_BANK_BIT_OFFSET: usize = 19;
 
+#[allow(non_camel_case_types)]
 pub enum RomBankMask {
     MASK_1_BIT = 0x01,
     MASK_2_BIT = 0x03,
@@ -91,11 +92,11 @@ impl Mbc for Mbc1 {
         if self.ram_enable {
             if self.banking_mode {
                 let gb_addr = address & 0x1FFF;
-                self.rom_bank[gb_addr]
+                self.ram_bank[gb_addr]
             } else {
                 let gb_addr = ((self.ram_bank_number as usize) << 13)
                                     | (address & 0x1FFF);
-                self.rom_bank[gb_addr]
+                self.ram_bank[gb_addr]
             }
         } else {
             // RAM is disabled, returns 0xFF
@@ -146,11 +147,11 @@ impl Mbc for Mbc1 {
         if self.ram_enable {
             if self.banking_mode {
                 let gb_addr = address & 0x1FFF;
-                self.rom_bank[gb_addr] = data;
+                self.ram_bank[gb_addr] = data;
             } else {
                 let gb_addr = ((self.ram_bank_number as usize) << 13)
                                     | (address & 0x1FFF);
-                self.rom_bank[gb_addr] = data;
+                self.ram_bank[gb_addr] = data;
             }
         } else {
             // do nothing when ram is disabled
