@@ -277,10 +277,15 @@ impl Peripheral {
 #[cfg(test)]
 mod peripheral_tests {
     use super::*;
+    use crate::cartridge::{Cartridge, CARTRIDGE_TYPE_OFFSET, CARTRIDGE_RAM_SIZE_OFFSET, CARTRIDGE_ROM_SIZE_OFFSET};
 
     #[test]
     fn test_read_write() {
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         peripheral.write(0x0001, 0xAA);
         peripheral.write(0x0002, 0x55);
         peripheral.write(0x0010, 0xAA);
@@ -291,7 +296,11 @@ mod peripheral_tests {
 
     #[test]
     fn test_read_write_vram() {
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         peripheral.write(0x0001 + VRAM_BEGIN, 0xAA);
         peripheral.write(0x0002 + VRAM_BEGIN, 0x55);
         peripheral.write(0x0010 + VRAM_BEGIN, 0xAA);
@@ -302,7 +311,11 @@ mod peripheral_tests {
 
     #[test]
     fn test_oam_dma() {
-        let mut peripheral = Peripheral::new(Cartridge::new(&[0xFF; 0x8000]));
+        let mut rom = [0xFF; 0x8000];
+        rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
+        rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         let address = 0x1000;
         // init data
         peripheral.write(address, 0xAA);
