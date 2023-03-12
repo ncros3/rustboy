@@ -131,9 +131,9 @@ impl Peripheral {
                     _ => self.cartridge.read_bank_0(address as usize)
                 }
             }
-            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.read_bank_n((address - ROM_BANK_N_BEGIN) as usize),
+            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.read_bank_n(address as usize),
             VRAM_BEGIN..=VRAM_END => self.gpu.read_vram_ext(address - VRAM_BEGIN),
-            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.read_ram((address - EXTERNAL_RAM_BEGIN) as usize),
+            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.read_ram(address as usize),
             WORKING_RAM_BEGIN..=WORKING_RAM_END => self.working_ram[(address - WORKING_RAM_BEGIN) as usize],
             ECHO_RAM_BEGIN..=ECHO_RAM_END => self.working_ram[(address - ECHO_RAM_BEGIN) as usize],
             OAM_BEGIN..=OAM_END => self.gpu.read_oam_ext((address - OAM_BEGIN) as usize),
@@ -146,16 +146,10 @@ impl Peripheral {
 
     pub fn write(&mut self, address: u16, data: u8) {
         match address {
-            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
-                self.cartridge.write_bank_0(address as usize, data);
-            }
-            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => {
-                self.cartridge.write_bank_n(address as usize, data);
-            }
+            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => self.cartridge.write_bank_0(address as usize, data),
+            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.write_bank_n(address as usize, data),
             VRAM_BEGIN..=VRAM_END => self.gpu.write_vram_ext(address - VRAM_BEGIN, data),
-            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => {
-                self.cartridge.write_ram((address - EXTERNAL_RAM_BEGIN) as usize, data)
-            }
+            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.write_ram(address as usize, data),
             WORKING_RAM_BEGIN..=WORKING_RAM_END => {
                 self.working_ram[(address - WORKING_RAM_BEGIN) as usize] = data;
             }

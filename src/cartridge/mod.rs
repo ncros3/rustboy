@@ -1,6 +1,8 @@
 mod rom;
+mod mbc1;
 
 use rom::Rom;
+use mbc1::Mbc1;
 
 pub const CARTRIDGE_TYPE_OFFSET: u16 = 0x147;
 pub const CARTRIDGE_ROM_SIZE_OFFSET: u16 = 0x148;
@@ -75,16 +77,17 @@ impl std::fmt::Display for MbcType {
 }
 
 #[allow(non_camel_case_types)]
+#[derive(Copy, Clone)]
 pub enum RomSize {
-    SIZE_32_KB,
-    SIZE_64_KB,
-    SIZE_128_KB,
-    SIZE_256_KB,
-    SIZE_512_KB,
-    SIZE_1_MB,
-    SIZE_2_MB,
-    SIZE_4_MB,
-    SIZE_8_MB,
+    SIZE_32_KB = 0x8000,
+    SIZE_64_KB = 0x10000,
+    SIZE_128_KB = 0x20000,
+    SIZE_256_KB = 0x40000,
+    SIZE_512_KB = 0x80000,
+    SIZE_1_MB = 0x100000,
+    SIZE_2_MB = 0x200000,
+    SIZE_4_MB = 0x400000,
+    SIZE_8_MB = 0x800000,
 }
 
 impl std::fmt::Display for RomSize {
@@ -105,12 +108,13 @@ impl std::fmt::Display for RomSize {
 }
 
 #[allow(non_camel_case_types)]
+#[derive(Copy, Clone)]
 pub enum RamSize {
-    NO_RAM,
-    SIZE_8_KB,
-    SIZE_32_KB,
-    SIZE_128_KB,
-    SIZE_64_KB,
+    NO_RAM = 0x0000,
+    SIZE_8_KB = 0x2000,
+    SIZE_32_KB = 0x8000,
+    SIZE_128_KB = 0x20000,
+    SIZE_64_KB = 0x10000,
 }
 
 impl std::fmt::Display for RamSize {
@@ -123,70 +127,6 @@ impl std::fmt::Display for RamSize {
             RamSize::SIZE_64_KB => "SIZE_64_KB",
         };
         write!(f, "{}", ram_size)
-    }
-}
-
-pub trait Mbc {
-    fn read_bank_0 (&self, address: usize) -> u8;
-
-    fn read_bank_n (&self, address: usize) -> u8;
-
-    fn read_ram (&self, address: usize) -> u8;
-
-    fn write_bank_0 (&mut self, _: usize, _: u8);
-
-    fn write_bank_n (&mut self, _: usize, _: u8);
-
-    fn write_ram (&mut self, _: usize, _: u8);
-}
-
-pub struct Cartridge {
-    mbc: Box<dyn Mbc>,    
-}
-
-impl Cartridge {
-    pub fn new(rom: &[u8]) -> Cartridge {
-        // find the mbctype in the rom data
-        let mbc_type = get_mbc_type(rom[CARTRIDGE_TYPE_OFFSET as usize]);
-        let rom_size = get_rom_size(rom[CARTRIDGE_ROM_SIZE_OFFSET as usize]);
-        let ram_size = get_ram_size(rom[CARTRIDGE_RAM_SIZE_OFFSET as usize]);
-
-        println!("Catridge with mbc type {}, rom size: {}, ram_size: {}", mbc_type, rom_size, ram_size);
-
-        // find the correct mbc structure for the cartridge interface
-        let mbc = match mbc_type {
-            MbcType::ROM_ONLY => Rom::new(rom),
-            _ => panic!("Catridge with mbc type {} is not supported", mbc_type),
-        };
-
-        // return initialized cartridge
-        Cartridge {
-            mbc: Box::new(mbc),
-        }
-    }
-
-    pub fn read_bank_0(&self, address: usize) -> u8 {
-        self.mbc.read_bank_0(address)
-    }
-
-    pub fn read_ram(&self, address: usize) -> u8 {
-        self.mbc.read_ram(address)
-    }
-
-    pub fn read_bank_n(&self, address: usize) -> u8 {
-        self.mbc.read_bank_n(address)
-    }
-
-    pub fn write_bank_0(&mut self, address: usize, data: u8) {
-        self.mbc.write_bank_0(address, data);
-    }
-
-    pub fn write_bank_n(&mut self, address: usize, data: u8) {
-        self.mbc.write_bank_n(address, data);
-    }
-
-    pub fn write_ram(&mut self, address: usize, data: u8) {
-        self.mbc.write_ram(address, data);
     }
 }
 
@@ -247,5 +187,67 @@ fn get_ram_size(raw_data: u8) -> RamSize {
         0x04 => RamSize::SIZE_128_KB,
         0x05 => RamSize::SIZE_64_KB,
         _=> panic!("Catridge with Ram size code {:x} is unknown", raw_data),
+    }
+}
+
+pub trait Mbc {
+    fn read_bank_0 (&self, address: usize) -> u8;
+
+    fn read_bank_n (&self, address: usize) -> u8;
+
+    fn read_ram (&self, address: usize) -> u8;
+
+    fn write_bank_0 (&mut self, address: usize, data: u8);
+
+    fn write_bank_n (&mut self, address: usize, data: u8);
+
+    fn write_ram (&mut self, address: usize, data: u8);
+}
+
+pub struct Cartridge {
+    mbc: Box<dyn Mbc>,    
+}
+
+impl Cartridge {
+    pub fn new(rom: &[u8]) -> Cartridge {
+        // find the mbctype in the rom data
+        let mbc_type = get_mbc_type(rom[CARTRIDGE_TYPE_OFFSET as usize]);
+        let rom_size = get_rom_size(rom[CARTRIDGE_ROM_SIZE_OFFSET as usize]);
+        let ram_size = get_ram_size(rom[CARTRIDGE_RAM_SIZE_OFFSET as usize]);
+
+        println!("Catridge with mbc type {}, rom size: {}, ram_size: {}", mbc_type, rom_size, ram_size);
+
+        // find the correct mbc structure for the cartridge interface
+        Cartridge {
+            mbc: match mbc_type {
+                MbcType::ROM_ONLY => Box::new(Rom::new(rom)),
+                MbcType::MBC_1 => Box::new(Mbc1::new(mbc_type, rom_size, ram_size, rom)),
+                _ => panic!("Catridge with mbc type {} is not supported", mbc_type),
+            },
+        }
+    }
+
+    pub fn read_bank_0(&self, address: usize) -> u8 {
+        self.mbc.read_bank_0(address)
+    }
+
+    pub fn read_ram(&self, address: usize) -> u8 {
+        self.mbc.read_ram(address)
+    }
+
+    pub fn read_bank_n(&self, address: usize) -> u8 {
+        self.mbc.read_bank_n(address)
+    }
+
+    pub fn write_bank_0(&mut self, address: usize, data: u8) {
+        self.mbc.write_bank_0(address, data);
+    }
+
+    pub fn write_bank_n(&mut self, address: usize, data: u8) {
+        self.mbc.write_bank_n(address, data);
+    }
+
+    pub fn write_ram(&mut self, address: usize, data: u8) {
+        self.mbc.write_ram(address, data);
     }
 }
