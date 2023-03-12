@@ -1,4 +1,5 @@
 use crate::cartridge::{MbcType, RomSize, RamSize, Mbc};
+use crate::soc::peripheral::{ROM_BANK_0_BEGIN, ROM_BANK_N_BEGIN};
 
 const RAM_ENABLE_SPACE_START: u16 = 0x0000;
 const RAM_ENABLE_SPACE_END: u16 = 0x1FFF;
@@ -58,7 +59,7 @@ impl Mbc1 {
             ram_size: ram_size,
             // internal registers
             ram_enable: false,
-            rom_bank_number: 0,
+            rom_bank_number: 1,
             ram_bank_number: 0,
             banking_mode: false,
             // memory
