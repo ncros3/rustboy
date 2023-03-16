@@ -435,15 +435,15 @@ impl Gpu {
                     ObjectSize::OS8X8 => 2,
                 };
                 // get one row of sprite data
-                let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos + SPRITE_Y_OFFSET) as u16;
+                let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos + (TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as i16) as u16;
                 let (data_1, data_0) = if sprite_y_flip == false {
-                    let data_0 = self.read_vram(sprite_tile_addr + sprite_row_offset);
-                    let data_1 = self.read_vram(sprite_tile_addr + sprite_row_offset + 1);
+                    let data_0 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16);
+                    let data_1 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16 + 1);
 
                     (data_1, data_0)
                 } else {
-                    let data_0 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 - 1) * BYTES_PER_TILE_ROM as u16 - sprite_row_offset);
-                    let data_1 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 - 1) * BYTES_PER_TILE_ROM as u16 - sprite_row_offset + 1);
+                    let data_0 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16);
+                    let data_1 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16 + 1);
 
                     (data_1, data_0)
                 };
