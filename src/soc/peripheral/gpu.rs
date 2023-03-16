@@ -1,9 +1,6 @@
 use crate::soc::peripheral::{VRAM_SIZE, OAM_SIZE};
 use crate::soc::peripheral::nvic::{Nvic, InterruptSources};
 
-const OBJECT_X_OFFSET: i16 = -8;
-const OBJECT_Y_OFFSET: i16 = -16;
-
 const HORIZONTAL_BLANK_CYCLES: u16 = 204;
 const VERTICAL_BLANK_CYCLES: u16 = 4560;
 const OAM_SCAN_CYCLES: u16 = 80;
@@ -18,6 +15,18 @@ const TILE_SIZE_IN_BYTES: u16 = 16;
 const TILE_MAP_SIZE: u8 = 32;
 
 const BYTES_PER_TILE_ROM: u8 = 2;
+
+const SPRITE_X_OFFSET: i16 = 8;
+const SPRITE_Y_OFFSET: i16 = 16;
+
+const NB_SPRITES_IN_OAM: u16 = 40;
+const SPRITE_ATTRIBUTES_SIZE_IN_BYTES: u16 = 4;
+const SPRITE_Y_POS_OFFSET: u16 = 0;
+const SPRITE_X_POS_OFFSET: u16 = 1;
+const SPRITE_TILE_INDEX_OFFSET: u16 = 2;
+const SPRITE_ATTRIBUTES_OFFSET: u16 = 3;
+const NB_SRITES_TO_DISPLAY_MAX: u16 = 10;
+const PIXEL_TRANSPARENT: u8 = 0x00;
 
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -358,7 +367,7 @@ impl Gpu {
                 let tile_row_offset = pixel_y_index.wrapping_add(self.viewport_y_offset) % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
 
                 // get tile row data from vram
-                let (data_1, data_0) = self.get_tile_data(tile_mem_addr, tile_row_offset as u16);
+                let (data_1, data_0) = self.get_bg_tile_data(tile_mem_addr, tile_row_offset as u16);
 
                 // get pixel bits from data
                 let bit_0 = data_0 >> (7 - (((pixel_x_index as u8).wrapping_add(self.viewport_x_offset) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
@@ -372,9 +381,106 @@ impl Gpu {
                 self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
             }
         }
+
+        if self.object_display_enabled {
+            // sprites array wich will contain sprites address to display
+            let mut sprites: Vec<u16> = Vec::new();
+            // find 10 sprites to display on the current line
+            let mut nb_sprites_to_display = 0;
+            for sprites_idx in 0..NB_SPRITES_IN_OAM {
+                if nb_sprites_to_display < NB_SRITES_TO_DISPLAY_MAX {
+                    let sprite_addr = sprites_idx * SPRITE_ATTRIBUTES_SIZE_IN_BYTES;
+                    // get the srite first line
+                    let sprite_y_pos_start = self.read_oam((sprite_addr + SPRITE_Y_POS_OFFSET) as usize) as i16 - SPRITE_Y_OFFSET;
+                    // get the sprite last line
+                    let sprite_y_pos_end = match self.object_size {
+                        ObjectSize::OS8X8 => sprite_y_pos_start + TILE_ROW_SIZE_IN_PIXEL as i16,
+                        ObjectSize::OS8X16 => sprite_y_pos_start + TILE_ROW_SIZE_IN_PIXEL as i16 * 2,
+                    };
+                    // check if the current line hits the sprite
+                    if (sprite_y_pos_start <= self.current_line as i16) && (self.current_line as i16 <= sprite_y_pos_end) {
+                        // add the sprite to the list
+                        sprites.push(sprite_addr);
+                        // increase sprites counter
+                        nb_sprites_to_display += 1;
+                    }
+                } else {
+                    // we reached the maximum sprites number to display
+                    // go out of the loop
+                    break
+                }
+            }
+            // sort objects to draw :
+            // from lower priority in first positions
+            // to higher priority in last positions
+            let mut sprites_sorted: Vec<u16> = Vec::new();
+            for sprite_idx in 0..nb_sprites_to_display {
+                sprites_sorted.push(sprites[(nb_sprites_to_display - 1 - sprite_idx) as usize]);
+            }
+            // draw sorted sprites
+            // higher priority sprites are drawn in last positions
+            // so it can override lower priority sprites values
+            for sprite in sprites_sorted {
+                let pixel_y_index: u8 = self.current_line;
+                // get sprite's attributes
+                let sprite_y_pos = self.read_oam((sprite + SPRITE_Y_POS_OFFSET) as usize) as i16;
+                let sprite_x_pos = self.read_oam((sprite + SPRITE_X_POS_OFFSET) as usize) as i16;
+                let sprite_tile_addr = self.read_oam((sprite + SPRITE_TILE_INDEX_OFFSET) as usize) as u16 * TILE_SIZE_IN_BYTES;
+                let sprite_attr = self.read_oam((sprite + SPRITE_ATTRIBUTES_OFFSET) as usize);
+                let sprite_y_flip = (sprite_attr & 0x40) != 0;
+                let sprite_x_flip = (sprite_attr & 0x20) != 0;
+                let sprite_palette_idx = (sprite_attr & 0x10) != 0;
+                let sprite_size_offset =  match self.object_size {
+                    ObjectSize::OS8X16 => 1,
+                    ObjectSize::OS8X8 => 2,
+                };
+                // get one row of sprite data
+                let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos + SPRITE_Y_OFFSET) as u16;
+                let (data_1, data_0) = if sprite_y_flip == false {
+                    let data_0 = self.read_vram(sprite_tile_addr + sprite_row_offset);
+                    let data_1 = self.read_vram(sprite_tile_addr + sprite_row_offset + 1);
+
+                    (data_1, data_0)
+                } else {
+                    let data_0 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 - 1) * BYTES_PER_TILE_ROM as u16 - sprite_row_offset);
+                    let data_1 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 - 1) * BYTES_PER_TILE_ROM as u16 - sprite_row_offset + 1);
+
+                    (data_1, data_0)
+                };
+                // draw each pixel of the sprite's row
+                for pixel_x_offset in 0..TILE_ROW_SIZE_IN_PIXEL {
+                    // get pixel bits from data
+                    let (bit_1, bit_0) = if sprite_x_flip == false {
+                        let bit_0 = (data_0 >> (7 - pixel_x_offset)) & 0x01;
+                        let bit_1 = (data_1 >> (7 - pixel_x_offset)) & 0x01;
+
+                        (bit_1, bit_0)
+                    } else {
+                        let bit_0 = (data_0 >> pixel_x_offset) & 0x01;
+                        let bit_1 = (data_1 >> pixel_x_offset) & 0x01;
+
+                        (bit_1, bit_0)
+                    };
+                    // compute the x coordinate of the pixel in the frame buffer
+                    let pixel_x_index = sprite_x_pos - SPRITE_X_OFFSET + pixel_x_offset as i16;
+                    // don't draw the pixel if it's not in the viewport
+                    if pixel_x_index >= 0 && pixel_x_index < SCREEN_WIDTH as i16 {
+                       // pixel value of 0 corresponds to transparent
+                        // draw pixel if its pixel value is not transparent
+                        let pixel_value = (bit_1 << 1) | bit_0;
+                        if pixel_value != PIXEL_TRANSPARENT {
+                            // find pixel color
+                            let pixel_color = self.get_object_pixel_color_from_palette(pixel_value, sprite_palette_idx);
+                            // fill frame buffer
+                            self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
+                        } 
+                    }
+                }
+            }
+        }
     }
 
-    fn get_tile_data(&self, tile_mem_addr: u16, tile_row_offset: u16) -> (u8, u8) {
+    fn get_bg_tile_data(&self, tile_mem_addr: u16, tile_row_offset: u16) -> (u8, u8) {
 
         if self.background_tile_data_area {
             // $8000 method addressing
@@ -404,6 +510,24 @@ impl Gpu {
             1 => self.background_palette.color_1 as u8,
             2 => self.background_palette.color_2 as u8,
             _ => self.background_palette.color_3 as u8,
+        }
+    }
+
+    fn get_object_pixel_color_from_palette(&self, pixel_value: u8, sprite_palette_idx: bool) -> u8 {
+        if sprite_palette_idx {
+            match pixel_value {
+                0 => self.object_palette_1.color_0 as u8,
+                1 => self.object_palette_1.color_1 as u8,
+                2 => self.object_palette_1.color_2 as u8,
+                _ => self.object_palette_1.color_3 as u8,
+            }
+        } else {
+            match pixel_value {
+                0 => self.object_palette_0.color_0 as u8,
+                1 => self.object_palette_0.color_1 as u8,
+                2 => self.object_palette_0.color_2 as u8,
+                _ => self.object_palette_0.color_3 as u8,
+            }
         }
     }
 
