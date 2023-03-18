@@ -394,11 +394,11 @@ impl Gpu {
                     let sprite_y_pos_start = self.read_oam((sprite_addr + SPRITE_Y_POS_OFFSET) as usize) as i16 - SPRITE_Y_OFFSET;
                     // get the sprite last line
                     let sprite_y_pos_end = match self.object_size {
-                        ObjectSize::OS8X8 => sprite_y_pos_start + TILE_ROW_SIZE_IN_PIXEL as i16,
-                        ObjectSize::OS8X16 => sprite_y_pos_start + TILE_ROW_SIZE_IN_PIXEL as i16 * 2,
+                        ObjectSize::OS8X8 => sprite_y_pos_start + TILE_ROW_SIZE_IN_PIXEL as i16 - 1,
+                        ObjectSize::OS8X16 => sprite_y_pos_start + TILE_ROW_SIZE_IN_PIXEL as i16 * 2 - 1,
                     };
                     // check if the current line hits the sprite
-                    if (sprite_y_pos_start <= self.current_line as i16) && (self.current_line as i16 <= sprite_y_pos_end) {
+                    if (self.current_line as i16 >= sprite_y_pos_start) && (self.current_line as i16 <= sprite_y_pos_end) {
                         // add the sprite to the list
                         sprites.push(sprite_addr);
                         // increase sprites counter
@@ -427,15 +427,16 @@ impl Gpu {
                 let sprite_x_pos = self.read_oam((sprite + SPRITE_X_POS_OFFSET) as usize) as i16;
                 let sprite_tile_addr = self.read_oam((sprite + SPRITE_TILE_INDEX_OFFSET) as usize) as u16 * TILE_SIZE_IN_BYTES;
                 let sprite_attr = self.read_oam((sprite + SPRITE_ATTRIBUTES_OFFSET) as usize);
+                let sprite_bg_over = (sprite_attr & 0x80) != 0;
                 let sprite_y_flip = (sprite_attr & 0x40) != 0;
                 let sprite_x_flip = (sprite_attr & 0x20) != 0;
                 let sprite_palette_idx = (sprite_attr & 0x10) != 0;
                 let sprite_size_offset =  match self.object_size {
-                    ObjectSize::OS8X16 => 1,
-                    ObjectSize::OS8X8 => 2,
+                    ObjectSize::OS8X8 => 1,
+                    ObjectSize::OS8X16 => 2,
                 };
                 // get one row of sprite data
-                let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos + (TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as i16) as u16;
+                let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos + (TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 as i16) as u16;
                 let (data_1, data_0) = if sprite_y_flip == false {
                     let data_0 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16);
                     let data_1 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16 + 1);
@@ -461,19 +462,19 @@ impl Gpu {
 
                         (bit_1, bit_0)
                     };
+                    // deduce pixel value
+                    let pixel_value = (bit_1 << 1) | bit_0;
                     // compute the x coordinate of the pixel in the frame buffer
                     let pixel_x_index = sprite_x_pos - SPRITE_X_OFFSET + pixel_x_offset as i16;
                     // don't draw the pixel if it's not in the viewport
-                    if pixel_x_index >= 0 && pixel_x_index < SCREEN_WIDTH as i16 {
-                       // pixel value of 0 corresponds to transparent
-                        // draw pixel if its pixel value is not transparent
-                        let pixel_value = (bit_1 << 1) | bit_0;
-                        if pixel_value != PIXEL_TRANSPARENT {
-                            // find pixel color
-                            let pixel_color = self.get_object_pixel_color_from_palette(pixel_value, sprite_palette_idx);
-                            // fill frame buffer
-                            self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
-                        } 
+                    if pixel_x_index >= 0 
+                    && pixel_x_index < SCREEN_WIDTH as i16 
+                    && pixel_value != PIXEL_TRANSPARENT 
+                    && !sprite_bg_over {
+                        // find pixel color
+                        let pixel_color = self.get_object_pixel_color_from_palette(pixel_value, sprite_palette_idx);
+                        // fill frame buffer
+                        self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
                     }
                 }
             }
@@ -1064,5 +1065,74 @@ mod gpu_tests {
         assert_eq!(gpu.object_palette_1.color_2, PixelColor::LIGHT_GRAY);
         assert_eq!(gpu.object_palette_1.color_1, PixelColor::WHITE);
         assert_eq!(gpu.object_palette_1.color_0, PixelColor::DARK_GRAY);
+    }
+
+    #[test]
+    fn test_draw_big_sprite() {
+        let mut gpu = Gpu::new();
+
+        // init GPU
+        gpu.object_display_enabled = true;
+        gpu.object_size = ObjectSize::OS8X16;
+
+        // init VRAM
+        // here we're looking for tile at index 0
+        gpu.write_vram(0x0010, 0x7F);
+        gpu.write_vram(0x0011, 0xFF);
+        gpu.write_vram(0x0012, 0xFF);
+        gpu.write_vram(0x0013, 0xFE);
+
+        // set OAM
+        // set y position
+        gpu.write_oam(0x0000, 0x10);
+        // set x position
+        gpu.write_oam(0x0001, 0x08);
+        // set tile index
+        gpu.write_oam(0x0002, 0x01);
+        // set attributes
+        gpu.write_oam(0x0003, 0x00);
+
+        // draw the line in the frame buffer
+        gpu.current_line = 0;
+        gpu.draw_line();
+        gpu.current_line = 1;
+        gpu.draw_line();
+
+        // check frame buffer
+        // line 1 * 160 = 160 / 0x00A0
+        assert_eq!(gpu.frame_buffer[0x0000], PixelColor::DARK_GRAY as u8);
+        assert_eq!(gpu.frame_buffer[0x00A7], PixelColor::LIGHT_GRAY as u8);
+
+        // shift sprite y position for 31 lines down
+        // set y position
+        gpu.write_oam(0x0000, 0x2F);
+
+        // draw the line in the frame buffer
+        gpu.current_line = 31;
+        gpu.draw_line();
+        gpu.current_line = 32;
+        gpu.draw_line();
+
+        // check frame buffer
+        // line 31 * 160 = 4960 / 0x1360
+        assert_eq!(gpu.frame_buffer[0x1360], PixelColor::DARK_GRAY as u8);
+        // line 32 * 160 = 5120 / 0x1400
+        assert_eq!(gpu.frame_buffer[0x1407], PixelColor::LIGHT_GRAY as u8);
+
+        // shift sprite x position for 3 columns right
+        // set y position
+        gpu.write_oam(0x0001, 0x0B);
+
+        // draw the line in the frame buffer
+        gpu.current_line = 31;
+        gpu.draw_line();
+        gpu.current_line = 32;
+        gpu.draw_line();
+
+        // check frame buffer
+        // line 31 * 160 = 4960 / 0x1360
+        assert_eq!(gpu.frame_buffer[0x1363], PixelColor::DARK_GRAY as u8);
+        // line 32 * 160 = 5120 / 0x1400
+        assert_eq!(gpu.frame_buffer[0x140A], PixelColor::LIGHT_GRAY as u8);
     }
 }
