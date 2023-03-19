@@ -28,6 +28,8 @@ const SPRITE_ATTRIBUTES_OFFSET: u16 = 3;
 const NB_SRITES_TO_DISPLAY_MAX: u16 = 10;
 const PIXEL_TRANSPARENT: u8 = 0x00;
 
+const WINDOW_X_OFFSET: u8 = 7;
+
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PixelColor {
@@ -479,6 +481,45 @@ impl Gpu {
                 }
             }
         }
+
+        // background display flag overrides the window display flag
+        if self.background_display_enabled && self.window_display_enabled {
+            let pixel_y_index: u8 = self.current_line;
+
+            for pixel_x_index in 0..SCREEN_WIDTH {
+                // compute the tile index in tile map
+                let tile_map_y_index = (pixel_y_index.wrapping_add(self.window_y_offset) / TILE_ROW_SIZE_IN_PIXEL) as u16;
+                let tile_map_x_index = (((pixel_x_index as u8).wrapping_add(self.window_x_offset.wrapping_add(WINDOW_X_OFFSET)) as usize) / (TILE_ROW_SIZE_IN_PIXEL as usize)) as u16;
+                let tile_map_index = tile_map_y_index * (TILE_MAP_SIZE as u16) + tile_map_x_index;
+
+                // get the tile memory address from the tile map
+                let tile_mem_index = self.read_vram((self.window_tile_map_area as u16) + tile_map_index);
+                println!("tile map addr: 0x{:x}", (self.window_tile_map_area as u16) + tile_map_index);
+                // convert a 8 bits tile index into a 16 bits tile memory addr
+                let tile_mem_addr = (tile_mem_index as u16) * TILE_SIZE_IN_BYTES;
+
+                // get the row offset in the tile
+                let tile_row_offset = pixel_y_index.wrapping_add(self.viewport_y_offset) % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
+
+                println!("tile data addr: 0x{:x}", tile_mem_addr + tile_row_offset as u16);
+
+                // get tile row data from vram
+                let (data_1, data_0) = self.get_bg_tile_data(tile_mem_addr, tile_row_offset as u16);
+
+                // get pixel bits from data
+                let bit_0 = data_0 >> (7 - (((pixel_x_index as u8).wrapping_add(self.window_x_offset.wrapping_add(WINDOW_X_OFFSET)) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
+                let bit_1 = data_1 >> (7 - (((pixel_x_index as u8).wrapping_add(self.window_x_offset.wrapping_add(WINDOW_X_OFFSET)) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
+
+                // find pixel color
+                let pixel_value = (bit_1 << 1) | bit_0;
+                let pixel_color = self.get_bg_pixel_color_from_palette(pixel_value);
+
+                println!("pixel color: {}, pixel_index: {}", pixel_color, pixel_x_index);
+
+                // fill frame buffer
+                self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
+            }
+        }
     }
 
     fn get_bg_tile_data(&self, tile_mem_addr: u16, tile_row_offset: u16) -> (u8, u8) {
@@ -662,12 +703,7 @@ impl Gpu {
     }
 
     pub fn set_window_x(&mut self, data: u8) {
-        let data_offset: i16 = (data - 7) as i16;
-        if data_offset >= 0 {
-            self.window_x_offset = data_offset as u8;
-        } else {
-            self.window_x_offset = 0;
-        }
+        self.window_x_offset = data;
     }
 
     pub fn set_background_palette(&mut self, data: u8) {
@@ -1134,5 +1170,35 @@ mod gpu_tests {
         assert_eq!(gpu.frame_buffer[0x1363], PixelColor::DARK_GRAY as u8);
         // line 32 * 160 = 5120 / 0x1400
         assert_eq!(gpu.frame_buffer[0x140A], PixelColor::LIGHT_GRAY as u8);
+    }
+
+    #[test]
+    fn test_draw_window() {
+        let mut gpu = Gpu::new();
+
+        // init GPU
+        gpu.window_display_enabled = true;
+        gpu.background_display_enabled = true;
+        gpu.window_tile_map_area = TileMapArea::X9800;
+        gpu.background_tile_data_area = true;
+        gpu.current_line = 0; // first line of the second tile row
+
+        // init VRAM
+        // here we're looking for tile at index 0
+        gpu.write_vram(0x0000, 0x01);
+        gpu.write_vram(0x0001, 0x00);
+
+        // set tile map
+        // here we're looking for tile at index 0
+        gpu.write_vram(0x1800, 0x00);
+
+        // draw the line in the frame buffer
+        gpu.window_x_offset = 0;
+        gpu.draw_line();
+        assert_eq!(gpu.frame_buffer[0x0000], PixelColor::LIGHT_GRAY as u8);
+
+        gpu.window_x_offset = 128;
+        gpu.draw_line();
+        assert_eq!(gpu.frame_buffer[0x0080], PixelColor::LIGHT_GRAY as u8);
     }
 }
