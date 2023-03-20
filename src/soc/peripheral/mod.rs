@@ -1,12 +1,14 @@
 pub mod gpu;
 pub mod nvic;
 mod timer;
+pub mod keypad;
 mod bootrom;
 
 use gpu::Gpu;
 use nvic::Nvic;
 use timer::Timer;
 use bootrom::BootRom;
+use keypad::Keypad;
 
 use crate::cartridge::Cartridge;
 
@@ -65,6 +67,7 @@ pub struct Peripheral {
     pub gpu: Gpu,
     pub nvic: Nvic,
     timer: Timer,
+    keypad: Keypad,
     // dma
     dma_cycles: u8,
     dma_start_adress: u16,
@@ -81,6 +84,7 @@ impl Peripheral {
             gpu: Gpu::new(),
             nvic: Nvic::new(),
             timer: Timer::new(),
+            keypad: Keypad::new(),
             dma_cycles: 0,
             dma_start_adress: 0xFFFF,
             dma_enabled: false,
@@ -171,7 +175,7 @@ impl Peripheral {
 
     fn read_io_register(&self, address: usize) -> u8 {
         match address {
-            0xFF00 => 0, // TODO: joypad
+            0xFF00 => self.keypad.get(),
             0xFF01 => 0, // TODO: serial
             0xFF02 => 0, // TODO: serial
             0xFF04 => self.timer.get_divider(),
@@ -213,7 +217,7 @@ impl Peripheral {
 
     fn write_io_register(&mut self, address: usize, data: u8) {
         match address {
-            0xFF00 => { /* Joyad control */ }
+            0xFF00 => self.keypad.control(data),
             0xFF01 => { /* Serial Transfer */ }
             0xFF02 => { /* Serial Transfer Control */ }
             0xFF04 => self.timer.set_divider(),
