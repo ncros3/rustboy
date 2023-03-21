@@ -89,7 +89,7 @@ mod keypad_tests {
     use super::*;
 
     #[test]
-    fn test_set_get_GameBoyKey() {
+    fn test_set_get_gameboykey() {
         let mut keypad = Keypad::new();
 
         keypad.control(0x20);

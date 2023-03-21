@@ -67,7 +67,7 @@ pub struct Peripheral {
     pub gpu: Gpu,
     pub nvic: Nvic,
     timer: Timer,
-    keypad: Keypad,
+    pub keypad: Keypad,
     // dma
     dma_cycles: u8,
     dma_start_adress: u16,
