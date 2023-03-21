@@ -53,6 +53,55 @@ fn main() {
     .unwrap();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        // get key from the keyboard
+        if window.is_key_down(Key::Up) {
+            emulator.set_key(soc::GameBoyKey::UP, true);
+        } else {
+            emulator.set_key(soc::GameBoyKey::UP, false);
+        }
+
+        if window.is_key_down(Key::Down) {
+            emulator.set_key(soc::GameBoyKey::DOWN, true);
+        } else {
+            emulator.set_key(soc::GameBoyKey::DOWN, false);
+        }
+
+        if window.is_key_down(Key::Left) {
+            emulator.set_key(soc::GameBoyKey::LEFT, true);
+        } else {
+            emulator.set_key(soc::GameBoyKey::LEFT, false);
+        }
+
+        if window.is_key_down(Key::Right) {
+            emulator.set_key(soc::GameBoyKey::RIGHT, true);
+        } else {
+            emulator.set_key(soc::GameBoyKey::RIGHT, false);
+        }
+
+        if window.is_key_down(Key::A) {
+            emulator.set_key(soc::GameBoyKey::A, true);
+        } else {
+            emulator.set_key(soc::GameBoyKey::A, false);
+        }
+
+        if window.is_key_down(Key::B) {
+            emulator.set_key(soc::GameBoyKey::B, true);
+        } else {
+            emulator.set_key(soc::GameBoyKey::B, false);
+        }
+
+        if window.is_key_down(Key::Space) {
+            emulator.set_key(soc::GameBoyKey::START, true);
+        } else {
+            emulator.set_key(soc::GameBoyKey::START, false);
+        }
+
+        if window.is_key_down(Key::Enter) {
+            emulator.set_key(soc::GameBoyKey::SELECT, true);
+        } else {
+            emulator.set_key(soc::GameBoyKey::SELECT, false);
+        }
+
         // run emulator until a new frame is ready
         emulator.run(&mut *dbg_ctx.lock().unwrap());
 

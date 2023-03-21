@@ -4,6 +4,7 @@ mod cpu;
 use cpu::Cpu;
 use peripheral::Peripheral;
 use crate::cartridge::Cartridge;
+pub use peripheral::keypad::GameBoyKey;
 
 const CLOCK_TICK_PER_MACHINE_CYCLE: u8 = 4;
 
@@ -33,5 +34,9 @@ impl Soc {
 
     pub fn get_frame_buffer(&self, pixel_index: usize) -> u8 {
         self.peripheral.gpu.frame_buffer[pixel_index]
+    }
+
+    pub fn set_key(&mut self, key: GameBoyKey, value: bool) {
+        self.peripheral.keypad.set(key, value);
     }
 }

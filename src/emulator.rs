@@ -1,4 +1,6 @@
-use crate::{soc::Soc, cartridge::Cartridge};
+use crate::soc::Soc;
+pub use crate::soc::GameBoyKey;
+use crate::cartridge::Cartridge;
 use std::time::Instant;
 use crate::debug::{DebugCtx, run_debug_mode};
 
@@ -67,6 +69,10 @@ impl Emulator {
 
     pub fn get_frame_buffer(&self, pixel_index: usize) -> u8 {
         self.soc.get_frame_buffer(pixel_index)
+    }
+
+    pub fn set_key(&mut self, key: GameBoyKey, value: bool) {
+        self.soc.set_key(key, value);
     }
 }
 
