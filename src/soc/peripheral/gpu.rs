@@ -393,7 +393,7 @@ impl Gpu {
                 if nb_sprites_to_display < NB_SRITES_TO_DISPLAY_MAX {
                     let sprite_addr = sprites_idx * SPRITE_ATTRIBUTES_SIZE_IN_BYTES;
                     // get the srite first line
-                    let sprite_y_pos_start = self.read_oam((sprite_addr + SPRITE_Y_POS_OFFSET) as usize) as i16 - SPRITE_Y_OFFSET;
+                    let sprite_y_pos_start = self.read_oam((sprite_addr + SPRITE_Y_POS_OFFSET) as usize) as u16 as i16 - SPRITE_Y_OFFSET;
                     // get the sprite last line
                     let sprite_y_pos_end = match self.object_size {
                         ObjectSize::OS8X8 => sprite_y_pos_start + TILE_ROW_SIZE_IN_PIXEL as i16 - 1,
@@ -425,7 +425,7 @@ impl Gpu {
             for sprite in sprites_sorted {
                 let pixel_y_index: u8 = self.current_line;
                 // get sprite's attributes
-                let sprite_y_pos = self.read_oam((sprite + SPRITE_Y_POS_OFFSET) as usize) as i16;
+                let sprite_y_pos = self.read_oam((sprite + SPRITE_Y_POS_OFFSET) as usize) as u16 as i16  - SPRITE_Y_OFFSET;
                 let sprite_x_pos = self.read_oam((sprite + SPRITE_X_POS_OFFSET) as usize) as i16;
                 let sprite_tile_addr = self.read_oam((sprite + SPRITE_TILE_INDEX_OFFSET) as usize) as u16 * TILE_SIZE_IN_BYTES;
                 let sprite_attr = self.read_oam((sprite + SPRITE_ATTRIBUTES_OFFSET) as usize);
