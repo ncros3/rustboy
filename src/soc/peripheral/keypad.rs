@@ -94,24 +94,24 @@ mod keypad_tests {
 
         keypad.control(0x10);
         keypad.set(GameBoyKey::START, true);
-        assert_eq!(keypad.get(), 0x28);
+        assert_eq!(keypad.get(), 0x17);
         keypad.set(GameBoyKey::START, false);
         keypad.set(GameBoyKey::B, true);
-        assert_eq!(keypad.get(), 0x22);
+        assert_eq!(keypad.get(), 0x1D);
 
         keypad.control(0x20);
-        assert_eq!(keypad.get(), 0x10);
+        assert_eq!(keypad.get(), 0x2F);
 
         keypad.set(GameBoyKey::DOWN, false);
         keypad.set(GameBoyKey::UP, true);
         keypad.set(GameBoyKey::LEFT, false);
         keypad.set(GameBoyKey::RIGHT, true);
-        assert_eq!(keypad.get(), 0x15);
+        assert_eq!(keypad.get(), 0x2A);
 
         keypad.set(GameBoyKey::DOWN, true);
         keypad.set(GameBoyKey::UP, false);
         keypad.set(GameBoyKey::LEFT, true);
         keypad.set(GameBoyKey::RIGHT, false);
-        assert_eq!(keypad.get(), 0x1A);
+        assert_eq!(keypad.get(), 0x25);
     }
 }
