@@ -494,14 +494,12 @@ impl Gpu {
 
                 // get the tile memory address from the tile map
                 let tile_mem_index = self.read_vram((self.window_tile_map_area as u16) + tile_map_index);
-                println!("tile map addr: 0x{:x}", (self.window_tile_map_area as u16) + tile_map_index);
+
                 // convert a 8 bits tile index into a 16 bits tile memory addr
                 let tile_mem_addr = (tile_mem_index as u16) * TILE_SIZE_IN_BYTES;
 
                 // get the row offset in the tile
                 let tile_row_offset = pixel_y_index.wrapping_add(self.viewport_y_offset) % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
-
-                println!("tile data addr: 0x{:x}", tile_mem_addr + tile_row_offset as u16);
 
                 // get tile row data from vram
                 let (data_1, data_0) = self.get_bg_tile_data(tile_mem_addr, tile_row_offset as u16);
@@ -513,8 +511,6 @@ impl Gpu {
                 // find pixel color
                 let pixel_value = (bit_1 << 1) | bit_0;
                 let pixel_color = self.get_bg_pixel_color_from_palette(pixel_value);
-
-                println!("pixel color: {}, pixel_index: {}", pixel_color, pixel_x_index);
 
                 // fill frame buffer
                 self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;

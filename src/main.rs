@@ -30,7 +30,6 @@ fn main() {
     if let Err(message) = rom_file.read_exact(&mut rom_data) {
         panic!("Cannot read file with error message: {}", message);
     }
-    println!("rom file len: {:x}", rom_len);
 
     // launch the debugger cli
     let dbg_ctx = Arc::new(Mutex::new(DebugCtx::new()));

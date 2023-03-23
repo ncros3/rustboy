@@ -99,7 +99,7 @@ impl Peripheral {
         if self.dma_enabled {
             // copy data
             for mem_index in 0..runned_cycles {
-                if self.dma_cycles < OAM_SIZE as u8 {
+                if self.dma_cycles + mem_index < OAM_SIZE as u8 {
                     let data = self.read(self.dma_start_adress + (self.dma_cycles + mem_index) as u16);
                     self.gpu.write_oam((mem_index + self.dma_cycles) as usize, data);
                 }

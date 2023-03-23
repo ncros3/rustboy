@@ -43,27 +43,27 @@ impl Keypad {
     }
 
     pub fn control(&mut self, data: u8) {
-        self.action_buttons = ((data >> 5) & 0x01) != 0;
-        self.direction_buttons = ((data >> 4) & 0x01) != 0;
+        self.action_buttons = ((data >> 5) & 0x01) == 0;
+        self.direction_buttons = ((data >> 4) & 0x01) == 0;
     }
 
     pub fn get(&self) -> u8 {
         match (self.action_buttons, self.direction_buttons) {
             (true, false) => {
-                (self.action_buttons as u8) << 5
-                | (self.direction_buttons as u8) << 4
-                | (self.start as u8) << 3
-                | (self.select as u8) << 2
-                | (self.b as u8) << 1
-                | (self.a as u8) << 0
+                (!self.action_buttons as u8) << 5
+                | (!self.direction_buttons as u8) << 4
+                | (!self.start as u8) << 3
+                | (!self.select as u8) << 2
+                | (!self.b as u8) << 1
+                | (!self.a as u8) << 0
             },
             (false, true) => {
-                (self.action_buttons as u8) << 5
-                | (self.direction_buttons as u8) << 4
-                | (self.down as u8) << 3
-                | (self.up as u8) << 2
-                | (self.left as u8) << 1
-                | (self.right as u8) << 0  
+                (!self.action_buttons as u8) << 5
+                | (!self.direction_buttons as u8) << 4
+                | (!self.down as u8) << 3
+                | (!self.up as u8) << 2
+                | (!self.left as u8) << 1
+                | (!self.right as u8) << 0  
             },
             (false, false) => 0x00, // nothing to return
             (true, true) => panic!("Cannot read action and direction buttons at the same time"),
@@ -92,14 +92,14 @@ mod keypad_tests {
     fn test_set_get_gameboykey() {
         let mut keypad = Keypad::new();
 
-        keypad.control(0x20);
+        keypad.control(0x10);
         keypad.set(GameBoyKey::START, true);
         assert_eq!(keypad.get(), 0x28);
         keypad.set(GameBoyKey::START, false);
         keypad.set(GameBoyKey::B, true);
         assert_eq!(keypad.get(), 0x22);
 
-        keypad.control(0x10);
+        keypad.control(0x20);
         assert_eq!(keypad.get(), 0x10);
 
         keypad.set(GameBoyKey::DOWN, false);
