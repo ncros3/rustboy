@@ -157,6 +157,9 @@ impl Peripheral {
             WORKING_RAM_BEGIN..=WORKING_RAM_END => {
                 self.working_ram[(address - WORKING_RAM_BEGIN) as usize] = data;
             }
+            ECHO_RAM_BEGIN..=ECHO_RAM_END => {
+                self.working_ram[(address - ECHO_RAM_BEGIN) as usize] = data;
+            }
             OAM_BEGIN..=OAM_END => self.gpu.write_oam_ext((address - OAM_BEGIN) as usize, data),
             IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.write_io_register(address as usize, data),
             UNUSED_BEGIN..=UNUSED_END => { /* Writing to here does nothing */ }
