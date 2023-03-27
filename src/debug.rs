@@ -117,8 +117,8 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
 pub fn debug_cli(debug_ctx: &Arc<Mutex<DebugCtx>>) {
     let debug_ctx_ref = Arc::clone(&debug_ctx);
     thread::spawn(move || {
-        println!("Rustboy debugger CLI");
-
+        println!("Qoboy debugger CLI");
+        // check new commands in console
         loop {
             // get next instruction from console
             let mut command = String::new();

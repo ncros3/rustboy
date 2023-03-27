@@ -44,7 +44,7 @@ fn main() {
     let mut buffer = [0; SCREEN_HEIGHT * SCREEN_WIDTH];
 
     let mut window = Window::new(
-        "Rustboy",
+        "Qoboy",
         WINDOW_DIMENSIONS[0],
         WINDOW_DIMENSIONS[1],
         WindowOptions::default(),
