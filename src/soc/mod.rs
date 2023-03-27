@@ -25,9 +25,9 @@ impl Soc {
     }
 
     pub fn run(&mut self) -> u8 {
-        let cycles = self.cpu.run(&mut self.peripheral);
+        let cycles = self.cpu.run(&mut self.peripheral) * CLOCK_TICK_PER_MACHINE_CYCLE;
 
-        self.peripheral.run(cycles * CLOCK_TICK_PER_MACHINE_CYCLE);
+        self.peripheral.run(cycles);
 
         cycles
     }
