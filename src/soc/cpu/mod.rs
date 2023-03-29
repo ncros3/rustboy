@@ -1491,7 +1491,7 @@ mod cpu_tests {
         rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
-        let address = 0x1234;
+        let address = 0xC000;
         let data = 0xAA;
 
         peripheral.write(address, data);
@@ -1570,7 +1570,7 @@ mod cpu_tests {
         rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
-        let address = 0x1234;
+        let address = 0xC000;
         let data = 0xAA;
 
         peripheral.write(address, data);
@@ -2311,7 +2311,7 @@ mod cpu_tests {
         let sp_init = 0xF147;
 
         // initialize ROM memory
-        let base_program_address = 0x0000;
+        let base_program_address = 0xC000;
         let inst: u8 = 0xE8;
         let program: [u8; 2] = [inst, data_to_add as u8];
         let mut index = 0;
