@@ -288,12 +288,12 @@ mod peripheral_tests {
         rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
-        peripheral.write(0x0001, 0xAA);
-        peripheral.write(0x0002, 0x55);
-        peripheral.write(0x0010, 0xAA);
-        assert_eq!(peripheral.read(0x0001), 0xAA);
-        assert_eq!(peripheral.read(0x0002), 0x55);
-        assert_eq!(peripheral.read(0x0010), 0xAA);
+        peripheral.write(0x0001 + 0xC000, 0xAA);
+        peripheral.write(0x0002 + 0xC000, 0x55);
+        peripheral.write(0x0010 + 0xC000, 0xAA);
+        assert_eq!(peripheral.read(0x0001 + 0xC000), 0xAA);
+        assert_eq!(peripheral.read(0x0002 + 0xC000), 0x55);
+        assert_eq!(peripheral.read(0x0010 + 0xC000), 0xAA);
     }
 
     #[test]
@@ -318,14 +318,14 @@ mod peripheral_tests {
         rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
-        let address = 0x1000;
+        let address = 0xC000;
         // init data
         peripheral.write(address, 0xAA);
         peripheral.write(address + 0x007F, 0xAA);
         peripheral.write(address + 0x009F, 0x55);
 
         // set dma
-        peripheral.write(0xFF46, (0x1000 >> 8) as u8);
+        peripheral.write(0xFF46, (address >> 8) as u8);
 
         // run peripheral for 160 cycles
         for _ in 0..OAM_SIZE {
