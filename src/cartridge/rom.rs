@@ -33,12 +33,10 @@ impl Mbc for Rom {
         0xFF
     }
 
-    fn write_bank_0 (&mut self, address: usize, data: u8) {
-        self.rom_bank[address as usize] = data;
+    fn write_bank_0 (&mut self, _: usize, _: u8) {
     }
 
-    fn write_bank_n (&mut self, address: usize, data: u8) {
-        self.rom_bank[address as usize] = data;
+    fn write_bank_n (&mut self, _: usize, _: u8) {
     }
 
     // not used for this mbc, doesn't do anything

@@ -1507,11 +1507,9 @@ mod cpu_tests {
         rom[CARTRIDGE_TYPE_OFFSET as usize] = 0x00;
         rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
+        rom[0x0001 as usize] = 0x23;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
-        let address = 0x0001;
-        let data = 0x23;
 
-        peripheral.write(address, data);
         cpu.execute(ADD(D8), &mut peripheral);
         assert_eq!(cpu.registers.read_af(), 0x2300);
     }
