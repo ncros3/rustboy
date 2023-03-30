@@ -351,6 +351,8 @@ impl Gpu {
 
 
     fn draw_line(&mut self) {
+        let mut bg_line = [0x00; SCREEN_WIDTH as usize];
+
         if self.background_display_enabled {
             let pixel_y_index: u8 = self.current_line;
 
@@ -381,6 +383,8 @@ impl Gpu {
 
                 // fill frame buffer
                 self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
+                // save the line for sprite rendering
+                bg_line[pixel_x_index] = pixel_value;
             }
         }
 
@@ -471,12 +475,19 @@ impl Gpu {
                     // don't draw the pixel if it's not in the viewport
                     if pixel_x_index >= 0 
                     && pixel_x_index < SCREEN_WIDTH as i16 
-                    && pixel_value != PIXEL_TRANSPARENT 
-                    && !sprite_bg_over {
-                        // find pixel color
-                        let pixel_color = self.get_object_pixel_color_from_palette(pixel_value, sprite_palette_idx);
-                        // fill frame buffer
-                        self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
+                    && pixel_value != PIXEL_TRANSPARENT {
+                        // check if bg overlap sprites
+                        if !sprite_bg_over || bg_line[pixel_x_index as usize] == PIXEL_TRANSPARENT {
+                            // find sprite pixel color
+                            let pixel_color = self.get_object_pixel_color_from_palette(pixel_value, sprite_palette_idx);
+                            // fill frame buffer
+                            self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
+                        } else {
+                            // find bg pixel color
+                            let pixel_color = self.get_bg_pixel_color_from_palette(bg_line[pixel_x_index as usize]);
+                            // fill frame buffer
+                            self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
+                        }
                     }
                 }
             }
