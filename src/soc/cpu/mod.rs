@@ -1491,7 +1491,7 @@ mod cpu_tests {
         rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
-        let address = 0x1234;
+        let address = 0xC000;
         let data = 0xAA;
 
         peripheral.write(address, data);
@@ -1570,7 +1570,7 @@ mod cpu_tests {
         rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
-        let address = 0x1234;
+        let address = 0xC000;
         let data = 0xAA;
 
         peripheral.write(address, data);
@@ -1587,11 +1587,12 @@ mod cpu_tests {
         rom[CARTRIDGE_ROM_SIZE_OFFSET as usize] = 0x00;
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
-        let address = 0x0001;
+        let address = 0xC001;
         let data = 0x23;
 
         peripheral.write(address, data);
         cpu.registers.write_af(0x0110);
+        cpu.pc = 0xC000;
         cpu.execute(ADDC(D8), &mut peripheral);
         assert_eq!(cpu.registers.read_af(), 0x2500);
     }
@@ -1703,7 +1704,7 @@ mod cpu_tests {
         cpu.execute(INC(IncDecTarget::C), &mut peripheral);
         assert_eq!(cpu.registers.read_bc(), 0x2200);
 
-        let address = 0x1234;
+        let address = 0xc000;
         let data = 0xAA;
         peripheral.write(address, data);
         cpu.registers.write_hl(address);
@@ -1754,7 +1755,7 @@ mod cpu_tests {
         cpu.execute(DEC(IncDecTarget::C), &mut peripheral);
         assert_eq!(cpu.registers.read_bc(), 0x22FF);
 
-        let address = 0x1234;
+        let address = 0xc000;
         let data = 0xAA;
         peripheral.write(address, data);
         cpu.registers.write_hl(address);
@@ -1805,24 +1806,25 @@ mod cpu_tests {
         cpu.execute(LOAD(IncDecTarget::C, H), &mut peripheral);
         assert_eq!(cpu.registers.read_bc(), 0x5764);
 
-        let mut mem_address = 0x0001;
+        let mut mem_address = 0x0001 + 0xC000;
         let mut data = 0x23;
         peripheral.write(mem_address, data);
+        cpu.pc = 0xC000;
         cpu.execute(LOAD(IncDecTarget::A, D8), &mut peripheral);
         assert_eq!(cpu.registers.read_af(), 0x2300);
 
-        mem_address = 0x0010;
+        mem_address = 0x0010 + 0xC000;
         cpu.registers.write_hl(mem_address);
         cpu.execute(LOAD(IncDecTarget::HL, D8), &mut peripheral);
         assert_eq!(peripheral.read(mem_address), 0x23);
 
-        mem_address = 0x002A;
+        mem_address = 0x002A + 0xC000;
         cpu.registers.write_hl(mem_address);
         cpu.registers.write_de(0xD500);
         cpu.execute(LOAD(IncDecTarget::HL, D), &mut peripheral);
         assert_eq!(peripheral.read(mem_address), 0xD5);
 
-        mem_address = 0x00C8;
+        mem_address = 0x00C8 + 0xC000;
         data = 0x5F;
         peripheral.write(mem_address, data);
         cpu.registers.write_hl(mem_address);
@@ -1843,7 +1845,7 @@ mod cpu_tests {
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         
-        let mem_address = 0x00D8;
+        let mem_address = 0xC000;
         let mut data = 0x56;
         peripheral.write(mem_address, data);
         cpu.registers.write_bc(mem_address);
@@ -1855,7 +1857,7 @@ mod cpu_tests {
         cpu.registers.write_hl(mem_address);
         cpu.execute(LOAD_INDIRECT(Load16Target::HL_plus), &mut peripheral);
         assert_eq!(cpu.registers.read_af(), 0xC600);
-        assert_eq!(cpu.registers.read_hl(), 0x00D9);
+        assert_eq!(cpu.registers.read_hl(), mem_address + 1);
     }
 
     #[test]
@@ -1870,8 +1872,9 @@ mod cpu_tests {
         let low_data = 0x4C;
         let high_data = 0xB7;
         let value = ((high_data as u16) << 8) + low_data as u16;
-        peripheral.write(0x0001, low_data);
-        peripheral.write(0x0002, high_data);
+        peripheral.write(0x0001 + 0xC000, low_data);
+        peripheral.write(0x0002 + 0xC000, high_data);
+        cpu.pc = 0xC000;
         cpu.execute(LOAD_IMMEDIATE(U16Target::DE), &mut peripheral);
         assert_eq!(cpu.registers.read_de(), value);
 
@@ -1888,10 +1891,11 @@ mod cpu_tests {
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         
-        let mem_address = 0x00D8;
+        let mem_address = 0xC000;
         let mut data = 0x5600;
         cpu.registers.write_af(data);
         cpu.registers.write_de(mem_address);
+        cpu.pc = 0xC000;
         cpu.execute(STORE_INDIRECT(Load16Target::DE), &mut peripheral);
         assert_eq!(peripheral.read(mem_address), 0x56);
 
@@ -1900,7 +1904,7 @@ mod cpu_tests {
         cpu.registers.write_hl(mem_address);
         cpu.execute(STORE_INDIRECT(Load16Target::HL_minus), &mut peripheral);
         assert_eq!(peripheral.read(mem_address), 0xC6);
-        assert_eq!(cpu.registers.read_hl(), 0x00D7);
+        assert_eq!(cpu.registers.read_hl(), mem_address - 1);
     }
 
     #[test]
@@ -2100,10 +2104,11 @@ mod cpu_tests {
         let program: [u8; 2] = [jump_inst, offset];
         let mut index = 0;
         for data in program {
-            peripheral.write(index, data);
+            peripheral.write(index + 0xC000, data);
             index += 1;
         }
 
+        cpu.pc = 0xC000;
         cpu.run(&mut peripheral);
         assert_eq!(cpu.registers.read_hl(), cpu.sp + offset as u16);
     }
@@ -2118,7 +2123,7 @@ mod cpu_tests {
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         
         // first, fill memory with program
-        let base_address = 0x24C8;
+        let base_address = 0xC000;
         let jump_inst: u8 = 0x08;
         let low_address = 0x05;
         let high_address = 0xC1;
@@ -2156,7 +2161,7 @@ mod cpu_tests {
         peripheral.write(ram_data_address, data);
 
         // initialize ROM memory
-        let base_program_address = 0x0000;
+        let base_program_address = 0xC000;
         let jump_inst: u8 = 0xF0;
         let program: [u8; 2] = [jump_inst, (ram_data_address & 0x00FF) as u8];
         let mut index = 0;
@@ -2186,7 +2191,7 @@ mod cpu_tests {
         peripheral.write(ram_data_address, data);
 
         // initialize ROM memory
-        let base_program_address = 0x0000;
+        let base_program_address = 0xC000;
         let jump_inst: u8 = 0xFA;
         let program: [u8; 3] = [
             jump_inst,
@@ -2220,7 +2225,7 @@ mod cpu_tests {
         peripheral.write(ram_data_address, data);
 
         // initialize ROM memory
-        let base_program_address = 0x0000;
+        let base_program_address = 0xC000;
         let jump_inst: u8 = 0xF2;
         let program: [u8; 1] = [jump_inst];
         let mut index = 0;
@@ -2250,7 +2255,7 @@ mod cpu_tests {
         let data = 0xF8;
 
         // initialize ROM memory
-        let base_program_address = 0x0000;
+        let base_program_address = 0xC000;
         let jump_inst: u8 = 0xE0;
         let program: [u8; 2] = [jump_inst, (ram_data_address & 0x00FF) as u8];
         let mut index = 0;
@@ -2311,7 +2316,7 @@ mod cpu_tests {
         let sp_init = 0xF147;
 
         // initialize ROM memory
-        let base_program_address = 0x0000;
+        let base_program_address = 0xC000;
         let inst: u8 = 0xE8;
         let program: [u8; 2] = [inst, data_to_add as u8];
         let mut index = 0;
@@ -2408,13 +2413,14 @@ mod cpu_tests {
         let program: [u8; 8] = [inst, 0x00, 0x05, 0x44, 0x55, 0x66, 0x77, 0x88];
         let mut index = 0;
         for data in program {
-            peripheral.write(index, data);
+            peripheral.write(index + 0xc000, data);
             index += 1;
         }
 
         // run CPU to do the jump
         let ram_address = 0xFFA5;
         cpu.sp = ram_address;
+        cpu.pc = 0xc000;
         cpu.run(&mut peripheral);
         assert_eq!(cpu.pc, 0x0500);
     }
@@ -2437,30 +2443,31 @@ mod cpu_tests {
         ];
         let mut index = 0;
         for data in program {
-            peripheral.write(index, data);
+            peripheral.write(index + 0xC000, data);
             index += 1;
         }
 
         // run CPU to do the NOP
+        cpu.pc = 0xC000;
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0001);
+        assert_eq!(cpu.pc, 0x0001 + 0xC000);
         // run CPU to do the STOP
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0002);
+        assert_eq!(cpu.pc, 0x0002 + 0xC000);
         // then CPU is blocked
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0002);
+        assert_eq!(cpu.pc, 0x0002 + 0xC000);
 
         // Unlock CPU and run NOP inst
         cpu.mode = CpuMode::RUN;
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0003);
+        assert_eq!(cpu.pc, 0x0003 + 0xC000);
         // run HALT inst
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0004);
+        assert_eq!(cpu.pc, 0x0004 + 0xC000);
         // cpu is blocked
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0004);
+        assert_eq!(cpu.pc, 0x0004 + 0xC000);
     }
 
     #[test]
@@ -2484,30 +2491,31 @@ mod cpu_tests {
         ];
         let mut index = 0;
         for data in program {
-            peripheral.write(index, data);
+            peripheral.write(index + 0xC000, data);
             index += 1;
         }
 
         // run CPU to do the NOP
+        cpu.pc = 0xC000;
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0001);
+        assert_eq!(cpu.pc, 0xC000 + 0x0001);
         // run CPU to do the STOP
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0002);
+        assert_eq!(cpu.pc, 0xC000 + 0x0002);
         // then CPU is blocked
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0002);
+        assert_eq!(cpu.pc, 0xC000 + 0x0002);
 
         // Unlock CPU and run NOP inst
         cpu.mode = CpuMode::RUN;
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0003);
+        assert_eq!(cpu.pc, 0xC000 + 0x0003);
         // run HALT inst
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0004);
+        assert_eq!(cpu.pc, 0xC000 + 0x0004);
         // cpu is blocked
         cpu.run(&mut peripheral);
-        assert_eq!(cpu.pc, 0x0004);
+        assert_eq!(cpu.pc, 0xC000 + 0x0004);
 
         peripheral.nvic.master_enable(true);
         peripheral.nvic.enable_interrupt(InterruptSources::STAT, true);
@@ -2604,10 +2612,11 @@ mod cpu_tests {
         let program: [u8; 2] = [0xCB, 0x19];
         let mut index = 0;
         for data in program {
-            peripheral.write(index, data);
+            peripheral.write(index + 0xC000, data);
             index += 1;
         }
 
+        cpu.pc = 0xC000;
         if let Some(instruction) = cpu.decode(0xCB, &mut peripheral) {
             assert_eq!(
                 instruction,
@@ -2642,7 +2651,7 @@ mod cpu_tests {
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         
-        let address = 0x1234;
+        let address = 0xC000;
         let data = 0xB5;
         peripheral.write(address, data);
         cpu.registers.write_hl(address);
@@ -2705,10 +2714,11 @@ mod cpu_tests {
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         
-        let address = 0x1234;
+        let address = 0xC000;
         let data = 0xB5;
         peripheral.write(address, data);
         cpu.registers.write_hl(address);
+        cpu.pc = 0xC000;
         cpu.execute(Instruction::SRL(IncDecTarget::HL), &mut peripheral);
         assert_eq!(peripheral.read(address), 0x5A);
     }
@@ -2795,11 +2805,12 @@ mod cpu_tests {
         rom[CARTRIDGE_RAM_SIZE_OFFSET as usize] = 0x00;
         let mut peripheral = Peripheral::new(Cartridge::new(&rom));
         
-        let address = 0x1234;
+        let address = 0xC000;
         let data = 0xB5;
         peripheral.write(address, data);
         cpu.registers.write_hl(address);
 
+        cpu.pc = 0xC000;
         cpu.execute(Instruction::RESET_BIT(BitTarget::BIT_2, IncDecTarget::HL), &mut peripheral);
         assert_eq!(peripheral.read(address), 0xB1);
 

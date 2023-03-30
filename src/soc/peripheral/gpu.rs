@@ -434,8 +434,8 @@ impl Gpu {
                 let sprite_x_flip = (sprite_attr & 0x20) != 0;
                 let sprite_palette_idx = (sprite_attr & 0x10) != 0;
                 let sprite_size_offset =  match self.object_size {
-                    ObjectSize::OS8X8 => 1,
-                    ObjectSize::OS8X16 => 2,
+                    ObjectSize::OS8X8 => 0,
+                    ObjectSize::OS8X16 => 1,
                 };
                 // get one row of sprite data
                 let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos + (TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 as i16) as u16;
