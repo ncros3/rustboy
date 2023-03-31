@@ -56,10 +56,23 @@ impl Timer {
     }
 
     pub fn run(&mut self, cycles: u8, nvic: &mut Nvic) {
+        
+        // update internal divider timer clock
+        self.divider_timer_cycles += cycles as usize;
+        // check if the divider timer reached its maximum value
+        let divider_cycles_per_tick = self.divider_timer_frequency.cycles_per_tick();
+        if self.divider_timer_cycles > divider_cycles_per_tick {
+            let add_divider = (self.divider_timer_cycles / divider_cycles_per_tick) as u8;
+            self.divider_timer_cycles = self.divider_timer_cycles % divider_cycles_per_tick;
+
+            // check if the main timer reached its maximum value
+            let (new_divider, _overflow) = self.divider.overflowing_add(add_divider);
+            self.divider = new_divider;
+        } 
+
         if self.enabled {
-            // update internal timer clock
+            // update internal main timer clock
             self.main_timer_cycles += cycles as usize;
-            self.divider_timer_cycles += cycles as usize;
 
             // delay interrupt by 1 machine cycle / 4 clocks
             if self.tima_overflow && self.has_timer_passed_1_cycle() {
@@ -91,18 +104,7 @@ impl Timer {
                     nvic.set_interrupt(InterruptSources::TIMER);
                     self.value = self.modulo;
                 }
-            } 
-
-            // check if the divider timer reached its maximum value
-            let divider_cycles_per_tick = self.divider_timer_frequency.cycles_per_tick();
-            if self.divider_timer_cycles > divider_cycles_per_tick {
-                let add_divider = (self.divider_timer_cycles / divider_cycles_per_tick) as u8;
-                self.divider_timer_cycles = self.divider_timer_cycles % divider_cycles_per_tick;
-
-                // check if the main timer reached its maximum value
-                let (new_divider, _overflow) = self.divider.overflowing_add(add_divider);
-                self.divider = new_divider;
-            } 
+            }
         }
     }
 
