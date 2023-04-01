@@ -6,11 +6,11 @@ const RAM_ENABLE_SPACE_END: u16 = 0x1FFF;
 const ROM_BANK_NB_SPACE_START: u16 = 0x2000;
 const ROM_BANK_NB_SPACE_END: u16 = 0x3FFF;
 
-const RAM_BANK_NB_SPACE_START: u16 = 0x0000;
-const RAM_BANK_NB_SPACE_END: u16 = 0x1FFF;
+const RAM_BANK_NB_SPACE_START: u16 = 0x4000;
+const RAM_BANK_NB_SPACE_END: u16 = 0x5FFF;
 
-const BANKING_MODE_SPACE_START: u16 = 0x2000;
-const BANKING_MODE_SPACE_END: u16 = 0x3FFF;
+const BANKING_MODE_SPACE_START: u16 = 0x6000;
+const BANKING_MODE_SPACE_END: u16 = 0x7FFF;
 
 const ENABLE_RAM_FLAG: u8 = 0x0A;
 
@@ -156,4 +156,7 @@ impl Mbc for Mbc1 {
             // do nothing when ram is disabled
         }
     }
+
+    // not used for this mbc, doesn't do anything
+    fn run (&mut self, _: u8) {}
 }

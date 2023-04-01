@@ -1,8 +1,10 @@
 mod rom;
 mod mbc1;
+mod mbc3;
 
 use rom::Rom;
 use mbc1::Mbc1;
+use mbc3::Mbc3;
 
 pub const CARTRIDGE_TYPE_OFFSET: u16 = 0x147;
 pub const CARTRIDGE_ROM_SIZE_OFFSET: u16 = 0x148;
@@ -202,6 +204,8 @@ pub trait Mbc {
     fn write_bank_n (&mut self, address: usize, data: u8);
 
     fn write_ram (&mut self, address: usize, data: u8);
+
+    fn run(&mut self, cycles: u8);
 }
 
 pub struct Cartridge {
@@ -222,6 +226,7 @@ impl Cartridge {
             mbc: match mbc_type {
                 MbcType::ROM_ONLY => Box::new(Rom::new(rom)),
                 MbcType::MBC_1 => Box::new(Mbc1::new(mbc_type, rom_size, ram_size, rom)),
+                MbcType::MBC_3_RAM_BAT => Box::new(Mbc3::new(mbc_type, rom_size, ram_size, rom)),
                 _ => panic!("Catridge with mbc type {} is not supported", mbc_type),
             },
         }
@@ -249,5 +254,9 @@ impl Cartridge {
 
     pub fn write_ram(&mut self, address: usize, data: u8) {
         self.mbc.write_ram(address, data);
+    }
+
+    pub fn run(&mut self, cycles: u8) {
+        self.mbc.run(cycles);
     }
 }

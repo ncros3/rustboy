@@ -9,7 +9,7 @@ pub const SCREEN_WIDTH: usize = 160;
 
 // emulator clock parameters
 const ONE_SECOND_IN_MICROS: usize = 1000000000;
-const ONE_SECOND_IN_CYCLES: usize = 4194304; // Main sys clock 4.194304 MHz
+pub const ONE_SECOND_IN_CYCLES: usize = 4194304; // Main sys clock 4.194304 MHz
 pub const ONE_FRAME_IN_CYCLES: usize = 70224;
 pub const ONE_FRAME_IN_NS: usize = ONE_FRAME_IN_CYCLES * ONE_SECOND_IN_MICROS / ONE_SECOND_IN_CYCLES;
 
