@@ -713,6 +713,14 @@ impl Gpu {
         self.window_x_offset = data;
     }
 
+    pub fn get_window_y(&self) -> u8 {
+        self.window_y_offset
+    }
+
+    pub fn get_window_x(&self) -> u8 {
+        self.window_x_offset
+    }
+
     pub fn set_background_palette(&mut self, data: u8) {
         set_palette!(self.background_palette.color_0, data, 0);
         set_palette!(self.background_palette.color_1, data, 1);

@@ -216,6 +216,8 @@ impl Peripheral {
             0xFF43 => self.gpu.get_scx(),
             0xFF44 => self.gpu.get_current_line(),
             0xFF45 => self.gpu.get_compare_line(),
+            0xFF4A => self.gpu.get_window_y(),
+            0xFF4B => self.gpu.get_window_x(),
             0xFF4D => 0xFF, // CGB SPEED SWITCH register, not supported
             0xFF48 => 0xFF,
             0xFF49 => 0xFF, 
