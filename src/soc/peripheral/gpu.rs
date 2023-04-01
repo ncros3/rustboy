@@ -449,8 +449,8 @@ impl Gpu {
 
                     (data_1, data_0)
                 } else {
-                    let data_0 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16);
-                    let data_1 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16 + 1);
+                    let data_0 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * (sprite_size_offset + 1)) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16);
+                    let data_1 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * (sprite_size_offset + 1)) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16 + 1);
 
                     (data_1, data_0)
                 };
