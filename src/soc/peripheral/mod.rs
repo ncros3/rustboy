@@ -116,6 +116,9 @@ impl Peripheral {
 
         // run the GPU 
         self.gpu.run(runned_cycles, &mut self.nvic);
+
+        // run the cartridge
+        self.cartridge.run(runned_cycles);
     }
 
     pub fn load_bootrom(&mut self, boot_rom: &[u8]){
@@ -214,6 +217,8 @@ impl Peripheral {
             0xFF44 => self.gpu.get_current_line(),
             0xFF45 => self.gpu.get_compare_line(),
             0xFF4D => 0xFF, // CGB SPEED SWITCH register, not supported
+            0xFF48 => 0xFF,
+            0xFF49 => 0xFF, 
             _ => panic!("Reading from an unknown I/O register {:x}", address),
         }
     }

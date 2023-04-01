@@ -41,4 +41,6 @@ impl Mbc for Rom {
 
     // not used for this mbc, doesn't do anything
     fn write_ram (&mut self, _: usize, _: u8) {}
+
+    fn run (&mut self, _: u8) {}
 }
