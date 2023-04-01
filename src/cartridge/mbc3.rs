@@ -17,15 +17,17 @@ const ENABLE_RAM_FLAG: u8 = 0x0A;
 
 const GB_ADDR_BIT_MASK: usize = 0x3FFF;
 const ROM_BANK_BIT_OFFSET: usize = 14;
-const RAM_BANK_BIT_OFFSET: usize = 19;
+const RAM_BANK_BIT_OFFSET: usize = 13;
 
 #[allow(non_camel_case_types)]
-pub enum RomBankMask {
+enum RomBankMask {
     MASK_1_BIT = 0x01,
     MASK_2_BIT = 0x03,
     MASK_3_BIT = 0x07,
     MASK_4_BIT = 0x0F,
     MASK_5_BIT = 0x1F,
+    MASK_6_BIT = 0x3F,
+    MASK_7_BIT = 0x7F,
 }
 
 pub struct Mbc3 {
@@ -105,8 +107,7 @@ impl Mbc for Mbc3 {
     }
 
     fn read_bank_n (&self, address: usize) -> u8 {
-        let gb_addr = ((self.ram_bank_number as usize) << RAM_BANK_BIT_OFFSET) 
-                            | ((self.rom_bank_number as usize) << ROM_BANK_BIT_OFFSET)
+        let gb_addr = ((self.rom_bank_number as usize) << ROM_BANK_BIT_OFFSET)
                             | (address & GB_ADDR_BIT_MASK);
         self.rom_bank[gb_addr]
     }
@@ -116,7 +117,7 @@ impl Mbc for Mbc3 {
             match self.ram_bank_number {
                 // here we access the ram banks
                 0x00..=0x03 => {
-                    let gb_addr = ((self.ram_bank_number as usize) << 13)
+                    let gb_addr = ((self.ram_bank_number as usize) << RAM_BANK_BIT_OFFSET)
                                 | (address & 0x1FFF);
                     self.ram_bank[gb_addr]
                 }
@@ -149,7 +150,9 @@ impl Mbc for Mbc3 {
                     RomSize::SIZE_64_KB => RomBankMask::MASK_2_BIT,
                     RomSize::SIZE_128_KB => RomBankMask::MASK_3_BIT,
                     RomSize::SIZE_256_KB => RomBankMask::MASK_4_BIT,
-                    _ => RomBankMask::MASK_5_BIT,
+                    RomSize::SIZE_512_KB => RomBankMask::MASK_5_BIT,
+                    RomSize::SIZE_1_MB => RomBankMask::MASK_6_BIT,
+                    _ => RomBankMask::MASK_7_BIT,
                 };
 
                 self.rom_bank_number = if data != 0 {
@@ -191,7 +194,7 @@ impl Mbc for Mbc3 {
             match self.ram_bank_number {
                 // here we access the ram banks
                 0x00..=0x03 => {
-                    let gb_addr = ((self.ram_bank_number as usize) << 13)
+                    let gb_addr = ((self.ram_bank_number as usize) << RAM_BANK_BIT_OFFSET)
                                 | (address & 0x1FFF);
                     self.ram_bank[gb_addr] = data;
                 }

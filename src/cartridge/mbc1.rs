@@ -19,7 +19,7 @@ const ROM_BANK_BIT_OFFSET: usize = 14;
 const RAM_BANK_BIT_OFFSET: usize = 19;
 
 #[allow(non_camel_case_types)]
-pub enum RomBankMask {
+enum RomBankMask {
     MASK_1_BIT = 0x01,
     MASK_2_BIT = 0x03,
     MASK_3_BIT = 0x07,
