@@ -7,9 +7,11 @@ use std::sync::{Arc, Mutex};
 use minifb::{Window, WindowOptions};
 
 // VRAM Window parameters
+const NB_TILE_X: usize = 2;
+const NB_TILE_Y: usize = 1;
 const SCALE_FACTOR: usize = 3;
 const TILE_SIZE: usize = 8;
-const WINDOW_DIMENSIONS: [usize; 2] = [(32 * TILE_SIZE * SCALE_FACTOR), (12 * TILE_SIZE * SCALE_FACTOR)];
+const WINDOW_DIMENSIONS: [usize; 2] = [(NB_TILE_X * TILE_SIZE * SCALE_FACTOR), (NB_TILE_Y * TILE_SIZE * SCALE_FACTOR)];
 
 #[derive(Clone, Copy)]
 pub enum DebuggerCommand {
@@ -120,7 +122,7 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
             emulator.state = EmulatorState::GetTime;
 
             // update vram debug buffer
-            for pixel_index in 0..32 * TILE_SIZE * 12 * TILE_SIZE {
+            for pixel_index in 0..NB_TILE_X * TILE_SIZE * NB_TILE_Y * TILE_SIZE {
                 dbg_ctx.vram_viewer_buffer[pixel_index] =  0xFF << 24
                             | (emulator.soc.get_vram_buffer(pixel_index) as u32) << 16
                             | (emulator.soc.get_vram_buffer(pixel_index) as u32) << 8
@@ -177,7 +179,7 @@ pub fn debug_vram(debug_ctx: &Arc<Mutex<DebugCtx>>) {
     let debug_ctx_ref = Arc::clone(&debug_ctx);
     thread::spawn(move || {
         // init vram window
-        let mut buffer = [0; 32 * TILE_SIZE * 12 * TILE_SIZE];
+        let mut buffer = [0; 384 * TILE_SIZE * TILE_SIZE];
         let mut window = Window::new(
             "VRAM viewer",
             WINDOW_DIMENSIONS[0],
@@ -190,7 +192,7 @@ pub fn debug_vram(debug_ctx: &Arc<Mutex<DebugCtx>>) {
         loop {
             // update vram viewer buffer
             buffer = (*debug_ctx_ref.lock().unwrap()).vram_viewer_buffer;
-            window.update_with_buffer(&buffer, 32 * TILE_SIZE, 12 * TILE_SIZE).unwrap();
+            window.update_with_buffer(&buffer, NB_TILE_X * TILE_SIZE, NB_TILE_Y * TILE_SIZE).unwrap();
         }
     });
 }
