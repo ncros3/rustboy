@@ -382,7 +382,7 @@ impl Gpu {
                 let pixel_color = self.get_bg_pixel_color_from_palette(pixel_value);
 
                 // fill frame buffer
-                self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
+                self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + pixel_x_index] = pixel_color;
                 // save the line for sprite rendering
                 bg_line[pixel_x_index] = pixel_value;
             }
@@ -524,7 +524,7 @@ impl Gpu {
                 let pixel_color = self.get_bg_pixel_color_from_palette(pixel_value);
 
                 // fill frame buffer
-                self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + (pixel_x_index as usize)] = pixel_color;
+                self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + pixel_x_index] = pixel_color;
             }
         }
     }
