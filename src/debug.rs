@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 use minifb::{Window, WindowOptions};
 
 // VRAM Window parameters
-const NB_TILE_X: usize = 2;
-const NB_TILE_Y: usize = 1;
+const NB_TILE_X: usize = 16;
+const NB_TILE_Y: usize = 24;
 const SCALE_FACTOR: usize = 3;
 const TILE_SIZE: usize = 8;
 const WINDOW_DIMENSIONS: [usize; 2] = [(NB_TILE_X * TILE_SIZE * SCALE_FACTOR), (NB_TILE_Y * TILE_SIZE * SCALE_FACTOR)];
@@ -123,10 +123,32 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
 
             // update vram debug buffer
             for pixel_index in 0..NB_TILE_X * TILE_SIZE * NB_TILE_Y * TILE_SIZE {
+                // compute pixel_x and pixel_y indexes
+                let pixel_y_index = pixel_index / (NB_TILE_X * 8);
+                let pixel_x_index = pixel_index % (NB_TILE_X * 8);
+
+                // compute the tile index 
+                let tile_y_index = pixel_y_index / 8;
+                let tile_x_index = pixel_x_index / 8;
+                let tile_index = tile_y_index * NB_TILE_X + tile_x_index;
+
+                // compute VRAM address from pixel_index
+                let tile_row_offset = pixel_y_index % 8 * 2;
+
+                // get row for the needed pixel
+                let data_0 = emulator.soc.peripheral.gpu.vram[tile_index * 16 + tile_row_offset];
+                let data_1 = emulator.soc.peripheral.gpu.vram[tile_index * 16 + tile_row_offset + 1];
+
+                // get pixel bits
+                let bit_0 = data_0 >> (7 - (pixel_index % 8)) & 0x01;
+                let bit_1 = data_1 >> (7 - (pixel_index % 8)) & 0x01;
+
+                let pixel_color = emulator.soc.peripheral.gpu.get_bg_pixel_color_from_palette((bit_1 << 1) | bit_0);
+
                 dbg_ctx.vram_viewer_buffer[pixel_index] =  0xFF << 24
-                            | (emulator.soc.get_vram_buffer(pixel_index) as u32) << 16
-                            | (emulator.soc.get_vram_buffer(pixel_index) as u32) << 8
-                            | (emulator.soc.get_vram_buffer(pixel_index) as u32) << 0;
+                            | (pixel_color as u32) << 16
+                            | (pixel_color as u32) << 8
+                            | (pixel_color as u32) << 0;
             }
         }
     }
