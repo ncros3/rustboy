@@ -105,7 +105,7 @@ pub enum GpuMode {
 pub struct Gpu {
     // ***** GPU PARAMETERS ******
     // VRAM is a memory area used to store graphics such as backgrounds and sprites
-    vram: [u8; VRAM_SIZE as usize],
+    pub vram: [u8; VRAM_SIZE as usize],
     // OAM is a memory area used to store sprites attributes
     // Sprites data are stored in VRAM memory $8000-8FFF
     oam: [u8; OAM_SIZE as usize],
@@ -553,7 +553,7 @@ impl Gpu {
         }
     }
 
-    fn get_bg_pixel_color_from_palette(&self, pixel_value: u8) -> u8 {
+    pub fn get_bg_pixel_color_from_palette(&self, pixel_value: u8) -> u8 {
         match pixel_value {
             0 => self.background_palette.color_0 as u8,
             1 => self.background_palette.color_1 as u8,
@@ -711,6 +711,14 @@ impl Gpu {
 
     pub fn set_window_x(&mut self, data: u8) {
         self.window_x_offset = data;
+    }
+
+    pub fn get_window_y(&self) -> u8 {
+        self.window_y_offset
+    }
+
+    pub fn get_window_x(&self) -> u8 {
+        self.window_x_offset
     }
 
     pub fn set_background_palette(&mut self, data: u8) {

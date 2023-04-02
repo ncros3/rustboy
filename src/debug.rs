@@ -4,6 +4,14 @@ use std::time::Instant;
 use std::io::{stdin, stdout, Write};
 use std::thread;
 use std::sync::{Arc, Mutex};
+use minifb::{Window, WindowOptions};
+
+// VRAM Window parameters
+const NB_TILE_X: usize = 16;
+const NB_TILE_Y: usize = 24;
+const SCALE_FACTOR: usize = 3;
+const TILE_SIZE: usize = 8;
+const WINDOW_DIMENSIONS: [usize; 2] = [(NB_TILE_X * TILE_SIZE * SCALE_FACTOR), (NB_TILE_Y * TILE_SIZE * SCALE_FACTOR)];
 
 #[derive(Clone, Copy)]
 pub enum DebuggerCommand {
@@ -24,6 +32,7 @@ pub struct DebugCtx {
     break_enabled: bool,
     debugger_state: DebuggerState,
     display_cpu_reg: bool,
+    vram_viewer_buffer: [u32; 32 * TILE_SIZE * 12 * TILE_SIZE],
 }
 
 impl DebugCtx {
@@ -34,6 +43,7 @@ impl DebugCtx {
             break_enabled: false,
             debugger_state: DebuggerState::HALT,
             display_cpu_reg: true,
+            vram_viewer_buffer: [0; 32 * TILE_SIZE * 12 * TILE_SIZE],
         }
     }
 }
@@ -110,6 +120,36 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
         }
         EmulatorState::DisplayFrame => {
             emulator.state = EmulatorState::GetTime;
+
+            // update vram debug buffer
+            for pixel_index in 0..NB_TILE_X * TILE_SIZE * NB_TILE_Y * TILE_SIZE {
+                // compute pixel_x and pixel_y indexes
+                let pixel_y_index = pixel_index / (NB_TILE_X * 8);
+                let pixel_x_index = pixel_index % (NB_TILE_X * 8);
+
+                // compute the tile index 
+                let tile_y_index = pixel_y_index / 8;
+                let tile_x_index = pixel_x_index / 8;
+                let tile_index = tile_y_index * NB_TILE_X + tile_x_index;
+
+                // compute VRAM address from pixel_index
+                let tile_row_offset = pixel_y_index % 8 * 2;
+
+                // get row for the needed pixel
+                let data_0 = emulator.soc.peripheral.gpu.vram[tile_index * 16 + tile_row_offset];
+                let data_1 = emulator.soc.peripheral.gpu.vram[tile_index * 16 + tile_row_offset + 1];
+
+                // get pixel bits
+                let bit_0 = data_0 >> (7 - (pixel_index % 8)) & 0x01;
+                let bit_1 = data_1 >> (7 - (pixel_index % 8)) & 0x01;
+
+                let pixel_color = emulator.soc.peripheral.gpu.get_bg_pixel_color_from_palette((bit_1 << 1) | bit_0);
+
+                dbg_ctx.vram_viewer_buffer[pixel_index] =  0xFF << 24
+                            | (pixel_color as u32) << 16
+                            | (pixel_color as u32) << 8
+                            | (pixel_color as u32) << 0;
+            }
         }
     }
 }
@@ -153,6 +193,28 @@ pub fn debug_cli(debug_ctx: &Arc<Mutex<DebugCtx>>) {
             if command.trim().contains("help") {
                 println!("supported commands: break <addr>, run, halt, step");
             }
+        }
+    });
+}
+
+pub fn debug_vram(debug_ctx: &Arc<Mutex<DebugCtx>>) {
+    let debug_ctx_ref = Arc::clone(&debug_ctx);
+    thread::spawn(move || {
+        // init vram window
+        let mut buffer = [0; 384 * TILE_SIZE * TILE_SIZE];
+        let mut window = Window::new(
+            "VRAM viewer",
+            WINDOW_DIMENSIONS[0],
+            WINDOW_DIMENSIONS[1],
+            WindowOptions::default(),
+        )
+        .unwrap();
+
+        // check new commands in console
+        loop {
+            // update vram viewer buffer
+            buffer = (*debug_ctx_ref.lock().unwrap()).vram_viewer_buffer;
+            window.update_with_buffer(&buffer, NB_TILE_X * TILE_SIZE, NB_TILE_Y * TILE_SIZE).unwrap();
         }
     });
 }

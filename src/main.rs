@@ -8,7 +8,7 @@ use std::{fs::File, io::Read, env};
 use std::sync::{Arc, Mutex};
 
 use crate::emulator::{Emulator, SCREEN_HEIGHT, SCREEN_WIDTH};
-use crate::debug::{DebugCtx, debug_cli};
+use crate::debug::{DebugCtx, debug_cli, debug_vram};
 
 // Window parameters
 const SCALE_FACTOR: usize = 3;
@@ -35,6 +35,7 @@ fn main() {
     let dbg_ctx = Arc::new(Mutex::new(DebugCtx::new()));
     if debug_mode {
         debug_cli(&dbg_ctx);
+        debug_vram(&dbg_ctx);
     }
 
     // create the emulated system

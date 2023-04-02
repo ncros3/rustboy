@@ -30,7 +30,6 @@ pub const VRAM_SIZE: u16 = VRAM_END - VRAM_BEGIN + 1;
 
 pub const EXTERNAL_RAM_BEGIN: u16 = 0xA000;
 pub const EXTERNAL_RAM_END: u16 = 0xBFFF;
-pub const EXTERNAL_RAM_SIZE: u16 = EXTERNAL_RAM_END - EXTERNAL_RAM_BEGIN + 1;
 
 pub const WORKING_RAM_BEGIN: u16 = 0xC000;
 pub const WORKING_RAM_END: u16 = 0xDFFF;
@@ -170,12 +169,6 @@ impl Peripheral {
                 self.zero_page[(address - ZERO_PAGE_BEGIN) as usize] = data;
             }
             INTERRUPT_ENABLE_REGISTER => self.nvic.set_it_enable(data),
-            _ => {
-                panic!(
-                    "Writing to an unkown part of memory at address 0x{:x}",
-                    address
-                );
-            }
         }
     }
 
@@ -216,9 +209,11 @@ impl Peripheral {
             0xFF43 => self.gpu.get_scx(),
             0xFF44 => self.gpu.get_current_line(),
             0xFF45 => self.gpu.get_compare_line(),
+            0xFF4A => self.gpu.get_window_y(),
+            0xFF4B => self.gpu.get_window_x(),
             0xFF4D => 0xFF, // CGB SPEED SWITCH register, not supported
-            0xFF48 => 0xFF,
-            0xFF49 => 0xFF, 
+            0xFF48 => 0xFF, // pokemon tries to read this registers
+            0xFF49 => 0xFF, // pokemon tries to read this registers
             _ => panic!("Reading from an unknown I/O register {:x}", address),
         }
     }
