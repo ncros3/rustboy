@@ -29,9 +29,7 @@ enum RomBankMask {
 
 pub struct Mbc1 {
     // config
-    mbc_type: MbcType,
     rom_size: RomSize,
-    ram_size: RamSize,
     // internal registers
     ram_enable: bool,
     rom_bank_number: u8,
@@ -43,7 +41,7 @@ pub struct Mbc1 {
 }
 
 impl Mbc1 {
-    pub fn new(mbc_type: MbcType, rom_size: RomSize, ram_size: RamSize, rom: &[u8]) -> Mbc1 {
+    pub fn new(_: MbcType, rom_size: RomSize, ram_size: RamSize, rom: &[u8]) -> Mbc1 {
         let mut rom_bank: Vec<u8> = vec![0xFF; rom_size.clone() as usize];
         let ram_bank: Vec<u8> = vec![0xFF; ram_size.clone() as usize];
 
@@ -54,9 +52,7 @@ impl Mbc1 {
 
         Mbc1 {
             // config
-            mbc_type: mbc_type,
             rom_size: rom_size,
-            ram_size: ram_size,
             // internal registers
             ram_enable: false,
             rom_bank_number: 1,
