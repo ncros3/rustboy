@@ -219,8 +219,8 @@ impl Peripheral {
             0xFF4A => self.gpu.get_window_y(),
             0xFF4B => self.gpu.get_window_x(),
             0xFF4D => 0xFF, // CGB SPEED SWITCH register, not supported
-            0xFF48 => 0xFF,
-            0xFF49 => 0xFF, 
+            0xFF48 => 0xFF, // pokemon tries to read this registers
+            0xFF49 => 0xFF, // pokemon tries to read this registers
             _ => panic!("Reading from an unknown I/O register {:x}", address),
         }
     }
