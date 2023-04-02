@@ -36,6 +36,10 @@ impl Soc {
         self.peripheral.gpu.frame_buffer[pixel_index]
     }
 
+    pub fn get_vram_buffer(&self, pixel_index: usize) -> u8 {
+        0xFF
+    }
+
     pub fn set_key(&mut self, key: GameBoyKey, value: bool) {
         self.peripheral.keypad.set(key, value);
     }

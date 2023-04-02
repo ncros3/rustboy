@@ -4,6 +4,12 @@ use std::time::Instant;
 use std::io::{stdin, stdout, Write};
 use std::thread;
 use std::sync::{Arc, Mutex};
+use minifb::{Window, WindowOptions};
+
+// VRAM Window parameters
+const SCALE_FACTOR: usize = 3;
+const TILE_SIZE: usize = 8;
+const WINDOW_DIMENSIONS: [usize; 2] = [(32 * TILE_SIZE * SCALE_FACTOR), (12 * TILE_SIZE * SCALE_FACTOR)];
 
 #[derive(Clone, Copy)]
 pub enum DebuggerCommand {
@@ -24,6 +30,7 @@ pub struct DebugCtx {
     break_enabled: bool,
     debugger_state: DebuggerState,
     display_cpu_reg: bool,
+    vram_viewer_buffer: [u32; 32 * TILE_SIZE * 12 * TILE_SIZE],
 }
 
 impl DebugCtx {
@@ -34,6 +41,7 @@ impl DebugCtx {
             break_enabled: false,
             debugger_state: DebuggerState::HALT,
             display_cpu_reg: true,
+            vram_viewer_buffer: [0; 32 * TILE_SIZE * 12 * TILE_SIZE],
         }
     }
 }
@@ -110,6 +118,14 @@ pub fn run_debug_mode(emulator: &mut Emulator, dbg_ctx: &mut DebugCtx) {
         }
         EmulatorState::DisplayFrame => {
             emulator.state = EmulatorState::GetTime;
+
+            // update vram debug buffer
+            for pixel_index in 0..32 * TILE_SIZE * 12 * TILE_SIZE {
+                dbg_ctx.vram_viewer_buffer[pixel_index] =  0xFF << 24
+                            | (emulator.soc.get_vram_buffer(pixel_index) as u32) << 16
+                            | (emulator.soc.get_vram_buffer(pixel_index) as u32) << 8
+                            | (emulator.soc.get_vram_buffer(pixel_index) as u32) << 0;
+            }
         }
     }
 }
@@ -153,6 +169,28 @@ pub fn debug_cli(debug_ctx: &Arc<Mutex<DebugCtx>>) {
             if command.trim().contains("help") {
                 println!("supported commands: break <addr>, run, halt, step");
             }
+        }
+    });
+}
+
+pub fn debug_vram(debug_ctx: &Arc<Mutex<DebugCtx>>) {
+    let debug_ctx_ref = Arc::clone(&debug_ctx);
+    thread::spawn(move || {
+        // init vram window
+        let mut buffer = [0; 32 * TILE_SIZE * 12 * TILE_SIZE];
+        let mut window = Window::new(
+            "VRAM viewer",
+            WINDOW_DIMENSIONS[0],
+            WINDOW_DIMENSIONS[1],
+            WindowOptions::default(),
+        )
+        .unwrap();
+
+        // check new commands in console
+        loop {
+            // update vram viewer buffer
+            buffer = (*debug_ctx_ref.lock().unwrap()).vram_viewer_buffer;
+            window.update_with_buffer(&buffer, 32 * TILE_SIZE, 12 * TILE_SIZE).unwrap();
         }
     });
 }
