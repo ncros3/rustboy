@@ -204,54 +204,20 @@ impl Gpu {
         }
     }
 
-    fn read_vram(&self, address: u16) -> u8 {
+    pub fn read_vram(&self, address: u16) -> u8 {
         self.vram[address as usize]
     }
 
-    pub fn read_vram_ext(&self, address: u16) -> u8 {
-        if self.mode == GpuMode::DrawPixel {
-            // acess denied
-            0xFF
-        } else {
-            self.read_vram(address)
-        }
-    }
-
-    fn write_vram(&mut self, address: u16, data: u8) { 
+    pub fn write_vram(&mut self, address: u16, data: u8) { 
         self.vram[address as usize] = data;
-    }
-
-    pub fn write_vram_ext(&mut self, address: u16, data: u8) {
-        if self.mode == GpuMode::DrawPixel {
-            // ignore write command
-        } else {
-            self.write_vram(address, data);
-        }
     }
 
     pub fn read_oam(&self, address: usize) -> u8 {
         self.oam[address]
     }
 
-    pub fn read_oam_ext(&self, address: usize) -> u8 {
-        if (self.mode == GpuMode::DrawPixel) ||  (self.mode == GpuMode::OAMScan) {
-            // acess denied
-            0xFF
-        } else {
-            self.read_oam(address)
-        }
-    }
-
     pub fn write_oam(&mut self, address: usize, data: u8) {         
         self.oam[address] = data;
-    }
-
-    pub fn write_oam_ext(&mut self, address: usize, data: u8) {
-        if (self.mode == GpuMode::DrawPixel) ||  (self.mode == GpuMode::OAMScan) {
-            // ignore write command
-        } else {
-            self.write_oam(address, data);
-        }
     }
 
     pub fn run(&mut self, cycles: u8, nvic: &mut Nvic) {
