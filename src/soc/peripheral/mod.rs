@@ -138,11 +138,11 @@ impl Peripheral {
                 }
             }
             ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.read_bank_n(address as usize),
-            VRAM_BEGIN..=VRAM_END => self.gpu.read_vram_ext(address - VRAM_BEGIN),
+            VRAM_BEGIN..=VRAM_END => self.gpu.read_vram(address - VRAM_BEGIN),
             EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.read_ram(address as usize),
             WORKING_RAM_BEGIN..=WORKING_RAM_END => self.working_ram[(address - WORKING_RAM_BEGIN) as usize],
             ECHO_RAM_BEGIN..=ECHO_RAM_END => self.working_ram[(address - ECHO_RAM_BEGIN) as usize],
-            OAM_BEGIN..=OAM_END => self.gpu.read_oam_ext((address - OAM_BEGIN) as usize),
+            OAM_BEGIN..=OAM_END => self.gpu.read_oam((address - OAM_BEGIN) as usize),
             IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.read_io_register(address as usize),
             UNUSED_BEGIN..=UNUSED_END => 0, // unused memory
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => self.zero_page[(address - ZERO_PAGE_BEGIN) as usize],
@@ -154,7 +154,7 @@ impl Peripheral {
         match address {
             ROM_BANK_0_BEGIN..=ROM_BANK_0_END => self.cartridge.write_bank_0(address as usize, data),
             ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.write_bank_n(address as usize, data),
-            VRAM_BEGIN..=VRAM_END => self.gpu.write_vram_ext(address - VRAM_BEGIN, data),
+            VRAM_BEGIN..=VRAM_END => self.gpu.write_vram(address - VRAM_BEGIN, data),
             EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.write_ram(address as usize, data),
             WORKING_RAM_BEGIN..=WORKING_RAM_END => {
                 self.working_ram[(address - WORKING_RAM_BEGIN) as usize] = data;
@@ -162,7 +162,7 @@ impl Peripheral {
             ECHO_RAM_BEGIN..=ECHO_RAM_END => {
                 self.working_ram[(address - ECHO_RAM_BEGIN) as usize] = data;
             }
-            OAM_BEGIN..=OAM_END => self.gpu.write_oam_ext((address - OAM_BEGIN) as usize, data),
+            OAM_BEGIN..=OAM_END => self.gpu.write_oam((address - OAM_BEGIN) as usize, data),
             IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.write_io_register(address as usize, data),
             UNUSED_BEGIN..=UNUSED_END => { /* Writing to here does nothing */ }
             ZERO_PAGE_BEGIN..=ZERO_PAGE_END => {

@@ -84,7 +84,7 @@ fn main() {
             emulator.set_key(soc::GameBoyKey::A, false);
         }
 
-        if window.is_key_down(Key::B) {
+        if window.is_key_down(Key::Z) {
             emulator.set_key(soc::GameBoyKey::B, true);
         } else {
             emulator.set_key(soc::GameBoyKey::B, false);
