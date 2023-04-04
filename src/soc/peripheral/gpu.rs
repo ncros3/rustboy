@@ -319,29 +319,47 @@ impl Gpu {
     fn draw_line(&mut self) {
         let mut bg_line = [0x00; SCREEN_WIDTH as usize];
 
-        if self.background_display_enabled {
+        if self.background_display_enabled  {
+            // check if we display the background or the window
+            let display_bg_or_window = if self.window_display_enabled && self.window_y_offset < self.current_line {
+                false
+            } else {
+                true
+            };
+
+            let (tile_map_area, y_offset, x_offset) = if display_bg_or_window {
+                (self.background_tile_map_area,
+                self.viewport_y_offset,
+                self.viewport_x_offset)
+            } else {
+                (self.window_tile_map_area,
+                self.window_y_offset,
+                 self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET))
+            };
+
             let pixel_y_index: u8 = self.current_line;
 
             for pixel_x_index in 0..SCREEN_WIDTH {
                 // compute the tile index in tile map
-                let tile_map_y_index = (pixel_y_index.wrapping_add(self.viewport_y_offset) / TILE_ROW_SIZE_IN_PIXEL) as u16;
-                let tile_map_x_index = (((pixel_x_index as u8).wrapping_add(self.viewport_x_offset) as usize) / (TILE_ROW_SIZE_IN_PIXEL as usize)) as u16;
+                let tile_map_y_index = (pixel_y_index.wrapping_add(y_offset) / TILE_ROW_SIZE_IN_PIXEL) as u16;
+                let tile_map_x_index = (((pixel_x_index as u8).wrapping_add(x_offset) as usize) / (TILE_ROW_SIZE_IN_PIXEL as usize)) as u16;
                 let tile_map_index = tile_map_y_index * (TILE_MAP_SIZE as u16) + tile_map_x_index;
 
                 // get the tile memory address from the tile map
-                let tile_mem_index = self.read_vram((self.background_tile_map_area as u16) + tile_map_index);
+                let tile_mem_index = self.read_vram((tile_map_area as u16) + tile_map_index);
+
                 // convert a 8 bits tile index into a 16 bits tile memory addr
                 let tile_mem_addr = (tile_mem_index as u16) * TILE_SIZE_IN_BYTES;
 
                 // get the row offset in the tile
-                let tile_row_offset = pixel_y_index.wrapping_add(self.viewport_y_offset) % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
+                let tile_row_offset = pixel_y_index.wrapping_add(y_offset) % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
 
                 // get tile row data from vram
                 let (data_1, data_0) = self.get_bg_tile_data(tile_mem_addr, tile_row_offset as u16);
 
                 // get pixel bits from data
-                let bit_0 = data_0 >> (7 - (((pixel_x_index as u8).wrapping_add(self.viewport_x_offset) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
-                let bit_1 = data_1 >> (7 - (((pixel_x_index as u8).wrapping_add(self.viewport_x_offset) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
+                let bit_0 = data_0 >> (7 - (((pixel_x_index as u8).wrapping_add(x_offset) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
+                let bit_1 = data_1 >> (7 - (((pixel_x_index as u8).wrapping_add(x_offset) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
 
                 // find pixel color
                 let pixel_value = (bit_1 << 1) | bit_0;
@@ -351,41 +369,6 @@ impl Gpu {
                 self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + pixel_x_index] = pixel_color;
                 // save the line for sprite rendering
                 bg_line[pixel_x_index] = pixel_value;
-            }
-        }
-
-        // background display flag overrides the window display flag
-        if self.background_display_enabled && self.window_display_enabled && self.window_y_offset < self.current_line {
-            let pixel_y_index: u8 = self.current_line;
-
-            for pixel_x_index in 0..SCREEN_WIDTH {
-                // compute the tile index in tile map
-                let tile_map_y_index = (pixel_y_index.wrapping_add(self.window_y_offset) / TILE_ROW_SIZE_IN_PIXEL) as u16;
-                let tile_map_x_index = (((pixel_x_index as u8).wrapping_add(self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET)) as usize) / (TILE_ROW_SIZE_IN_PIXEL as usize)) as u16;
-                let tile_map_index = tile_map_y_index * (TILE_MAP_SIZE as u16) + tile_map_x_index;
-
-                // get the tile memory address from the tile map
-                let tile_mem_index = self.read_vram((self.window_tile_map_area as u16) + tile_map_index);
-
-                // convert a 8 bits tile index into a 16 bits tile memory addr
-                let tile_mem_addr = (tile_mem_index as u16) * TILE_SIZE_IN_BYTES;
-
-                // get the row offset in the tile
-                let tile_row_offset = pixel_y_index.wrapping_add(self.viewport_y_offset) % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
-
-                // get tile row data from vram
-                let (data_1, data_0) = self.get_bg_tile_data(tile_mem_addr, tile_row_offset as u16);
-
-                // get pixel bits from data
-                let bit_0 = data_0 >> (7 - (((pixel_x_index as u8).wrapping_add(self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET)) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
-                let bit_1 = data_1 >> (7 - (((pixel_x_index as u8).wrapping_add(self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET)) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
-
-                // find pixel color
-                let pixel_value = (bit_1 << 1) | bit_0;
-                let pixel_color = self.get_bg_pixel_color_from_palette(pixel_value);
-
-                // fill frame buffer
-                self.frame_buffer[(pixel_y_index as usize) * SCREEN_WIDTH + pixel_x_index] = pixel_color;
             }
         }
 
