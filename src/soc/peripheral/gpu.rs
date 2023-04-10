@@ -324,24 +324,20 @@ impl Gpu {
 
             for pixel_x_index in 0..SCREEN_WIDTH {
                 // check if we display the background or the window
-                let display_bg_or_window = 
-                if self.window_display_enabled 
-                && self.window_y_offset < self.current_line
-                && self.window_x_offset < pixel_x_index as u8 {
-                    false
-                } else {
-                    true
-                };
-
-                let (tile_map_area, y_offset, x_offset) = if display_bg_or_window {
-                    (self.background_tile_map_area,
-                    self.viewport_y_offset,
-                    self.viewport_x_offset)
-                } else {
-                    (self.window_tile_map_area,
-                    self.window_y_offset,
-                    self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET))
-                };
+                let (tile_map_area, y_offset, x_offset) = 
+                    if self.window_display_enabled 
+                    && self.window_y_offset < self.current_line
+                    && self.window_x_offset < pixel_x_index as u8 {
+                        // window display mode
+                        (self.window_tile_map_area,
+                        self.window_y_offset,
+                        self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET))
+                    } else {
+                        // background display mode
+                        (self.background_tile_map_area,
+                        self.viewport_y_offset,
+                        self.viewport_x_offset)
+                    };
 
                 // compute the tile index in tile map
                 let tile_map_y_index = (pixel_y_index.wrapping_add(y_offset) / TILE_ROW_SIZE_IN_PIXEL) as u16;
