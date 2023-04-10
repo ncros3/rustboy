@@ -425,19 +425,21 @@ impl Gpu {
                 let sprite_x_flip = (sprite_attr & 0x20) != 0;
                 let sprite_palette_idx = (sprite_attr & 0x10) != 0;
                 let sprite_size_offset =  match self.object_size {
-                    ObjectSize::OS8X8 => 0,
-                    ObjectSize::OS8X16 => 1,
+                    ObjectSize::OS8X8 => 1,
+                    ObjectSize::OS8X16 => 2,
                 };
                 // get one row of sprite data
-                let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos + (TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 as i16) as u16;
+                let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos) as u16;
                 let (data_1, data_0) = if sprite_y_flip == false {
                     let data_0 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16);
                     let data_1 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16 + 1);
 
                     (data_1, data_0)
                 } else {
-                    let data_0 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * (sprite_size_offset + 1)) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16);
-                    let data_1 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * (sprite_size_offset + 1)) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16 + 1);
+                    let row = ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16).wrapping_sub(1).wrapping_sub(sprite_row_offset);
+
+                    let data_0 = self.read_vram(sprite_tile_addr + row * BYTES_PER_TILE_ROM as u16);
+                    let data_1 = self.read_vram(sprite_tile_addr + row * BYTES_PER_TILE_ROM as u16 + 1);
 
                     (data_1, data_0)
                 };
