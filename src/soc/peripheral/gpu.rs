@@ -427,7 +427,6 @@ impl Gpu {
                         (self.read_oam((sprite + SPRITE_TILE_INDEX_OFFSET) as usize) as u16 * TILE_SIZE_IN_BYTES) & 0xFFE0
                     },
                 };
-                println!("tile addr: {:x}", sprite_tile_addr);
                 let sprite_attr = self.read_oam((sprite + SPRITE_ATTRIBUTES_OFFSET) as usize);
                 let sprite_bg_over = (sprite_attr & 0x80) != 0;
                 let sprite_y_flip = (sprite_attr & 0x40) != 0;
