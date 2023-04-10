@@ -320,26 +320,29 @@ impl Gpu {
         let mut bg_line = [0x00; SCREEN_WIDTH as usize];
 
         if self.background_display_enabled  {
-            // check if we display the background or the window
-            let display_bg_or_window = if self.window_display_enabled && self.window_y_offset < self.current_line {
-                false
-            } else {
-                true
-            };
-
-            let (tile_map_area, y_offset, x_offset) = if display_bg_or_window {
-                (self.background_tile_map_area,
-                self.viewport_y_offset,
-                self.viewport_x_offset)
-            } else {
-                (self.window_tile_map_area,
-                self.window_y_offset,
-                 self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET))
-            };
-
             let pixel_y_index: u8 = self.current_line;
 
             for pixel_x_index in 0..SCREEN_WIDTH {
+                // check if we display the background or the window
+                let display_bg_or_window = 
+                if self.window_display_enabled 
+                && self.window_y_offset < self.current_line
+                && self.window_x_offset < pixel_x_index as u8 {
+                    false
+                } else {
+                    true
+                };
+
+                let (tile_map_area, y_offset, x_offset) = if display_bg_or_window {
+                    (self.background_tile_map_area,
+                    self.viewport_y_offset,
+                    self.viewport_x_offset)
+                } else {
+                    (self.window_tile_map_area,
+                    self.window_y_offset,
+                    self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET))
+                };
+
                 // compute the tile index in tile map
                 let tile_map_y_index = (pixel_y_index.wrapping_add(y_offset) / TILE_ROW_SIZE_IN_PIXEL) as u16;
                 let tile_map_x_index = (((pixel_x_index as u8).wrapping_add(x_offset) as usize) / (TILE_ROW_SIZE_IN_PIXEL as usize)) as u16;
@@ -422,19 +425,21 @@ impl Gpu {
                 let sprite_x_flip = (sprite_attr & 0x20) != 0;
                 let sprite_palette_idx = (sprite_attr & 0x10) != 0;
                 let sprite_size_offset =  match self.object_size {
-                    ObjectSize::OS8X8 => 0,
-                    ObjectSize::OS8X16 => 1,
+                    ObjectSize::OS8X8 => 1,
+                    ObjectSize::OS8X16 => 2,
                 };
                 // get one row of sprite data
-                let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos + (TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16 as i16) as u16;
+                let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos) as u16;
                 let (data_1, data_0) = if sprite_y_flip == false {
                     let data_0 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16);
                     let data_1 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16 + 1);
 
                     (data_1, data_0)
                 } else {
-                    let data_0 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * (sprite_size_offset + 1)) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16);
-                    let data_1 = self.read_vram(sprite_tile_addr + ((TILE_ROW_SIZE_IN_PIXEL * (sprite_size_offset + 1)) as u16 - 1 - sprite_row_offset) * BYTES_PER_TILE_ROM as u16 + 1);
+                    let row = ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16).wrapping_sub(1).wrapping_sub(sprite_row_offset);
+
+                    let data_0 = self.read_vram(sprite_tile_addr + row * BYTES_PER_TILE_ROM as u16);
+                    let data_1 = self.read_vram(sprite_tile_addr + row * BYTES_PER_TILE_ROM as u16 + 1);
 
                     (data_1, data_0)
                 };
