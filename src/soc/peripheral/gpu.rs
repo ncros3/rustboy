@@ -418,7 +418,16 @@ impl Gpu {
                 // get sprite's attributes
                 let sprite_y_pos = self.read_oam((sprite + SPRITE_Y_POS_OFFSET) as usize) as u16 as i16  - SPRITE_Y_OFFSET;
                 let sprite_x_pos = self.read_oam((sprite + SPRITE_X_POS_OFFSET) as usize) as i16;
-                let sprite_tile_addr = self.read_oam((sprite + SPRITE_TILE_INDEX_OFFSET) as usize) as u16 * TILE_SIZE_IN_BYTES;
+                let sprite_tile_addr = match self.object_size {
+                    ObjectSize::OS8X8 => {
+                        self.read_oam((sprite + SPRITE_TILE_INDEX_OFFSET) as usize) as u16 * TILE_SIZE_IN_BYTES
+                    },
+                    ObjectSize::OS8X16 => {
+                        // ignore bit 0 for tile index in 8x16 object size mode
+                        (self.read_oam((sprite + SPRITE_TILE_INDEX_OFFSET) as usize) as u16 * TILE_SIZE_IN_BYTES) & 0xFFE0
+                    },
+                };
+                println!("tile addr: {:x}", sprite_tile_addr);
                 let sprite_attr = self.read_oam((sprite + SPRITE_ATTRIBUTES_OFFSET) as usize);
                 let sprite_bg_over = (sprite_attr & 0x80) != 0;
                 let sprite_y_flip = (sprite_attr & 0x40) != 0;
@@ -428,21 +437,17 @@ impl Gpu {
                     ObjectSize::OS8X8 => 1,
                     ObjectSize::OS8X16 => 2,
                 };
-                // get one row of sprite data
+                // get tile addr
                 let sprite_row_offset = (pixel_y_index as i16 - sprite_y_pos) as u16;
-                let (data_1, data_0) = if sprite_y_flip == false {
-                    let data_0 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16);
-                    let data_1 = self.read_vram(sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16 + 1);
-
-                    (data_1, data_0)
+                let tile_addr = if sprite_y_flip == false {
+                    sprite_tile_addr + sprite_row_offset * BYTES_PER_TILE_ROM as u16
                 } else {
                     let row = ((TILE_ROW_SIZE_IN_PIXEL * sprite_size_offset) as u16).wrapping_sub(1).wrapping_sub(sprite_row_offset);
-
-                    let data_0 = self.read_vram(sprite_tile_addr + row * BYTES_PER_TILE_ROM as u16);
-                    let data_1 = self.read_vram(sprite_tile_addr + row * BYTES_PER_TILE_ROM as u16 + 1);
-
-                    (data_1, data_0)
+                    sprite_tile_addr + row * BYTES_PER_TILE_ROM as u16
                 };
+                // get one row of sprite data
+                let data_0 = self.read_vram(tile_addr);
+                let data_1 = self.read_vram(tile_addr + 1);
                 // draw each pixel of the sprite's row
                 for pixel_x_offset in 0..TILE_ROW_SIZE_IN_PIXEL {
                     // get pixel bits from data
