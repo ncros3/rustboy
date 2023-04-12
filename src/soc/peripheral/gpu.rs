@@ -156,6 +156,8 @@ pub struct Gpu {
     cycles: u16,
     new_mode_flag: bool,
     vblank_line: u16,
+    window_flag: bool,
+    window_line_counter: u8,
 
     // ****** OUTPUT FRAME BUFFER *******
     pub frame_buffer: [u8; SCREEN_WIDTH * SCREEN_HEIGHT],
@@ -199,6 +201,8 @@ impl Gpu {
             cycles: 0,
             new_mode_flag: true,
             vblank_line: 0,
+            window_flag: false,
+            window_line_counter: 0,
 
             frame_buffer: [0; SCREEN_WIDTH * SCREEN_HEIGHT],
         }
@@ -239,6 +243,7 @@ impl Gpu {
                         // we detected the end of a line
                         if self.current_line < (SCREEN_HEIGHT - 1) as u8 {
                             self.current_line += 1;
+                            if self.window_flag { self.window_line_counter += 1 }
                             // run the compare line circuitry
                             self.compare_line(nvic);
                             // reset new mode flag
@@ -268,6 +273,7 @@ impl Gpu {
                     if (self.cycles / ((self.vblank_line + 1) * ONE_LINE_CYCLES)) != 0 {
                         self.vblank_line += 1;
                         self.current_line += 1;
+                        if self.window_flag { self.window_line_counter += 1 }
 
                         self.compare_line(nvic);
                     }
@@ -277,6 +283,7 @@ impl Gpu {
                         self.cycles = self.cycles % VERTICAL_BLANK_CYCLES;
                         // reset the line counter to draw a new frame
                         self.current_line = 0;
+                        self.window_line_counter = 0;
                         // reset the vblank line counter
                         self.vblank_line = 0;
                         // reset new mode flag
@@ -318,30 +325,31 @@ impl Gpu {
 
     fn draw_line(&mut self) {
         let mut bg_line = [0x00; SCREEN_WIDTH as usize];
+        let pixel_y_index = self.current_line;
 
         if self.background_display_enabled  {
-            let pixel_y_index: u8 = self.current_line;
-
             for pixel_x_index in 0..SCREEN_WIDTH {
                 // check if we display the background or the window
                 let (tile_map_area, y_offset, x_offset) = 
                     if self.window_display_enabled 
-                    && self.window_y_offset < self.current_line
-                    && self.window_x_offset < pixel_x_index as u8 {
+                    && self.window_y_offset <= self.current_line
+                    && self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET) <= pixel_x_index as u8 {
+                        self.window_flag = true;
                         // window display mode
                         (self.window_tile_map_area,
-                        self.window_y_offset,
-                        self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET))
+                        self.window_line_counter,
+                        (pixel_x_index as u8).wrapping_sub(self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET)))
                     } else {
+                        self.window_flag = false;
                         // background display mode
                         (self.background_tile_map_area,
-                        self.viewport_y_offset,
-                        self.viewport_x_offset)
+                        pixel_y_index.wrapping_add(self.viewport_y_offset),
+                        (pixel_x_index as u8).wrapping_add(self.viewport_x_offset))
                     };
 
                 // compute the tile index in tile map
-                let tile_map_y_index = (pixel_y_index.wrapping_add(y_offset) / TILE_ROW_SIZE_IN_PIXEL) as u16;
-                let tile_map_x_index = (((pixel_x_index as u8).wrapping_add(x_offset) as usize) / (TILE_ROW_SIZE_IN_PIXEL as usize)) as u16;
+                let tile_map_y_index = (y_offset / TILE_ROW_SIZE_IN_PIXEL) as u16;
+                let tile_map_x_index = (x_offset / TILE_ROW_SIZE_IN_PIXEL) as u16;
                 let tile_map_index = tile_map_y_index * (TILE_MAP_SIZE as u16) + tile_map_x_index;
 
                 // get the tile memory address from the tile map
@@ -351,14 +359,14 @@ impl Gpu {
                 let tile_mem_addr = (tile_mem_index as u16) * TILE_SIZE_IN_BYTES;
 
                 // get the row offset in the tile
-                let tile_row_offset = pixel_y_index.wrapping_add(y_offset) % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
+                let tile_row_offset = y_offset % TILE_ROW_SIZE_IN_PIXEL * BYTES_PER_TILE_ROM;
 
                 // get tile row data from vram
                 let (data_1, data_0) = self.get_bg_tile_data(tile_mem_addr, tile_row_offset as u16);
 
                 // get pixel bits from data
-                let bit_0 = data_0 >> (7 - (((pixel_x_index as u8).wrapping_add(x_offset) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
-                let bit_1 = data_1 >> (7 - (((pixel_x_index as u8).wrapping_add(x_offset) as usize) % (TILE_ROW_SIZE_IN_PIXEL as usize))) & 0x01;
+                let bit_0 = data_0 >> (7 - (x_offset % TILE_ROW_SIZE_IN_PIXEL)) & 0x01;
+                let bit_1 = data_1 >> (7 - (x_offset % TILE_ROW_SIZE_IN_PIXEL)) & 0x01;
 
                 // find pixel color
                 let pixel_value = (bit_1 << 1) | bit_0;
