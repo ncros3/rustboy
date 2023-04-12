@@ -337,7 +337,7 @@ impl Gpu {
                         self.window_flag = true;
                         // window display mode
                         (self.window_tile_map_area,
-                        pixel_y_index.wrapping_sub(self.window_y_offset),
+                        self.window_line_counter,
                         (pixel_x_index as u8).wrapping_sub(self.window_x_offset.wrapping_sub(WINDOW_X_OFFSET)))
                     } else {
                         self.window_flag = false;
