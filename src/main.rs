@@ -3,7 +3,13 @@ mod soc;
 mod debug;
 mod cartridge;
 
-use minifb::{Key, Window, WindowOptions};
+use winit::{
+    event::{Event, WindowEvent, ElementState, DeviceEvent, KeyboardInput, VirtualKeyCode},
+    event_loop::{ControlFlow, EventLoop},
+    window::WindowBuilder, dpi::PhysicalSize,
+};
+use softbuffer::GraphicsContext;
+
 use std::{fs::File, io::Read, env};
 use std::sync::{Arc, Mutex};
 
@@ -44,79 +50,128 @@ fn main() {
     // run the emulator
     let mut buffer = [0; SCREEN_HEIGHT * SCREEN_WIDTH];
 
-    let mut window = Window::new(
-        "Qoboy",
-        WINDOW_DIMENSIONS[0],
-        WINDOW_DIMENSIONS[1],
-        WindowOptions::default(),
-    )
-    .unwrap();
+    let event_loop = EventLoop::new();
+    let window = WindowBuilder::new()
+                            .with_inner_size(PhysicalSize::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32))
+                            .build(&event_loop)
+                            .unwrap();
+    let mut graphics_context = unsafe { GraphicsContext::new(&window, &window) }.unwrap();
 
-    while window.is_open() && !window.is_key_down(Key::Escape) {
-        // get key from the keyboard
-        if window.is_key_down(Key::Up) {
-            emulator.set_key(soc::GameBoyKey::UP, true);
-        } else {
-            emulator.set_key(soc::GameBoyKey::UP, false);
-        }
-
-        if window.is_key_down(Key::Down) {
-            emulator.set_key(soc::GameBoyKey::DOWN, true);
-        } else {
-            emulator.set_key(soc::GameBoyKey::DOWN, false);
-        }
-
-        if window.is_key_down(Key::Left) {
-            emulator.set_key(soc::GameBoyKey::LEFT, true);
-        } else {
-            emulator.set_key(soc::GameBoyKey::LEFT, false);
-        }
-
-        if window.is_key_down(Key::Right) {
-            emulator.set_key(soc::GameBoyKey::RIGHT, true);
-        } else {
-            emulator.set_key(soc::GameBoyKey::RIGHT, false);
-        }
-
-        if window.is_key_down(Key::A) {
-            emulator.set_key(soc::GameBoyKey::A, true);
-        } else {
-            emulator.set_key(soc::GameBoyKey::A, false);
-        }
-
-        if window.is_key_down(Key::Z) {
-            emulator.set_key(soc::GameBoyKey::B, true);
-        } else {
-            emulator.set_key(soc::GameBoyKey::B, false);
-        }
-
-        if window.is_key_down(Key::Space) {
-            emulator.set_key(soc::GameBoyKey::START, true);
-        } else {
-            emulator.set_key(soc::GameBoyKey::START, false);
-        }
-
-        if window.is_key_down(Key::Enter) {
-            emulator.set_key(soc::GameBoyKey::SELECT, true);
-        } else {
-            emulator.set_key(soc::GameBoyKey::SELECT, false);
-        }
-
-        // run emulator until a new frame is ready
+    event_loop.run(move |event, _, control_flow| {
+        // run the emulator
         emulator.run(&mut *dbg_ctx.lock().unwrap());
 
+        // if a new frame is read, update the framebuffer
         if emulator.frame_ready() {
-            // copy the current frame from gpu frame buffer
+            // copy the emulator frame buffer to the gpu frame buffer
             for i in 0..SCREEN_HEIGHT * SCREEN_WIDTH {
-                buffer[i] =  255 << 24
+                buffer[i] = 255 << 24
                             | (emulator.get_frame_buffer(i) as u32) << 16
                             | (emulator.get_frame_buffer(i) as u32) << 8
                             | (emulator.get_frame_buffer(i) as u32) << 0;
             }
-            // display the frame rendered by the gpu
-            window.update_with_buffer(&buffer, SCREEN_WIDTH, SCREEN_HEIGHT).unwrap();
         }
-    }
+
+        // handle window events
+        *control_flow = ControlFlow::Poll;
+        match event {
+            Event::DeviceEvent {
+                ref event,
+                .. // We're not using device_id currently
+            } => {
+                match event {
+                    DeviceEvent::Key(KeyboardInput {
+                        virtual_keycode: Some(key),
+                        state,
+                        ..
+                    }) => match key {
+                        VirtualKeyCode::Up => {
+                            if *state == ElementState::Pressed {
+                                emulator.set_key(soc::GameBoyKey::UP, true);
+                            } else {
+                                emulator.set_key(soc::GameBoyKey::UP, false);
+                            }
+                        }
+                        VirtualKeyCode::Down => {
+                            if *state == ElementState::Pressed {
+                                emulator.set_key(soc::GameBoyKey::DOWN, true);
+                            } else {
+                                emulator.set_key(soc::GameBoyKey::DOWN, false);
+                            }
+                        }
+                        VirtualKeyCode::Left => {
+                            if *state == ElementState::Pressed {
+                                emulator.set_key(soc::GameBoyKey::LEFT, true);
+                            } else {
+                                emulator.set_key(soc::GameBoyKey::LEFT, false);
+                            }
+                        }
+                        VirtualKeyCode::Right => {
+                            if *state == ElementState::Pressed {
+                                emulator.set_key(soc::GameBoyKey::RIGHT, true);
+                            } else {
+                                emulator.set_key(soc::GameBoyKey::RIGHT, false);
+                            }
+                        }
+                        VirtualKeyCode::Return => {
+                            if *state == ElementState::Pressed {
+                                emulator.set_key(soc::GameBoyKey::START, true);
+                            } else {
+                                emulator.set_key(soc::GameBoyKey::START, false);
+                            }
+                        }
+                        VirtualKeyCode::Space => {
+                            if *state == ElementState::Pressed {
+                                emulator.set_key(soc::GameBoyKey::SELECT, true);
+                            } else {
+                                emulator.set_key(soc::GameBoyKey::SELECT, false);
+                            }
+                        }
+                        VirtualKeyCode::A => {
+                            if *state == ElementState::Pressed {
+                                emulator.set_key(soc::GameBoyKey::A, true);
+                            } else {
+                                emulator.set_key(soc::GameBoyKey::A, false);
+                            }
+                        }
+                        VirtualKeyCode::S => {
+                            if *state == ElementState::Pressed {
+                                emulator.set_key(soc::GameBoyKey::B, true);
+                            } else {
+                                emulator.set_key(soc::GameBoyKey::B, false);
+                            }
+                        }
+                        _ => {},
+                    }
+                    _ => {},
+                }
+            }
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == window.id() => {
+                match event {
+                    WindowEvent::CloseRequested => {
+                        *control_flow = ControlFlow::Exit
+                    }
+                    _ => {}
+                }
+            }
+            Event::RedrawRequested(_) => {
+                let (width, height) = {
+                    let size = window.inner_size();
+                    (size.width, size.height)
+                };
+                graphics_context.set_buffer(&buffer, width as u16, height as u16);
+            }
+            Event::MainEventsCleared => {
+                // RedrawRequested will only trigger once, unless we manually
+                // request it.
+                window.request_redraw();
+            }
+            _ => {}
+        }
+    });
 }
 
 fn parse_args() -> (String, String, bool) {
