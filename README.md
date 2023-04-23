@@ -91,6 +91,16 @@ Source files can be found [here](https://github.com/mattcurrie/dmg-acid2). This 
 | -------- | ------- | ------ |
 | dmg_acid2 | sprite priority follows GB color behaviour | :x: |
 
+## Features
+
+- [X] implement a gameboy emulator which passes all cpu_instr and instr_timing tests
+- [X] add support to no_mbc / mbc1 / mbc3 cartridge types
+- [X] implement a lightweight debugger
+- [X] implement a vram viewer
+- [ ] fix sprite priority to pass ACID2 test
+- [ ] add possibility to save a game
+- [ ] use winit and softbuffer instead of minifb (which is not as stable as expected)
+
 ## Ressources
 
 ### General
