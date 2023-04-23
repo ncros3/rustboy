@@ -5,7 +5,7 @@ pub mod keypad;
 mod bootrom;
 
 use gpu::Gpu;
-use nvic::Nvic;
+use nvic::{Nvic, InterruptSources};
 use timer::Timer;
 use bootrom::BootRom;
 use keypad::Keypad;
@@ -57,6 +57,22 @@ pub const INTERRUPT_ENABLE_REGISTER: u16 = 0xFFFF;
 pub const VBLANK_VECTOR: u16 = 0x40;
 pub const LCDSTAT_VECTOR: u16 = 0x48;
 pub const TIMER_VECTOR: u16 = 0x50;
+
+pub trait IoAccess {
+    fn read(&self, address: u16) -> u8;
+
+    fn write(&mut self, address: u16, data: u8);
+}
+
+pub trait Interrupt {
+    fn is_an_interrupt_to_run(&self) -> bool;
+
+    fn is_an_interrupt_pending(&self) -> bool;
+
+    fn get_interrupt(&mut self) -> Option<InterruptSources>;
+
+    fn master_enable(&mut self, enable: bool);
+}
 
 pub struct Peripheral {
     boot_rom: BootRom,
@@ -122,54 +138,6 @@ impl Peripheral {
 
     pub fn load_bootrom(&mut self, boot_rom: &[u8]){
         self.boot_rom.load(boot_rom);
-    }
-
-    pub fn read(&self, address: u16) -> u8 {
-        match address {
-            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
-                match address {
-                    BOOT_ROM_BEGIN..=BOOT_ROM_END => 
-                        if self.boot_rom.get_state() {
-                            self.boot_rom.read(address)
-                        } else {
-                            self.cartridge.read_bank_0(address as usize)
-                        }
-                    _ => self.cartridge.read_bank_0(address as usize)
-                }
-            }
-            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.read_bank_n(address as usize),
-            VRAM_BEGIN..=VRAM_END => self.gpu.read_vram(address - VRAM_BEGIN),
-            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.read_ram(address as usize),
-            WORKING_RAM_BEGIN..=WORKING_RAM_END => self.working_ram[(address - WORKING_RAM_BEGIN) as usize],
-            ECHO_RAM_BEGIN..=ECHO_RAM_END => self.working_ram[(address - ECHO_RAM_BEGIN) as usize],
-            OAM_BEGIN..=OAM_END => self.gpu.read_oam((address - OAM_BEGIN) as usize),
-            IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.read_io_register(address as usize),
-            UNUSED_BEGIN..=UNUSED_END => 0, // unused memory
-            ZERO_PAGE_BEGIN..=ZERO_PAGE_END => self.zero_page[(address - ZERO_PAGE_BEGIN) as usize],
-            INTERRUPT_ENABLE_REGISTER => self.nvic.get_it_enable(),
-        }
-    }
-
-    pub fn write(&mut self, address: u16, data: u8) {
-        match address {
-            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => self.cartridge.write_bank_0(address as usize, data),
-            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.write_bank_n(address as usize, data),
-            VRAM_BEGIN..=VRAM_END => self.gpu.write_vram(address - VRAM_BEGIN, data),
-            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.write_ram(address as usize, data),
-            WORKING_RAM_BEGIN..=WORKING_RAM_END => {
-                self.working_ram[(address - WORKING_RAM_BEGIN) as usize] = data;
-            }
-            ECHO_RAM_BEGIN..=ECHO_RAM_END => {
-                self.working_ram[(address - ECHO_RAM_BEGIN) as usize] = data;
-            }
-            OAM_BEGIN..=OAM_END => self.gpu.write_oam((address - OAM_BEGIN) as usize, data),
-            IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.write_io_register(address as usize, data),
-            UNUSED_BEGIN..=UNUSED_END => { /* Writing to here does nothing */ }
-            ZERO_PAGE_BEGIN..=ZERO_PAGE_END => {
-                self.zero_page[(address - ZERO_PAGE_BEGIN) as usize] = data;
-            }
-            INTERRUPT_ENABLE_REGISTER => self.nvic.set_it_enable(data),
-        }
     }
 
     fn read_io_register(&self, address: usize) -> u8 {
@@ -273,6 +241,74 @@ impl Peripheral {
                 data, address
             ),
         }
+    }
+}
+
+impl IoAccess for Peripheral {
+    fn read(&self, address: u16) -> u8 {
+        match address {
+            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => {
+                match address {
+                    BOOT_ROM_BEGIN..=BOOT_ROM_END => 
+                        if self.boot_rom.get_state() {
+                            self.boot_rom.read(address)
+                        } else {
+                            self.cartridge.read_bank_0(address as usize)
+                        }
+                    _ => self.cartridge.read_bank_0(address as usize)
+                }
+            }
+            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.read_bank_n(address as usize),
+            VRAM_BEGIN..=VRAM_END => self.gpu.read_vram(address - VRAM_BEGIN),
+            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.read_ram(address as usize),
+            WORKING_RAM_BEGIN..=WORKING_RAM_END => self.working_ram[(address - WORKING_RAM_BEGIN) as usize],
+            ECHO_RAM_BEGIN..=ECHO_RAM_END => self.working_ram[(address - ECHO_RAM_BEGIN) as usize],
+            OAM_BEGIN..=OAM_END => self.gpu.read_oam((address - OAM_BEGIN) as usize),
+            IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.read_io_register(address as usize),
+            UNUSED_BEGIN..=UNUSED_END => 0, // unused memory
+            ZERO_PAGE_BEGIN..=ZERO_PAGE_END => self.zero_page[(address - ZERO_PAGE_BEGIN) as usize],
+            INTERRUPT_ENABLE_REGISTER => self.nvic.get_it_enable(),
+        }
+    }
+
+    fn write(&mut self, address: u16, data: u8) {
+        match address {
+            ROM_BANK_0_BEGIN..=ROM_BANK_0_END => self.cartridge.write_bank_0(address as usize, data),
+            ROM_BANK_N_BEGIN..=ROM_BANK_N_END => self.cartridge.write_bank_n(address as usize, data),
+            VRAM_BEGIN..=VRAM_END => self.gpu.write_vram(address - VRAM_BEGIN, data),
+            EXTERNAL_RAM_BEGIN..=EXTERNAL_RAM_END => self.cartridge.write_ram(address as usize, data),
+            WORKING_RAM_BEGIN..=WORKING_RAM_END => {
+                self.working_ram[(address - WORKING_RAM_BEGIN) as usize] = data;
+            }
+            ECHO_RAM_BEGIN..=ECHO_RAM_END => {
+                self.working_ram[(address - ECHO_RAM_BEGIN) as usize] = data;
+            }
+            OAM_BEGIN..=OAM_END => self.gpu.write_oam((address - OAM_BEGIN) as usize, data),
+            IO_REGISTERS_BEGIN..=IO_REGISTERS_END => self.write_io_register(address as usize, data),
+            UNUSED_BEGIN..=UNUSED_END => { /* Writing to here does nothing */ }
+            ZERO_PAGE_BEGIN..=ZERO_PAGE_END => {
+                self.zero_page[(address - ZERO_PAGE_BEGIN) as usize] = data;
+            }
+            INTERRUPT_ENABLE_REGISTER => self.nvic.set_it_enable(data),
+        }
+    }
+}
+
+impl Interrupt for Peripheral {
+    fn is_an_interrupt_to_run(&self) -> bool {
+        self.nvic.is_an_interrupt_to_run()
+    }
+
+    fn is_an_interrupt_pending(&self) -> bool {
+        self.nvic.is_an_interrupt_pending()
+    }
+
+    fn get_interrupt(&mut self) -> Option<InterruptSources> {
+        self.nvic.get_interrupt()
+    }
+
+    fn master_enable(&mut self, enable: bool) {
+        self.nvic.master_enable(enable);
     }
 }
 
