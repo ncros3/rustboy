@@ -89,7 +89,7 @@ Source files can be found [here](https://github.com/mattcurrie/dmg-acid2). This 
 
 | test rom | Comment | Result |
 | -------- | ------- | ------ |
-| dmg_acid2 | none | :x: |
+| dmg_acid2 | sprite priority follows GB color behaviour | :x: |
 
 ## Ressources
 
