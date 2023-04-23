@@ -158,11 +158,7 @@ fn main() {
                 }
             }
             Event::RedrawRequested(_) => {
-                let (width, height) = {
-                    let size = window.inner_size();
-                    (size.width, size.height)
-                };
-                graphics_context.set_buffer(&buffer, width as u16, height as u16);
+                graphics_context.set_buffer(&buffer, SCREEN_WIDTH as u16, SCREEN_HEIGHT as u16);
             }
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
