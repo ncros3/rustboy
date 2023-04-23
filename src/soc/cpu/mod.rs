@@ -7,7 +7,7 @@ use instruction::{
 };
 use register::Registers;
 
-use crate::soc::peripheral::{Peripheral, VBLANK_VECTOR, LCDSTAT_VECTOR, TIMER_VECTOR};
+use crate::soc::peripheral::{IoAccess, Interrupt, VBLANK_VECTOR, LCDSTAT_VECTOR, TIMER_VECTOR};
 use crate::soc::peripheral::nvic::InterruptSources;
 
 const RUN_0_CYCLE: u8 = 0;
@@ -485,7 +485,7 @@ macro_rules! reset {
 
 macro_rules! interrupt_enable {
     ($enable: ident, $self:ident, $peripheral:expr) => {{
-        $peripheral.nvic.master_enable($enable);
+        $peripheral.master_enable($enable);
         $self.pc.wrapping_add(1)
     }};
 }
@@ -737,7 +737,7 @@ impl Cpu {
         }
     }
 
-    fn decode(&mut self, instruction_byte: u8, peripheral: &mut Peripheral) -> Option<Instruction> {
+    fn decode<T: IoAccess>(&mut self, instruction_byte: u8, peripheral: &mut T) -> Option<Instruction> {
         if Instruction::is_long_instruction(instruction_byte) {
             let long_instruction_byte = peripheral.read(self.pc.wrapping_add(1));
             Instruction::from_long_byte(long_instruction_byte)
@@ -746,9 +746,9 @@ impl Cpu {
         }
     }
 
-    pub fn run(&mut self, peripheral: &mut Peripheral) -> u8 {
+    pub fn run<T: IoAccess + Interrupt>(&mut self, peripheral: &mut T) -> u8 {
         // catch interrupt as soon as possible
-        if peripheral.nvic.is_an_interrupt_to_run() {
+        if peripheral.is_an_interrupt_to_run() {
             self.mode = CpuMode::INTERRUPT;
         }
     
@@ -775,11 +775,11 @@ impl Cpu {
     
             CpuMode::INTERRUPT => {
                 // get the interrupt source
-                if let Some(interrupt_source) = peripheral.nvic.get_interrupt() {
+                if let Some(interrupt_source) = peripheral.get_interrupt() {
                     // set the cpu in RUN mode to handle interrupt routine
                     self.mode = CpuMode::RUN;
                     // disable interrupts while handling interrupt routine
-                    peripheral.nvic.master_enable(false);
+                    peripheral.master_enable(false);
                     // jump to interrupt routine
                     self.jump_to_interrupt_routine(interrupt_source, peripheral);
                     // 2 NOP (2 cycles) + PUSH (2 cycles) + set PC (1 cycle)
@@ -793,7 +793,7 @@ impl Cpu {
     
             CpuMode::HALT => {
                 // exit HALT mode if an interrupt is pending
-                if peripheral.nvic.is_an_interrupt_pending() {
+                if peripheral.is_an_interrupt_pending() {
                     self.mode = CpuMode::RUN
                 }
     
@@ -809,7 +809,7 @@ impl Cpu {
         }
     }
 
-    fn jump_to_interrupt_routine(&mut self, interrupt_source: InterruptSources, peripheral: &mut Peripheral) {
+    fn jump_to_interrupt_routine<T: IoAccess>(&mut self, interrupt_source: InterruptSources, peripheral: &mut T) {
         self.push(self.pc, peripheral);
         match interrupt_source {
             InterruptSources::VBLANK => self.pc = VBLANK_VECTOR,
@@ -819,7 +819,7 @@ impl Cpu {
         }
     }
 
-    fn execute(&mut self, instruction: Instruction, peripheral: &mut Peripheral) -> (u16, u8) {
+    fn execute<T: IoAccess + Interrupt>(&mut self, instruction: Instruction, peripheral: &mut T) -> (u16, u8) {
         match instruction {
             // Arithmetic instructions
             Instruction::ADD(target) => arithmetic_instruction!(target, self.add, peripheral),
@@ -1017,7 +1017,7 @@ impl Cpu {
         new_value
     }
 
-    fn load(&mut self, input_register: ArithmeticTarget, main_register: IncDecTarget, peripheral: &mut Peripheral) -> (u16, u8) {
+    fn load<T: IoAccess>(&mut self, input_register: ArithmeticTarget, main_register: IncDecTarget, peripheral: &mut T) -> (u16, u8) {
         match main_register {
             IncDecTarget::A => load_input_register!(input_register => a, self, peripheral),
             IncDecTarget::B => load_input_register!(input_register => b, self, peripheral),
@@ -1030,7 +1030,7 @@ impl Cpu {
         }
     }
 
-    fn load_sp(&mut self, target: SPTarget, peripheral: &mut Peripheral) -> (u16, u8) {
+    fn load_sp<T: IoAccess>(&mut self, target: SPTarget, peripheral: &mut T) -> (u16, u8) {
         match target {
             SPTarget::FROM_SP => ({
                 let low_byte_address = peripheral.read(self.pc.wrapping_add(1)) as u16;
@@ -1071,7 +1071,7 @@ impl Cpu {
         }
     }
 
-    fn load_store_ram(&mut self, target: RamTarget, load: bool, peripheral: &mut Peripheral) -> (u16, u8) {
+    fn load_store_ram<T: IoAccess>(&mut self, target: RamTarget, load: bool, peripheral: &mut T) -> (u16, u8) {
         match target {
             RamTarget::OneByteAddress => ({
                 // get address from instruction
@@ -1128,7 +1128,7 @@ impl Cpu {
         }
     }
 
-    fn jump_relative(&mut self, flag: bool, peripheral: &mut Peripheral) -> (u16, u8) {
+    fn jump_relative<T: IoAccess>(&mut self, flag: bool, peripheral: &mut T) -> (u16, u8) {
         // get the immediate from memory
         let immediate_address = self.pc.wrapping_add(1);
         let immediate = peripheral.read(immediate_address) as i8 as u16;
@@ -1142,7 +1142,7 @@ impl Cpu {
         }
     }
 
-    fn jump_immediate(&mut self, flag: bool, peripheral: &mut Peripheral) -> (u16, u8) {
+    fn jump_immediate<T: IoAccess>(&mut self, flag: bool, peripheral: &mut T) -> (u16, u8) {
         // get the immediate from memory
         let low_immediate = peripheral.read(self.pc.wrapping_add(1)) as u16;
         let high_immediate = peripheral.read(self.pc.wrapping_add(2)) as u16;
@@ -1161,7 +1161,7 @@ impl Cpu {
         self.registers.read_hl()
     }
 
-    fn pop(&mut self, peripheral: &mut Peripheral) -> u16 {
+    fn pop<T: IoAccess>(&mut self, peripheral: &mut T) -> u16 {
         // get stack pointer values
         let low_stack_address = self.sp;
         let high_stack_address = self.sp.wrapping_add(1);
@@ -1173,7 +1173,7 @@ impl Cpu {
         low_byte | (high_byte << 8)
     }
 
-    fn push(&mut self, push_data: u16, peripheral: &mut Peripheral) {
+    fn push<T: IoAccess>(&mut self, push_data: u16, peripheral: &mut T) {
         // get bytes from data
         let high_byte = ((push_data & 0xFF00) >> 8) as u8;
         let low_byte = (push_data & 0x00FF) as u8;
@@ -1187,7 +1187,7 @@ impl Cpu {
         self.sp = self.sp.wrapping_sub(2);
     }
 
-    fn add_sp(&mut self, peripheral: &mut Peripheral) -> u16 {
+    fn add_sp<T: IoAccess>(&mut self, peripheral: &mut T) -> u16 {
         let immediate = peripheral.read(self.pc.wrapping_add(1)) as i8 as u16;
         let result = self.sp.wrapping_add(immediate);
 
@@ -1203,19 +1203,19 @@ impl Cpu {
         self.pc.wrapping_add(2)
     }
 
-    fn reset(&mut self, addr_to_reset: u8, peripheral: &mut Peripheral) -> u16 {
+    fn reset<T: IoAccess>(&mut self, addr_to_reset: u8, peripheral: &mut T) -> u16 {
         // save PC value on the stack
         self.push(self.pc.wrapping_add(1), peripheral);
         // return next PC value
         addr_to_reset as u16
     }
 
-    fn reti(&mut self, peripheral: &mut Peripheral) -> u16 {
-        peripheral.nvic.master_enable(true);
+    fn reti<T: IoAccess + Interrupt>(&mut self, peripheral: &mut T) -> u16 {
+        peripheral.master_enable(true);
         self.pop(peripheral)
     }
 
-    fn call(&mut self, flag: bool, peripheral: &mut Peripheral) -> (u16, u8) {
+    fn call<T: IoAccess>(&mut self, flag: bool, peripheral: &mut T) -> (u16, u8) {
         // do the call following the flag value
         if flag {
             // save the return address on the stack
@@ -1469,6 +1469,7 @@ mod cpu_tests {
         IncDecTarget, JumpTarget, Load16Target, PopPushTarget, ResetTarget, SPTarget, U16Target,
     };
     use crate::cartridge::{Cartridge, CARTRIDGE_TYPE_OFFSET, CARTRIDGE_RAM_SIZE_OFFSET, CARTRIDGE_ROM_SIZE_OFFSET};
+    use crate::soc::peripheral::Peripheral;
 
     #[test]
     fn test_add_registers() {

@@ -1,4 +1,5 @@
 use crate::emulator::{Emulator, EmulatorState, ONE_FRAME_IN_NS, ONE_FRAME_IN_CYCLES};
+use crate::soc::peripheral::IoAccess;
 use std::time::Instant;
 
 use std::io::{stdin, stdout, Write};
