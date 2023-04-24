@@ -84,19 +84,19 @@ fn main() {
             emulator.set_key(soc::GameBoyKey::A, false);
         }
 
-        if window.is_key_down(Key::Z) {
+        if window.is_key_down(Key::S) {
             emulator.set_key(soc::GameBoyKey::B, true);
         } else {
             emulator.set_key(soc::GameBoyKey::B, false);
         }
 
-        if window.is_key_down(Key::Space) {
+        if window.is_key_down(Key::Enter) {
             emulator.set_key(soc::GameBoyKey::START, true);
         } else {
             emulator.set_key(soc::GameBoyKey::START, false);
         }
 
-        if window.is_key_down(Key::Enter) {
+        if window.is_key_down(Key::Space) {
             emulator.set_key(soc::GameBoyKey::SELECT, true);
         } else {
             emulator.set_key(soc::GameBoyKey::SELECT, false);

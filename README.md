@@ -25,9 +25,9 @@ The keyboard mapping is defined as follows:
 | Gameboy control | Keyboard |
 | ----------------- | ------- |
 | A | a |
-| B | z |
-| start | backspace |
-| select | enter |
+| B | s |
+| start | enter |
+| select | space |
 | left | left arrow |
 | right | right arrow |
 | up | up arrow |
